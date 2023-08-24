@@ -1,6 +1,7 @@
+import 'package:bmsc/model/fav.dart';
 import 'package:bmsc/model/search.dart';
 import 'package:bmsc/model/track.dart';
-import 'package:bmsc/util/string.dart';
+import 'package:bmsc/model/vid.dart';
 import 'package:dio/dio.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -10,22 +11,10 @@ class API {
   late Map<String, String> headers;
   Dio dio = Dio();
   final player = AudioPlayer();
-
-  playSong(Result vid) async {
-    final url = await getAudioUrl(vid.bvid);
-    final src = LockCachingAudioSource(
-      Uri.parse(url!),
-      headers: headers,
-      tag: MediaItem(
-        id: vid.id.toString(),
-        title: stripHtmlIfNeeded(vid.title),
-        artist: vid.author,
-        artUri: Uri.parse('https:${vid.pic}'),
-      ),
-    );
-    await player.setAudioSource(src);
-    await player.play();
-  }
+  final playlist = ConcatenatingAudioSource(
+    useLazyPreparation: true,
+    children: [],
+  );
 
   API(this.cookies) {
     headers = {
@@ -40,6 +29,59 @@ class API {
         return handler.next(options);
       },
     ));
+    player.setAudioSource(playlist);
+    player.setLoopMode(LoopMode.all);
+  }
+
+  appendPlaylist(String bvid) async {
+    final srcs = await getAudioSources(bvid);
+    if (srcs == null) {
+      return;
+    }
+    playlist.addAll(srcs);
+  }
+
+  playSong(String bvid) async {
+    await player.pause();
+    final srcs = await getAudioSources(bvid);
+    if (srcs == null) {
+      return;
+    }
+
+    final idx = player.currentIndex;
+    await playlist.insertAll(playlist.length == 0 ? 0 : idx! + 1, srcs);
+    if (idx != null) {
+      await player.seekToNext();
+    }
+    await player.play();
+  }
+
+  Future<int?> getUID() async {
+    final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return response.data['data']['mid'];
+  }
+
+  Future<FavResult?> getFavs(int uid) async {
+    final response = await dio.get(
+        'https://api.bilibili.com/x/v3/fav/folder/created/list-all',
+        queryParameters: {'up_mid': uid});
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return FavResult.fromJson(response.data['data']);
+  }
+
+  Future<List<String>?> getFavBvids(int mid) async {
+    final response = await dio.get(
+        'https://api.bilibili.com/x/v3/fav/resource/ids',
+        queryParameters: {'media_id': mid});
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return response.data['data'].map((x) => x['bv_id']);
   }
 
   Future<List<Result>?> search(String value) async {
@@ -47,42 +89,54 @@ class API {
       'https://api.bilibili.com/x/web-interface/search/type',
       queryParameters: {'search_type': 'video', 'keyword': value},
     );
-
-    final ret = Search.fromJson(response.data);
-    if (ret.code != 0) {
+    if (response.data['code'] != 0) {
       return null;
     }
-    return ret.data.result;
+    return SearchResult.fromJson(response.data['data']).result;
   }
 
-  Future<String?> getAudioUrl(String bvid, {int idx = 0}) async {
-    final cid = await getCid(bvid);
-    if (cid == null) {
-      return null;
-    }
+  Future<String?> getAudioUrl(String bvid, int cid) async {
     final response = await dio.get(
       'https://api.bilibili.com/x/player/playurl',
-      queryParameters: {'bvid': bvid, 'cid': cid[idx], 'fnval': 16},
+      queryParameters: {'bvid': bvid, 'cid': cid, 'fnval': 16},
     );
-    final resp = Track.fromJson(response.data);
-    if (resp.code != 0) {
+    if (response.data['code'] != 0) {
       return null;
     }
-    return resp.data.dash.audio[0].baseUrl;
+    final track = TrackResult.fromJson(response.data['data']);
+    return track.dash.audio[0].baseUrl;
   }
 
-  Future<List<int>?> getCid(String bvid) async {
+  Future<List<UriAudioSource>?> getAudioSources(String bvid) async {
+    final vid = await getVidDetail(bvid);
+    if (vid == null) {
+      return null;
+    }
+    return (await Future.wait<UriAudioSource?>(vid.pages.map((x) async {
+      final url = await getAudioUrl(bvid, x.cid);
+      if (url == null) {
+        return null;
+      }
+      return AudioSource.uri(Uri.parse(url),
+          headers: headers,
+          tag: MediaItem(
+              id: bvid + x.cid.toString(),
+              title: "${x.part} - ${vid.title}",
+              artUri: Uri.parse(vid.pic),
+              artist: vid.owner.name));
+    })))
+        .whereType<UriAudioSource>()
+        .toList();
+  }
+
+  Future<VidResult?> getVidDetail(String bvid) async {
     final response = await dio.get(
-      'https://api.bilibili.com/x/player/pagelist',
+      'https://api.bilibili.com/x/web-interface/view',
       queryParameters: {'bvid': bvid},
     );
     if (response.data['code'] != 0) {
       return null;
     }
-    List<int> ret = [];
-    for (final x in response.data['data']) {
-      ret.add(x['cid']);
-    }
-    return ret;
+    return VidResult.fromJson(response.data['data']);
   }
 }

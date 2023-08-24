@@ -103,68 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ? const Center(child: Text('点击右上角搜索！'))
               : _listView(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: !playing
-          ? null
-          : Card(
-              clipBehavior: Clip.hardEdge,
-              child: InkWell(
-                  splashColor: Colors.blue.withAlpha(30),
-                  child: FractionallySizedBox(
-                    widthFactor: 0.95,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Expanded(
-                          flex: 7,
-                          child: ListTile(
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(5.0),
-                              child: SizedBox(
-                                  width: 50,
-                                  height: 50,
-                                  child: Image.network(
-                                    fit: BoxFit.cover,
-                                    'https:${curTrack!.pic}',
-                                  )),
-                            ),
-                            title: Text(stripHtmlIfNeeded(curTrack!.title),
-                                style: const TextStyle(fontSize: 12),
-                                overflow: TextOverflow.fade,
-                                maxLines: 1),
-                            subtitle: Text(
-                              stripHtmlIfNeeded(curTrack!.author),
-                              overflow: TextOverflow.fade,
-                              maxLines: 1,
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 3,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              StreamBuilder<Duration>(
-                                stream: api.player.positionStream,
-                                builder: (_, snapshot) {
-                                  final duration = snapshot.data;
-                                  return progressIndicator(duration);
-                                },
-                              ),
-                              StreamBuilder<PlayerState>(
-                                stream: api.player.playerStateStream,
-                                builder: (_, snapshot) {
-                                  final playerState = snapshot.data;
-                                  return _playPauseButton(playerState);
-                                },
-                              ),
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  )),
-            ),
+      floatingActionButton: !playing ? null : playCard(),
     );
   }
 
@@ -190,7 +129,7 @@ class _MyHomePageState extends State<MyHomePage> {
             playing = true;
             curTrack = vid;
           });
-          api.playSong(vid);
+          api.playSong(vid.bvid);
         },
         child: Stack(alignment: Alignment.bottomRight, children: [
           Column(
@@ -303,5 +242,124 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     return CircularProgressIndicator(
         value: dur.inSeconds / api.player.duration!.inSeconds);
+  }
+
+  Widget playCard() {
+    return Card(
+      clipBehavior: Clip.none,
+      child: RotatedBox(
+        quarterTurns: 2,
+        child: ExpansionTile(
+            controlAffinity: ListTileControlAffinity.leading,
+            tilePadding: const EdgeInsets.only(left: 10),
+            shape: Border.all(width: 0.1, color: Colors.transparent),
+            title: RotatedBox(
+                quarterTurns: 2,
+                child: InkWell(
+                    splashColor: Colors.blue.withAlpha(30),
+                    child: FractionallySizedBox(
+                      widthFactor: 0.95,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Expanded(
+                            flex: 8,
+                            child: ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(5.0),
+                                child: SizedBox(
+                                    width: 50,
+                                    height: 50,
+                                    child: Image.network(
+                                      fit: BoxFit.cover,
+                                      'https:${curTrack!.pic}',
+                                    )),
+                              ),
+                              title: StreamBuilder<SequenceState?>(
+                                stream: api.player.sequenceStateStream,
+                                builder: (_, snapshot) {
+                                  final src = snapshot.data?.currentSource;
+                                  return Text(src?.tag.title,
+                                      style: const TextStyle(fontSize: 12),
+                                      softWrap: false,
+                                      maxLines: 1);
+                                },
+                              ),
+                              subtitle: StreamBuilder<SequenceState?>(
+                                stream: api.player.sequenceStateStream,
+                                builder: (_, snapshot) {
+                                  final src = snapshot.data?.currentSource;
+                                  return Text(src?.tag.artist,
+                                      style: const TextStyle(fontSize: 10),
+                                      softWrap: false,
+                                      maxLines: 1);
+                                },
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                StreamBuilder<Duration>(
+                                  stream: api.player.positionStream,
+                                  builder: (_, snapshot) {
+                                    final duration = snapshot.data;
+                                    return progressIndicator(duration);
+                                  },
+                                ),
+                                StreamBuilder<PlayerState>(
+                                  stream: api.player.playerStateStream,
+                                  builder: (_, snapshot) {
+                                    final playerState = snapshot.data;
+                                    return _playPauseButton(playerState);
+                                  },
+                                ),
+                              ],
+                            ),
+                          )
+                        ],
+                      ),
+                    ))),
+            children: [
+              StreamBuilder<List<IndexedAudioSource>?>(
+                stream: api.player.sequenceStream,
+                builder: (_, snapshot) {
+                  final playerState = snapshot.data;
+                  return playlistView(playerState);
+                },
+              ),
+            ]),
+      ),
+    );
+  }
+
+  Widget playlistView(List<IndexedAudioSource>? x) {
+    final songs = x?.map((item) => item.tag.title as String).toList();
+    if (songs == null || songs.isEmpty) {
+      return const Text('暂无歌曲');
+    }
+    return ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxHeight: 300.0,
+        ),
+        child: RotatedBox(
+            quarterTurns: 2,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: songs.length,
+              itemBuilder: (BuildContext context, int index) {
+                return Card(
+                  child: InkWell(
+                    splashColor: Colors.blue.withAlpha(30),
+                    onTap: () {
+                      api.player.seek(Duration.zero, index: index);
+                    },
+                    child: Text(songs[index]),
+                  ),
+                );
+              },
+            )));
   }
 }

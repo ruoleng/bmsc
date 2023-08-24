@@ -1,25 +1,5 @@
-class Track {
-  Track({
-    required this.code,
-    required this.message,
-    required this.ttl,
-    required this.data,
-  });
-  late final int code;
-  late final String message;
-  late final int ttl;
-  late final Data data;
-
-  Track.fromJson(Map<String, dynamic> json) {
-    code = json['code'];
-    message = json['message'];
-    ttl = json['ttl'];
-    data = Data.fromJson(json['data']);
-  }
-}
-
-class Data {
-  Data({
+class TrackResult {
+  TrackResult({
     required this.from,
     required this.result,
     required this.message,
@@ -52,7 +32,7 @@ class Data {
   late final int lastPlayTime;
   late final int lastPlayCid;
 
-  Data.fromJson(Map<String, dynamic> json) {
+  TrackResult.fromJson(Map<String, dynamic> json) {
     from = json['from'];
     result = json['result'];
     message = json['message'];

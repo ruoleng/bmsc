@@ -1,25 +1,5 @@
-class Search {
-  Search({
-    required this.code,
-    required this.message,
-    required this.ttl,
-    required this.data,
-  });
-  late final int code;
-  late final String message;
-  late final int ttl;
-  late final Data data;
-
-  Search.fromJson(Map<String, dynamic> json) {
-    code = json['code'];
-    message = json['message'];
-    ttl = json['ttl'];
-    data = Data.fromJson(json['data']);
-  }
-}
-
-class Data {
-  Data({
+class SearchResult {
+  SearchResult({
     required this.seid,
     required this.page,
     required this.pagesize,
@@ -42,7 +22,7 @@ class Data {
   late final List<Result> result;
   late final int showColumn;
 
-  Data.fromJson(Map<String, dynamic> json) {
+  SearchResult.fromJson(Map<String, dynamic> json) {
     seid = json['seid'];
     page = json['page'];
     pagesize = json['pagesize'];
