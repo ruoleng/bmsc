@@ -1,5 +1,7 @@
+import 'package:audio_session/audio_session.dart';
 import 'package:bmsc/model/fav.dart';
 import 'package:bmsc/model/fav_detail.dart';
+import 'package:bmsc/model/history.dart';
 import 'package:bmsc/model/search.dart';
 import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/vid.dart';
@@ -12,6 +14,7 @@ class API {
   late String cookies;
   late Map<String, String> headers;
   Dio dio = Dio();
+  late AudioSession session;
   final player = AudioPlayer();
   final playlist = ConcatenatingAudioSource(
     useLazyPreparation: true,
@@ -22,6 +25,19 @@ class API {
     setCookies(cookie);
     player.setAudioSource(playlist);
     player.setLoopMode(LoopMode.all);
+  }
+
+  initAudioSession() async {
+    session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration.music());
+    session.interruptionEventStream.listen((event) {
+      if (event.begin) {
+        player.pause();
+      }
+    });
+    session.becomingNoisyEventStream.listen((_) {
+      player.pause();
+    });
   }
 
   setCookies(String cookie) {
@@ -114,15 +130,26 @@ class API {
     return ret;
   }
 
-  Future<List<Result>?> search(String value) async {
+  Future<SearchResult?> search(String value, int pn) async {
     final response = await dio.get(
       'https://api.bilibili.com/x/web-interface/search/type',
-      queryParameters: {'search_type': 'video', 'keyword': value},
+      queryParameters: {'search_type': 'video', 'keyword': value, 'page': pn},
     );
     if (response.data['code'] != 0) {
       return null;
     }
-    return SearchResult.fromJson(response.data['data']).result;
+    return SearchResult.fromJson(response.data['data']);
+  }
+
+  Future<HistoryResult?> getHistory(int? timestamp) async {
+    final response = await dio.get(
+      'https://api.bilibili.com/x/web-interface/history/cursor',
+      queryParameters: {'type': 'archive', 'view_at': timestamp},
+    );
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return HistoryResult.fromJson(response.data['data']);
   }
 
   Future<String?> getAudioUrl(String bvid, int cid) async {

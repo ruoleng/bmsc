@@ -1,6 +1,8 @@
 import 'package:bmsc/model/fav.dart';
 import 'package:bmsc/model/fav_detail.dart';
+import 'package:bmsc/util/string.dart';
 import 'package:flutter/material.dart';
+import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 
 class FavScreen extends StatefulWidget {
@@ -122,33 +124,16 @@ class _FavScreenState extends State<FavScreen> {
   }
 
   Widget favDetailListTileView(int favIndex, int trackIndex) {
-    return Column(children: [
-      ListTile(
-          onTap: () {
-            globals.api.playSong(favInfo[favIndex][trackIndex].bvid);
-          },
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(5.0),
-            child: SizedBox(
-                width: 50,
-                height: 50,
-                child: Image.network(
-                  fit: BoxFit.cover,
-                  favInfo[favIndex][trackIndex].cover,
-                )),
-          ),
-          title: Text(
-            favInfo[favIndex][trackIndex].title,
-            softWrap: false,
-          ),
-          subtitle: Row(
-            children: [
-              const Icon(Icons.person_outline, size: 12),
-              Text(favInfo[favIndex][trackIndex].upper.name,
-                  style: const TextStyle(fontSize: 10), softWrap: false),
-            ],
-          )),
-      const Divider(height: 0),
-    ]);
+    int min = favInfo[favIndex][trackIndex].duration ~/ 60;
+    int sec = favInfo[favIndex][trackIndex].duration % 60;
+    final duration = "$min:${sec.toString().padLeft(2, '0')}";
+    return trackTile(
+      pic: favInfo[favIndex][trackIndex].cover,
+      title: favInfo[favIndex][trackIndex].title,
+      author: favInfo[favIndex][trackIndex].upper.name,
+      len: duration,
+      view: unit(favInfo[favIndex][trackIndex].cntInfo.play),
+      onTap: () => globals.api.playSong(favInfo[favIndex][trackIndex].bvid),
+    );
   }
 }
