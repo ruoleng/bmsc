@@ -1,4 +1,5 @@
 import 'package:bmsc/model/fav.dart';
+import 'package:bmsc/model/fav_detail.dart';
 import 'package:bmsc/model/search.dart';
 import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/vid.dart';
@@ -7,7 +8,8 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
 class API {
-  String cookies;
+  int? uid;
+  late String cookies;
   late Map<String, String> headers;
   Dio dio = Dio();
   final player = AudioPlayer();
@@ -16,21 +18,27 @@ class API {
     children: [],
   );
 
-  API(this.cookies) {
+  API(String cookie) {
+    setCookies(cookie);
+    player.setAudioSource(playlist);
+    player.setLoopMode(LoopMode.all);
+  }
+
+  setCookies(String cookie) {
+    cookies = cookie;
     headers = {
-      'cookie': cookies,
+      'cookie': cookie,
       'User-Agent':
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/113.0",
       'referer': "https://www.bilibili.com",
     };
+    dio.interceptors.clear();
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         options.headers = headers;
         return handler.next(options);
       },
     ));
-    player.setAudioSource(playlist);
-    player.setLoopMode(LoopMode.all);
   }
 
   appendPlaylist(String bvid) async {
@@ -56,6 +64,14 @@ class API {
     await player.play();
   }
 
+  Future<int?> getStoredUID() async {
+    if (uid != null) {
+      return uid;
+    }
+    uid = await getUID();
+    return uid;
+  }
+
   Future<int?> getUID() async {
     final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
     if (response.data['code'] != 0) {
@@ -74,6 +90,16 @@ class API {
     return FavResult.fromJson(response.data['data']);
   }
 
+  Future<FavDetail?> getFavDetail(int mid, int pn) async {
+    final response = await dio.get(
+        'https://api.bilibili.com/x/v3/fav/resource/list',
+        queryParameters: {'media_id': mid, 'ps': 10, 'pn': pn});
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return FavDetail.fromJson(response.data['data']);
+  }
+
   Future<List<String>?> getFavBvids(int mid) async {
     final response = await dio.get(
         'https://api.bilibili.com/x/v3/fav/resource/ids',
@@ -81,7 +107,11 @@ class API {
     if (response.data['code'] != 0) {
       return null;
     }
-    return response.data['data'].map((x) => x['bv_id']);
+    List<String> ret = [];
+    for (final x in response.data['data']) {
+      ret.add(x['bv_id']);
+    }
+    return ret;
   }
 
   Future<List<Result>?> search(String value) async {
@@ -121,7 +151,8 @@ class API {
           headers: headers,
           tag: MediaItem(
               id: bvid + x.cid.toString(),
-              title: "${x.part} - ${vid.title}",
+              title:
+                  vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
               artUri: Uri.parse(vid.pic),
               artist: vid.owner.name));
     })))
