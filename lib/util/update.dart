@@ -1,7 +1,6 @@
 import 'package:bmsc/model/release.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 Future<ReleaseResult?> checkNewVersion() async {
@@ -12,10 +11,11 @@ Future<ReleaseResult?> checkNewVersion() async {
 
 showUpdateDialog(
     BuildContext context, ReleaseResult newVersion, String curVersion) {
-  // set up the buttons
   Widget cancelButton = TextButton(
     child: const Text("取消"),
-    onPressed: () {},
+    onPressed: () {
+      Navigator.pop(context);
+    },
   );
   Widget continueButton = TextButton(
     child: const Text("查看"),
@@ -25,18 +25,16 @@ showUpdateDialog(
     },
   );
 
-  // set up the AlertDialog
   AlertDialog alert = AlertDialog(
     title: const Text("有新版本可用"),
     content: Text(
         "检测到版本更新 ($curVersion -> ${newVersion.tagName})。\n\n更新日志: \n${newVersion.body}"),
     actions: [
-      cancelButton,
       continueButton,
+      cancelButton,
     ],
   );
 
-  // show the dialog
   showDialog(
     context: context,
     builder: (BuildContext context) {
