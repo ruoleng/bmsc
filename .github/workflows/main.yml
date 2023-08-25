@@ -1,0 +1,53 @@
+name: build release apks
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    name: Build Artifacts and Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: "17"
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.10.5"
+          channel: 'stable'
+      - run: flutter --version
+
+
+      - uses: olegtarasov/get-tag@v2.1.2
+        id: tagName
+        with:
+          tagRegex: 'v([0-9]+.[0-9]+.[0-9]+)' # Optional. Returns specified group text as tag name. Full tag string is returned if regex is not defined.
+          tagRegexGroup: 1 # Optional. Default is 1.
+
+      - name: Replace YAML version with tag version
+        run: |
+          sed -i 's/99.99.99/'$GIT_TAG_NAME'/g' pubspec.yaml|
+          echo "Tag used version:"$GIT_TAG_NAME
+      - name: Pub Get Packages
+        run: flutter pub get
+
+      - name: Build apks
+        run: flutter build apk --release --split-per-abi
+
+      - name: Create Github Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "build/app/outputs/flutter-apk/*.apk"
+          token: ${{ secrets.PERSONAL_RELEASE_TOKEN }}
+
+      - name: Save apks to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: APKS
+          path: build/app/outputs/flutter-apk/*.apk
