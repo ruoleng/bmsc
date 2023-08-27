@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../model/history.dart';
+import '../util/string.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -13,10 +14,12 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   bool login = true;
   List<HistoryData> hisList = [];
+  late int timestamp;
   @override
   void initState() {
     super.initState();
     loadMore();
+    timestamp = DateTime.now().microsecondsSinceEpoch;
   }
 
   @override
@@ -68,6 +71,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       author: hisList[index].authorName,
       len: progress,
       view: duration,
+      time: time(hisList[index].viewAt * 1000000, timestamp),
       onTap: () => globals.api.playSong(hisList[index].history.bvid),
     );
   }

@@ -4,19 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 Future<ReleaseResult?> checkNewVersion() async {
-  final resp =
-      await Dio().get('https://api.github.com/repos/u2x1/bmsc/releases/latest');
-  return ReleaseResult.fromJson(resp.data);
+  ReleaseResult? ret;
+  try {
+    final resp = await Dio()
+        .get('https://api.github.com/repos/u2x1/bmsc/releases/latest');
+    ret = ReleaseResult.fromJson(resp.data);
+  } catch (e) {
+    return null;
+  }
+  return ret;
 }
 
 showUpdateDialog(
     BuildContext context, ReleaseResult newVersion, String curVersion) {
-  Widget cancelButton = TextButton(
-    child: const Text("取消"),
-    onPressed: () {
-      Navigator.pop(context);
-    },
-  );
   Widget continueButton = TextButton(
     child: const Text("查看"),
     onPressed: () async {
@@ -31,7 +31,6 @@ showUpdateDialog(
         "检测到版本更新 ($curVersion -> ${newVersion.tagName})。\n\n更新日志: \n${newVersion.body}"),
     actions: [
       continueButton,
-      cancelButton,
     ],
   );
 

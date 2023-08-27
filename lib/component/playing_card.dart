@@ -1,3 +1,4 @@
+import 'package:bmsc/screen/detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../globals.dart' as globals;
@@ -110,12 +111,28 @@ Widget playlistView(List<IndexedAudioSource>? x) {
                 ),
                 subtitle: Row(
                   children: [
+                    DecoratedBox(
+                        decoration: const BoxDecoration(
+                            color: Colors.black38,
+                            borderRadius: BorderRadius.all(Radius.circular(2))),
+                        child: Padding(
+                          padding: const EdgeInsets.all(1.0),
+                          child: Text(
+                            songs[index].extras['quality'],
+                            style: const TextStyle(
+                                fontSize: 7, color: Colors.white),
+                          ),
+                        )),
+                    const SizedBox(
+                      width: 5,
+                    ),
                     const Icon(Icons.person_outline, size: 12),
                     Text(
                       songs[index].artist,
                       style: const TextStyle(fontSize: 10),
                       maxLines: 1,
-                    )
+                    ),
+                    const Spacer(),
                   ],
                 ),
                 trailing: IconButton(
@@ -135,14 +152,20 @@ Widget playlistView(List<IndexedAudioSource>? x) {
       )));
 }
 
-Widget playCard() {
+Widget playCard(BuildContext context) {
   return udn(
     ExpansionTile(
         controlAffinity: ListTileControlAffinity.leading,
         tilePadding: const EdgeInsets.only(left: 10),
         shape: const Border(bottom: BorderSide(width: 2, color: Colors.black)),
+        leading: const Icon(Icons.expand_more),
         title: udn(InkWell(
-            splashColor: Colors.blue.withAlpha(30),
+            onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<Widget>(builder: (BuildContext context) {
+                    return const DetailScreen();
+                  }),
+                ),
             child: FractionallySizedBox(
               widthFactor: 0.95,
               child: Row(

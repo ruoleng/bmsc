@@ -1,5 +1,6 @@
 import 'package:bmsc/model/release.dart';
 import 'package:bmsc/model/search.dart';
+import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
 import 'package:bmsc/util/update.dart';
@@ -32,32 +33,36 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BiliMusic',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'BiliMusic'),
-      builder: (context, child) {
-        return Overlay(
-          initialEntries: [
-            OverlayEntry(builder: (context) {
-              return Scaffold(
-                  body: child,
-                  bottomNavigationBar: StreamBuilder<SequenceState?>(
-                    stream: globals.api.player.sequenceStateStream,
-                    builder: (_, snapshot) {
-                      final src = snapshot.data?.sequence;
-                      return (src == null || src.isEmpty)
-                          ? const SizedBox()
-                          : playCard();
-                    },
-                  ));
-            })
-          ],
-        );
-      },
-    );
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        home: MaterialApp(
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+            useMaterial3: true,
+          ),
+          home: const MyHomePage(title: 'BiliMusic'),
+          builder: (context2, child) {
+            return Overlay(
+              initialEntries: [
+                OverlayEntry(builder: (context3) {
+                  return Scaffold(
+                      body: child,
+                      bottomNavigationBar: StreamBuilder<SequenceState?>(
+                        stream: globals.api.player.sequenceStateStream,
+                        builder: (_, snapshot) {
+                          final src = snapshot.data?.sequence;
+                          return (src == null || src.isEmpty)
+                              ? const SizedBox()
+                              : playCard(context3);
+                        },
+                      ));
+                })
+              ],
+            );
+          },
+        ));
   }
 }
 
@@ -152,6 +157,14 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute<Widget>(builder: (BuildContext context) {
+                    return const DynamicScreen();
+                  }),
+                ),
+            icon: const Icon(Icons.wind_power_outlined)),
+        IconButton(
+            onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<Widget>(builder: (BuildContext context) {
                     return const HistoryScreen();
                   }),
                 ),
@@ -208,7 +221,6 @@ class _MyHomePageState extends State<MyHomePage> {
     return Card(
       clipBehavior: Clip.hardEdge,
       child: InkWell(
-        splashColor: Colors.blue.withAlpha(30),
         child: trackTile(
           pic: 'https:${vid.pic}',
           title: stripHtmlIfNeeded(vid.title),
@@ -227,11 +239,6 @@ class _MyHomePageState extends State<MyHomePage> {
       if (customIcon.icon == Icons.search) {
         customIcon = const Icon(Icons.cancel);
         customSearchBar = ListTile(
-          leading: const Icon(
-            Icons.search,
-            color: Colors.white,
-            size: 28,
-          ),
           title: TextField(
             controller: fieldTextController,
             autofocus: true,

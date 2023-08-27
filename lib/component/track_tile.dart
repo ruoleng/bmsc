@@ -6,6 +6,7 @@ Widget trackTile(
     required String author,
     required String len,
     required String view,
+    String? time,
     required void Function()? onTap}) {
   return Stack(alignment: FractionalOffset.bottomRight, children: [
     Column(
@@ -42,7 +43,7 @@ Widget trackTile(
     Container(
         margin: const EdgeInsets.all(10),
         child: Text(
-          "$len / $view",
+          "$len / $view ${time == null ? "" : " / $time"}",
           textAlign: TextAlign.left,
           style: const TextStyle(fontSize: 8),
         )),
