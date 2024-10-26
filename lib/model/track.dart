@@ -65,10 +65,19 @@ class Dash {
   late final List<Audio> audio;
 
   Dash.fromJson(Map<String, dynamic> json) {
-    duration = json['duration'];
-    minBufferTime = json['min_buffer_time'];
-    video = List.from(json['video']).map((e) => Video.fromJson(e)).toList();
-    audio = List.from(json['audio']).map((e) => Audio.fromJson(e)).toList();
+    try {
+      duration = json['duration'];
+      minBufferTime = json['min_buffer_time'];
+      video = (json['video'] as List<dynamic>?)
+          ?.map((e) => Video.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+        [];
+      audio = (json['audio'] as List<dynamic>?)
+          ?.map((e) => Audio.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+        [];
+    } catch (e) {
+    }
   }
 }
 
@@ -124,8 +133,6 @@ class Audio {
     required this.bandwidth,
     required this.mimeType,
     required this.codecs,
-    required this.width,
-    required this.height,
     required this.frameRate,
     required this.sar,
     required this.startWithSap,
@@ -137,8 +144,6 @@ class Audio {
   late final int bandwidth;
   late final String mimeType;
   late final String codecs;
-  late final int width;
-  late final int height;
   late final String frameRate;
   late final String sar;
   late final int startWithSap;
@@ -151,8 +156,6 @@ class Audio {
     bandwidth = json['bandwidth'];
     mimeType = json['mime_type'];
     codecs = json['codecs'];
-    width = json['width'];
-    height = json['height'];
     frameRate = json['frame_rate'];
     sar = json['sar'];
     startWithSap = json['start_with_sap'];

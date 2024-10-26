@@ -133,7 +133,7 @@ class _FavScreenState extends State<FavScreen> {
       author: favInfo[favIndex][trackIndex].upper.name,
       len: duration,
       view: unit(favInfo[favIndex][trackIndex].cntInfo.play),
-      onTap: () => globals.api.playSong(favInfo[favIndex][trackIndex].bvid),
+      onTap: () => globals.api.playByBvid(favInfo[favIndex][trackIndex].bvid),
     );
   }
 }

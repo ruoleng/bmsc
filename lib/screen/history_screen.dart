@@ -14,12 +14,10 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   bool login = true;
   List<HistoryData> hisList = [];
-  late int timestamp;
   @override
   void initState() {
     super.initState();
     loadMore();
-    timestamp = DateTime.now().microsecondsSinceEpoch;
   }
 
   @override
@@ -71,8 +69,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       author: hisList[index].authorName,
       len: progress,
       view: duration,
-      time: time(hisList[index].viewAt * 1000000, timestamp),
-      onTap: () => globals.api.playSong(hisList[index].history.bvid),
+      time: time(hisList[index].viewAt * 1000000),
+      onTap: () => globals.api.playByBvid(hisList[index].history.bvid),
     );
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../model/dynamic.dart';
-import '../util/string.dart';
 
 class DynamicScreen extends StatefulWidget {
   const DynamicScreen({super.key});
@@ -65,7 +64,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
       view: dynList[index].moduleDynamic.major.archive.stat.play,
       time: dynList[index].moduleAuthor.pubTime,
       onTap: () =>
-          globals.api.playSong(dynList[index].moduleDynamic.major.archive.bvid),
+          globals.api.playByBvid(dynList[index].moduleDynamic.major.archive.bvid),
     );
   }
 }
