@@ -2,6 +2,8 @@ import 'package:bmsc/screen/detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../globals.dart' as globals;
+import '../util/audio.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 Widget udn(Widget child) {
   return RotatedBox(quarterTurns: 2, child: child);
@@ -112,13 +114,28 @@ Widget playlistView(List<IndexedAudioSource>? x) {
                 subtitle: Row(
                   children: [
                     DecoratedBox(
+                        decoration: BoxDecoration(
+                            color: songs[index].extras['cached'] ? Colors.green : Colors.red,
+                            borderRadius: const BorderRadius.all(Radius.circular(2))),
+                        child: Padding(
+                          padding: const EdgeInsets.all(1.0),
+                          child: Text(
+                            songs[index].extras['cached'] ? '已缓存' : '未缓存',
+                            style: const TextStyle(
+                                fontSize: 7, color: Colors.white),
+                          ),
+                        )),
+                    const SizedBox(
+                      width: 5,
+                    ),
+                    DecoratedBox(
                         decoration: const BoxDecoration(
                             color: Colors.black38,
                             borderRadius: BorderRadius.all(Radius.circular(2))),
                         child: Padding(
                           padding: const EdgeInsets.all(1.0),
                           child: Text(
-                            songs[index].extras['quality'],
+                            audioQuality(songs[index].extras['quality']),
                             style: const TextStyle(
                                 fontSize: 7, color: Colors.white),
                           ),
@@ -183,12 +200,12 @@ Widget playCard(BuildContext context) {
                               stream: globals.api.player.sequenceStateStream,
                               builder: (_, snapshot) {
                                 final src = snapshot.data?.currentSource;
-                                return src == null
-                                    ? const Icon(Icons.question_mark)
-                                    : Image.network(
-                                        src.tag.artUri.toString(),
-                                        fit: BoxFit.cover,
-                                      );
+                                return CachedNetworkImage(
+                                  imageUrl: src?.tag.artUri.toString() ?? "",
+                                  placeholder: (context, url) => const Icon(Icons.music_note),
+                                  errorWidget: (context, url, error) => const Icon(Icons.music_note),
+                                  fit: BoxFit.cover,
+                                );
                               },
                             )),
                       ),

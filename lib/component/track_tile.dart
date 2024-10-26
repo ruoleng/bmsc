@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 Widget trackTile(
-    {required String pic,
+    {String? pic,
     required String title,
     required String author,
     required String len,
@@ -19,10 +20,14 @@ Widget trackTile(
               child: SizedBox(
                   width: 50,
                   height: 50,
-                  child: Image.network(
-                    fit: BoxFit.cover,
-                    pic,
-                  )),
+                  child: pic == null
+                      ? const Icon(Icons.music_note)
+                      : CachedNetworkImage(
+                          imageUrl: pic,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => const Icon(Icons.music_note),
+                          errorWidget: (context, url, error) => const Icon(Icons.music_note),
+                        )),
             ),
             title: Text(
               title,
@@ -43,7 +48,7 @@ Widget trackTile(
     Container(
         margin: const EdgeInsets.all(10),
         child: Text(
-          "$len / $view ${time == null ? "" : " / $time"}",
+          "$len / $view ${time == null ? "" : " | $time"}",
           textAlign: TextAlign.left,
           style: const TextStyle(fontSize: 8),
         )),

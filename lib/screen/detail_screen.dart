@@ -6,6 +6,8 @@ import 'package:just_audio/just_audio.dart';
 import '../component/playing_card.dart';
 import '../globals.dart' as globals;
 import '../util/widget.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class DetailScreen extends StatefulWidget {
   const DetailScreen({super.key});
@@ -101,9 +103,11 @@ class _DetailScreenState extends State<DetailScreen> {
                           borderRadius: BorderRadius.circular(5.0),
                           child: SizedBox(
                               height: 200,
-                              child: Image.network(
-                                src.tag.artUri.toString(),
+                              child: CachedNetworkImage(
+                                imageUrl: src.tag.artUri.toString(),
                                 fit: BoxFit.cover,
+                                placeholder: (context, url) => const Icon(Icons.music_note),
+                                errorWidget: (context, url, error) => const Icon(Icons.music_note),
                               )),
                         ));
                 },

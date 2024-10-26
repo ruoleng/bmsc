@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:bmsc/globals.dart' as globals;
 
 import '../component/track_tile.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 class UserDetailScreen extends StatefulWidget {
   const UserDetailScreen({super.key, required this.mid});
@@ -80,9 +82,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                           borderRadius: BorderRadius.circular(5.0),
                           child: info == null
                               ? const Icon(Icons.question_mark)
-                              : Image.network(
-                                  info!.card.face,
+                              : CachedNetworkImage(
+                                  imageUrl: info!.card.face,
                                   fit: BoxFit.cover,
+                                  placeholder: (context, url) => const Icon(Icons.question_mark),
+                                  errorWidget: (context, url, error) => const Icon(Icons.question_mark),
                                 )),
                     ),
                   ],
@@ -161,7 +165,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       author: vidList[index].author,
       len: vidList[index].length,
       view: unit(vidList[index].play),
-      onTap: () => globals.api.playSong(vidList[index].bvid),
+      onTap: () => globals.api.playByBvid(vidList[index].bvid),
     );
   }
 }
