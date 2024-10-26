@@ -3,6 +3,7 @@ description: A new Flutter project.
 
 publish_to: 'none'
 
+# this is a placeholder version, it will be replaced by the tag version in the github action
 version: 99.99.99
 compileSdkVersion: 34
 
@@ -12,7 +13,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  webview_cookie_manager: ^2.0.6
+  webview_cookie_manager:
+    git:
+       url: https://github.com/fryette/webview_cookie_manager
+       ref: 923e514752ad7bb7e83849f11de767a301ac57b5
   webview_flutter: ^4.2.3
   dio: ^5.3.2
   just_audio: ^0.9.34
