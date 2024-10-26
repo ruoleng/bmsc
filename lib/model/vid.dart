@@ -193,8 +193,6 @@ class Stat {
     required this.hisRank,
     required this.like,
     required this.dislike,
-    required this.evaluation,
-    required this.argueMsg,
   });
   late final int aid;
   late final int view;
@@ -207,9 +205,6 @@ class Stat {
   late final int hisRank;
   late final int like;
   late final int dislike;
-  late final String evaluation;
-  late final String argueMsg;
-
   Stat.fromJson(Map<String, dynamic> json) {
     aid = json['aid'];
     view = json['view'];
@@ -222,8 +217,6 @@ class Stat {
     hisRank = json['his_rank'];
     like = json['like'];
     dislike = json['dislike'];
-    evaluation = json['evaluation'];
-    argueMsg = json['argue_msg'];
   }
 }
 
