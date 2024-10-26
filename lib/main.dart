@@ -3,6 +3,7 @@ import 'package:bmsc/model/search.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
+import 'package:bmsc/screen/cache_screen.dart';
 import 'package:bmsc/util/update.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -34,12 +35,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
           useMaterial3: true,
         ),
         home: MaterialApp(
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
             useMaterial3: true,
           ),
           home: const MyHomePage(title: 'BiliMusic'),
@@ -75,7 +76,7 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   var signedin = true;
   List<Result> vidList = [];
   ReleaseResult? officialVersion;
@@ -97,6 +98,8 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    globals.api.restorePlaylist();
     checkNewVersion().then((x) async {
       if (x == null) {
         return;
@@ -135,6 +138,19 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      globals.api.savePlaylist();
+    }
+  }
+
   Widget customSearchBar = const Text("BiliMusic");
   Icon customIcon = const Icon(Icons.search);
 
@@ -153,6 +169,15 @@ class _MyHomePageState extends State<MyHomePage> {
                   color: Colors.red,
                 ))
             : const SizedBox(),
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<Widget>(builder: (BuildContext context) {
+                  return const CacheScreen();
+                    }),
+                  ),
+            icon: const Icon(Icons.storage_outlined),
+          ),
         IconButton(
             onPressed: () => Navigator.push(
                   context,
@@ -227,7 +252,7 @@ class _MyHomePageState extends State<MyHomePage> {
           author: vid.author,
           len: duration,
           view: unit(vid.play),
-          onTap: () => globals.api.playSong(vid.bvid),
+          onTap: () => globals.api.playByBvid(vid.bvid),
         ),
       ),
     );
