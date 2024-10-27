@@ -129,27 +129,16 @@ class _CacheScreenState extends State<CacheScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              if (isSearching) {
-                _toggleSearch();
-              } else {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
           title: isSearching
-              ? TextField(
-                  controller: _searchController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: '搜索标题或作者...',
-                    hintStyle: const TextStyle(color: Colors.black54),
-                    border: InputBorder.none,
-                  )
-                )
-              : const Text('缓存管理'),
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '搜索标题或作者...',
+                  border: InputBorder.none,
+                ),
+              )
+            : const Text('缓存管理'),
           actions: [
             IconButton(
               icon: Icon(isSearching ? Icons.close : Icons.search),

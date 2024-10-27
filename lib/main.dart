@@ -11,6 +11,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:webview_cookie_manager/webview_cookie_manager.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:bmsc/screen/search_screen.dart';
 
 import 'component/playing_card.dart';
 import 'component/track_tile.dart';
@@ -33,37 +34,38 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+      useMaterial3: true,
+    );
+
     return MaterialApp(
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
-          useMaterial3: true,
-        ),
-        home: MaterialApp(
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
-            useMaterial3: true,
-          ),
-          home: const MyHomePage(title: 'BiliMusic'),
-          builder: (context2, child) {
-            return Overlay(
-              initialEntries: [
-                OverlayEntry(builder: (context3) {
-                  return Scaffold(
-                      body: child,
-                      bottomNavigationBar: StreamBuilder<SequenceState?>(
-                        stream: globals.api.player.sequenceStateStream,
-                        builder: (_, snapshot) {
-                          final src = snapshot.data?.sequence;
-                          return (src == null || src.isEmpty)
-                              ? const SizedBox()
-                              : playCard(context3);
-                        },
-                      ));
-                })
-              ],
-            );
-          },
-        ));
+      theme: theme,
+      home: MaterialApp(
+        theme: theme,
+        home: const MyHomePage(title: 'BiliMusic'),
+        builder: (context2, child) {
+          return Overlay(
+            initialEntries: [
+              OverlayEntry(builder: (context3) {
+                return Scaffold(
+                  body: child,
+                  bottomNavigationBar: StreamBuilder<SequenceState?>(
+                    stream: globals.api.player.sequenceStateStream,
+                    builder: (_, snapshot) {
+                      final src = snapshot.data?.sequence;
+                      return (src == null || src.isEmpty)
+                          ? const SizedBox()
+                          : playCard(context3);
+                    },
+                  ),
+                );
+              })
+            ],
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -78,7 +80,6 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   var signedin = true;
-  List<Result> vidList = [];
   ReleaseResult? officialVersion;
   String? curVersion;
   bool hasNewVersion = false;
@@ -151,169 +152,56 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     }
   }
 
-  Widget customSearchBar = const Text("BiliMusic");
-  Icon customIcon = const Icon(Icons.search);
-
-  PreferredSizeWidget rawAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      title: customSearchBar,
-      actions: [
-        (hasNewVersion && officialVersion != null && curVersion != null)
-            ? IconButton(
-                onPressed: () {
-                  showUpdateDialog(context, officialVersion!, curVersion!);
-                },
-                icon: const Icon(
-                  Icons.arrow_circle_up_outlined,
-                  color: Colors.red,
-                ))
-            : const SizedBox(),
-            IconButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute<Widget>(builder: (BuildContext context) {
-                  return const CacheScreen();
-                    }),
-                  ),
-            icon: const Icon(Icons.storage_outlined),
-          ),
-        IconButton(
-            onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<Widget>(builder: (BuildContext context) {
-                    return const DynamicScreen();
-                  }),
-                ),
-            icon: const Icon(Icons.wind_power_outlined)),
-        IconButton(
-            onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<Widget>(builder: (BuildContext context) {
-                    return const HistoryScreen();
-                  }),
-                ),
-            icon: const Icon(Icons.history_outlined)),
-        IconButton(
-            onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<Widget>(builder: (BuildContext context) {
-                    return const FavScreen();
-                  }),
-                ),
-            icon: const Icon(Icons.star_outline)),
-        IconButton(onPressed: onSearchButtonPressed, icon: customIcon)
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: rawAppBar(context),
-      body: !signedin
-          ? WebViewWidget(controller: controller)
-          : vidList.isEmpty
-              ? const Center(child: Text('点击右上角搜索！'))
-              : _listView(),
-    );
-  }
-
-  Widget _listView() {
-    return NotificationListener<ScrollEndNotification>(
-        onNotification: (scrollEnd) {
-          final metrics = scrollEnd.metrics;
-          if (metrics.atEdge) {
-            bool isTop = metrics.pixels == 0;
-            if (!isTop) {
-              loadMore();
-            }
-          }
-          return true;
-        },
-        child: ListView.builder(
-          physics: const ClampingScrollPhysics(),
-          itemCount: vidList.length,
-          itemBuilder: (BuildContext context, int index) {
-            return _listItemView(vidList[index]);
-          },
-        ));
-  }
-
-  Widget _listItemView(Result vid) {
-    final duration =
-        vid.duration.split(':').map((x) => x.padLeft(2, '0')).join(':');
-    return Card(
-      clipBehavior: Clip.hardEdge,
-      child: InkWell(
-        child: TrackTile(
-          key: Key(vid.bvid),
-          pic: 'https:${vid.pic}',
-          title: stripHtmlIfNeeded(vid.title),
-          author: vid.author,
-          len: duration,
-          view: unit(vid.play),
-          onTap: () => globals.api.playByBvid(vid.bvid),
-        ),
-      ),
-    );
-  }
-
-  final fieldTextController = TextEditingController();
-  void onSearchButtonPressed() {
-    setState(() {
-      if (customIcon.icon == Icons.search) {
-        customIcon = const Icon(Icons.cancel);
-        customSearchBar = ListTile(
-          title: TextField(
-            controller: fieldTextController,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: '歌曲名称',
-              hintStyle: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontStyle: FontStyle.italic,
-              ),
-              border: InputBorder.none,
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text("BiliMusic"),
+        actions: [
+          if (hasNewVersion && officialVersion != null && curVersion != null)
+            IconButton(
+              onPressed: () {
+                showUpdateDialog(context, officialVersion!, curVersion!);
+              },
+              icon: const Icon(
+                Icons.arrow_circle_up_outlined,
+                color: Colors.red,
+              )
             ),
-            style: const TextStyle(
-              color: Colors.white,
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<Widget>(builder: (_) => const SearchScreen()),
             ),
-            onSubmitted: onSearching,
+            icon: const Icon(Icons.search),
           ),
-        );
-      } else if (fieldTextController.text.isNotEmpty) {
-        fieldTextController.clear();
-      } else {
-        customIcon = const Icon(Icons.search);
-        customSearchBar = Text(widget.title);
-      }
-    });
-  }
-
-  bool _hasMore = false;
-  int _curPage = 1;
-  String _curSearch = "";
-  void onSearching(String value) async {
-    _curSearch = value;
-    _hasMore = true;
-    _curPage = 1;
-    vidList.clear();
-    loadMore();
-  }
-
-  void loadMore() async {
-    if (!_hasMore) {
-      return;
-    }
-    final ret = await globals.api.search(_curSearch, _curPage);
-    if (ret != null) {
-      setState(() {
-        _hasMore = ret.page < ret.numPages;
-        _curPage++;
-        vidList.addAll(ret.result);
-      });
-    }
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<Widget>(builder: (_) => const DynamicScreen()),
+            ),
+            icon: const Icon(Icons.wind_power_outlined),
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<Widget>(builder: (_) => const HistoryScreen()),
+            ),
+            icon: const Icon(Icons.history_outlined),
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<Widget>(builder: (_) => const FavScreen()),
+            ),
+            icon: const Icon(Icons.star_outline),
+          ),
+        ],
+      ),
+      body: !signedin
+        ? WebViewWidget(controller: controller)
+        : const CacheScreen(),
+    );
   }
 }
