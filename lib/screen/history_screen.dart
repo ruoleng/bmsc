@@ -63,13 +63,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     int sec = hisList[index].duration % 60;
     final duration = "$min:${sec.toString().padLeft(2, '0')}";
     final progress = "$pmin:${psec.toString().padLeft(2, '0')}";
-    return trackTile(
+    return TrackTile(
+      key: Key(hisList[index].history.bvid),
       pic: hisList[index].cover,
       title: hisList[index].title,
       author: hisList[index].authorName,
-      len: progress,
-      view: duration,
-      time: time(hisList[index].viewAt * 1000000),
+      len: duration,
+      view: time(hisList[index].viewAt * 1000000),
       onTap: () => globals.api.playByBvid(hisList[index].history.bvid),
     );
   }

@@ -159,7 +159,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   }
 
   hisListTileView(int index) {
-    return trackTile(
+    return TrackTile(
+      key: Key(vidList[index].bvid),
       pic: vidList[index].pic,
       title: vidList[index].title,
       author: vidList[index].author,

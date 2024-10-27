@@ -212,7 +212,8 @@ class _CacheScreenState extends State<CacheScreen> {
                         onDismissed: (direction) {
                           deleteCache(file['id'], file['filePath']);
                         },
-                        child: trackTile(
+                        child: TrackTile(
+                          key: Key(file['id']),
                           pic: file['artUri'],
                           title: file['title'],
                           author: file['artist'],

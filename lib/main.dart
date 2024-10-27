@@ -246,7 +246,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     return Card(
       clipBehavior: Clip.hardEdge,
       child: InkWell(
-        child: trackTile(
+        child: TrackTile(
+          key: Key(vid.bvid),
           pic: 'https:${vid.pic}',
           title: stripHtmlIfNeeded(vid.title),
           author: vid.author,

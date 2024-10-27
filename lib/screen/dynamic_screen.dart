@@ -56,7 +56,8 @@ class _DynamicScreenState extends State<DynamicScreen> {
   }
 
   dynListTileView(int index) {
-    return trackTile(
+    return TrackTile(
+      key: Key(dynList[index].moduleDynamic.major.archive.bvid),
       pic: dynList[index].moduleDynamic.major.archive.cover,
       title: dynList[index].moduleDynamic.major.archive.title,
       author: dynList[index].moduleAuthor.name,
