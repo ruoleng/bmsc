@@ -37,6 +37,16 @@ class CacheManager {
     });
   }
 
+  static Future<bool> isSingleCached(String bvid) async {
+    final db = await database;
+    final results = await db.query(
+      tableName,
+      where: "bvid = ?",
+      whereArgs: [bvid],
+    );
+    return results.isNotEmpty;
+  }
+
   static Future<bool> isCached(String bvid, int cid) async {
     final db = await database;
     final results = await db.query(
