@@ -120,7 +120,8 @@ class PlaylistBottomSheet extends StatelessWidget {
                 itemBuilder: (context, index) {
                  final item = playlist[index].tag;
                         return StreamBuilder<SequenceState?>(
-                          key: Key(item.id),
+                          // Change the key to include the index to make it unique
+                          key: ValueKey('${item.id}_$index'),
                           stream: globals.api.player.sequenceStateStream,
                           builder: (context, snapshot) {
                             final isPlaying = snapshot.data?.currentIndex == index;

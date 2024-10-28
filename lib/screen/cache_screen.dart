@@ -125,6 +125,38 @@ class _CacheScreenState extends State<CacheScreen> {
     });
   }
 
+  Future<void> saveToDownloads(Map<String, dynamic> file) async {
+    try {
+      final sourceFile = File(file['filePath']);
+      if (!await sourceFile.exists()) {
+        throw Exception('Source file not found');
+      }
+
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (!await downloadDir.exists()) {
+        await downloadDir.create(recursive: true);
+      }
+
+      final fileName = '${file['title']} - ${file['artist']}.mp3';
+      final sanitizedFileName = fileName.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+      final targetPath = '${downloadDir.path}/$sanitizedFileName';
+
+      await sourceFile.copy(targetPath);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已保存到下载目录: $sanitizedFileName')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存失败: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,6 +272,29 @@ class _CacheScreenState extends State<CacheScreen> {
                               ).toString().substring(0, 19),
                               onTap: () => globals.api.playCachedAudio(file['bvid'], file['cid']),
                               onAddToPlaylistButtonPressed: () => globals.api.addToPlaylistCachedAudio(file['bvid'], file['cid']),
+                              onLongPress: () {
+                                
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('保存到下载'),
+                                    content: const Text('确定要保存到下载文件夹吗？'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('取消'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                          saveToDownloads(file);
+                                        },
+                                        child: const Text('确定'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
                           );
                         },

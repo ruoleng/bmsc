@@ -179,7 +179,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text('取消'),
         ),
         FilledButton(
           onPressed: () async {
@@ -187,7 +187,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
             await _saveChanges();
             if (mounted) Navigator.pop(context);
           },
-          child: const Text('Done'),
+          child: const Text('确定'),
         ),
       ],
     );
