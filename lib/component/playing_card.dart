@@ -12,6 +12,9 @@ class PlayingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+      ),
       elevation: 8,
       child: Column(
         mainAxisSize: MainAxisSize.min,
