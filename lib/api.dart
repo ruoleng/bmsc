@@ -145,6 +145,18 @@ class API {
     await _addUniqueSourcesToPlaylist(srcs, insertIndex: insertIndex, extraExtras: extraExtras);
   }
 
+  Future<void> appendCachedPlaylist(String bvid, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
+    final srcs = await CacheManager.getCachedAudioList(bvid);
+    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    for (var cid in excludedCids) {
+      srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
+    }
+    if (srcs == null) {
+      return;
+    }
+    await _addUniqueSourcesToPlaylist(srcs, insertIndex: insertIndex, extraExtras: extraExtras);
+  }
+
   Future<void> addToPlaylistCachedAudio(String bvid, int cid) async {
     final cachedSource = await CacheManager.getCachedAudio(bvid, cid);
     if (cachedSource == null) {
@@ -185,6 +197,24 @@ class API {
     await player.play();
   }
 
+  Future<void> playCachedBvid(String bvid) async {
+    await player.pause();
+    final srcs = await CacheManager.getCachedAudioList(bvid);
+    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    for (var cid in excludedCids) {
+      srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
+    }
+    if (srcs == null) {
+      return;
+    }
+
+    final idx = await _addUniqueSourcesToPlaylist(srcs, insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
+    if (idx != null) {
+      await player.seek(Duration.zero, index: idx);
+    }
+    await player.play();
+  }
+
   Future<int?> getStoredUID() async {
     if (uid != null) {
       return uid;
@@ -194,11 +224,15 @@ class API {
   }
 
   Future<int?> getUID() async {
-    final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
-    if (response.data['code'] != 0) {
+    try {
+      final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
+      if (response.data['code'] != 0) {
+        return null;
+      }
+      return response.data['data']['mid'];
+    } catch (e) {
       return null;
     }
-    return response.data['data']['mid'];
   }
 
   Future<FavResult?> getFavs(int uid, {int? rid}) async {
@@ -587,24 +621,20 @@ class API {
   }
 
   Future<void> _addRecommendedTracks(String bvid) async {
-    try {
-      final recommendations = await _getRecommendations(bvid);
-      if (recommendations.isEmpty) return;
+    final recommendations = await _getRecommendations(bvid);
+    if (recommendations.isEmpty) return;
 
-      // Take up to _recommendationBatchSize unique recommendations
-      final uniqueRecs = recommendations.take(_recommendationBatchSize);
-      final insertIndex = player.currentIndex! + 1;
-      
-      for (final (recBvid, _) in uniqueRecs) {
-        // Add recommendation flag when creating the audio source
-        await appendPlaylistSingle(
-          recBvid,
-          insertIndex: insertIndex,
-          extraExtras: {'isRecommendation': true}
-        );
-      }
-    } catch (e) {
-      print('Failed to get recommendations: $e');
+    // Take up to _recommendationBatchSize unique recommendations
+    final uniqueRecs = recommendations.take(_recommendationBatchSize);
+    final insertIndex = player.currentIndex! + 1;
+    
+    for (final (recBvid, _) in uniqueRecs) {
+      // Add recommendation flag when creating the audio source
+      await appendPlaylistSingle(
+        recBvid,
+        insertIndex: insertIndex,
+        extraExtras: {'isRecommendation': true}
+      );
     }
   }
 

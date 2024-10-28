@@ -112,13 +112,11 @@ class Medias {
     required this.page,
     required this.duration,
     required this.upper,
-    required this.attr,
     required this.cntInfo,
     required this.link,
     required this.ctime,
     required this.pubtime,
     required this.favTime,
-    required this.bvId,
     required this.bvid,
   });
   late final int id;
@@ -129,13 +127,11 @@ class Medias {
   late final int page;
   late final int duration;
   late final Upper upper;
-  late final int attr;
   late final CntInfo cntInfo;
   late final String link;
   late final int ctime;
   late final int pubtime;
   late final int favTime;
-  late final String bvId;
   late final String bvid;
 
   Medias.fromJson(Map<String, dynamic> json) {
@@ -147,13 +143,11 @@ class Medias {
     page = json['page'];
     duration = json['duration'];
     upper = Upper.fromJson(json['upper']);
-    attr = json['attr'];
     cntInfo = CntInfo.fromJson(json['cnt_info']);
     link = json['link'];
     ctime = json['ctime'];
     pubtime = json['pubtime'];
     favTime = json['fav_time'];
-    bvId = json['bv_id'];
     bvid = json['bvid'];
   }
 }

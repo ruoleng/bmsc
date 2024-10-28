@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import 'fav_detail_screen.dart';
+import 'package:bmsc/cache_manager.dart' as cache_manager;
 
 class FavScreen extends StatefulWidget {
   const FavScreen({super.key});
@@ -20,6 +21,10 @@ class _FavScreenState extends State<FavScreen> {
   @override
   void initState() {
     super.initState();
+    loadFavorites();
+  }
+
+  Future<void> loadFavorites() async {
     globals.api.getStoredUID().then((uid) async {
       if (uid == null) {
         setState(() {
@@ -27,10 +32,33 @@ class _FavScreenState extends State<FavScreen> {
         });
         return;
       }
-      final ret = (await globals.api.getFavs(uid))?.list ?? [];
-      setState(() {
-        favList = ret;
-      });
+
+      // Try to load from cache first
+      var cachedFavs = await cache_manager.CacheManager.getCachedFavList();
+      if (cachedFavs.isNotEmpty) {
+        setState(() {
+          favList = cachedFavs;
+        });
+      }
+
+      // Then try to fetch from network
+      try {
+        final ret = (await globals.api.getFavs(uid))?.list ?? [];
+        if (ret.isNotEmpty) {
+          setState(() {
+            favList = ret;
+          });
+          // Cache the new data
+          await cache_manager.CacheManager.cacheFavList(ret);
+        }
+      } catch (e) {
+        // If network fetch fails, we'll still have the cached data
+        if (cachedFavs.isEmpty) {
+          setState(() {
+            login = false;
+          });
+        }
+      }
     });
   }
 

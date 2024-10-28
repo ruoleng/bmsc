@@ -22,23 +22,74 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
   List<Medias> favInfo = [];
   bool hasMore = true;
   int nextPn = 1;
+  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    loadMore();
+    _loadInitialData();
   }
 
-  loadMore() async {
-    final detail = await globals.api.getFavDetail(widget.fav.id, nextPn);
-    if (detail == null) {
-      return;
+  Future<void> _loadInitialData() async {
+    // First try to load from cache
+    final cachedData = await CacheManager.getCachedFavDetail(widget.fav.id);
+    if (cachedData.isNotEmpty) {
+      setState(() {
+        favInfo = cachedData;
+      });
     }
+
+    // Then load from network
+    await loadMore();
+  }
+
+  Future<void> loadMore() async {
+    if (isLoading || !hasMore) return;
+
     setState(() {
-      favInfo.addAll(detail.medias);
-      hasMore = detail.hasMore;
-      nextPn++;
+      isLoading = true;
     });
+
+    try {
+      final detail = await globals.api.getFavDetail(widget.fav.id, nextPn);
+      if (detail == null) {
+        return;
+      }
+
+      setState(() {
+        if (nextPn == 1) {
+          // Replace all data if it's the first page
+          favInfo = detail.medias;
+        } else {
+          // Append data for subsequent pages
+          favInfo.addAll(detail.medias);
+        }
+        hasMore = detail.hasMore;
+        nextPn++;
+      });
+
+      // Cache the new data
+      if (nextPn == 2) { // Only cache first page
+        await CacheManager.cacheFavDetail(widget.fav.id, detail.medias);
+      } else {
+        await CacheManager.appendCacheFavDetail(widget.fav.id, detail.medias);
+      }
+    } catch (_) {
+      
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshData() async {
+    setState(() {
+      nextPn = 1;
+      hasMore = true;
+      favInfo.clear();
+    });
+    await loadMore();
   }
 
   @override
@@ -100,9 +151,12 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
           }
           return true;
         },
-        child: ListView.builder(
-          itemCount: favInfo.length,
-          itemBuilder: (context, index) => favDetailListTileView(index),
+        child: RefreshIndicator(
+          onRefresh: _refreshData,
+          child: ListView.builder(
+            itemCount: favInfo.length,
+            itemBuilder: (context, index) => favDetailListTileView(index),
+          ),
         ),
       ),
       bottomNavigationBar: StreamBuilder<SequenceState?>(
@@ -122,14 +176,14 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
     int sec = favInfo[index].duration % 60;
     final duration = "$min:${sec.toString().padLeft(2, '0')}";
     
-    return FutureBuilder<(List<int>, bool)>(
+    return FutureBuilder<(List<int>, int)>(
       future: Future.wait([
         CacheManager.getExcludedParts(favInfo[index].bvid),
-        CacheManager.isSingleCached(favInfo[index].bvid),
-      ]).then((results) => (results[0] as List<int>, results[1] as bool)),
+        CacheManager.cachedCount(favInfo[index].bvid),
+      ]).then((results) => (results[0] as List<int>, results[1] as int)),
       builder: (context, snapshot) {
         final excludedCount = snapshot.data?.$1.length ?? 0;
-        final isCached = snapshot.data?.$2 ?? false;
+        final cachedCount = snapshot.data?.$2 ?? 0;
         
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -142,12 +196,24 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
             author: favInfo[index].upper.name,
             len: duration,
             view: unit(favInfo[index].cntInfo.play),
-            cached: favInfo[index].page == 1 && isCached,
-            onTap: () => globals.api.playByBvid(favInfo[index].bvid),
-            onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(
-              favInfo[index].bvid,
-              insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1
-            ),
+            cachedCount: cachedCount,
+            onTap: () async {
+              try {
+                await globals.api.playByBvid(favInfo[index].bvid);
+              } catch (e) {
+                await globals.api.playCachedBvid(favInfo[index].bvid);
+              }
+            },
+            onAddToPlaylistButtonPressed: () async {
+              try {
+                await globals.api.appendPlaylist(
+                  favInfo[index].bvid,
+                  insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1
+                );
+              } catch (e) {
+                await globals.api.appendCachedPlaylist(favInfo[index].bvid);
+              }
+            },
             onLongPress: () async {
               if (!context.mounted) return;
               showDialog(

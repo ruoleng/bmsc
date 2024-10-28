@@ -12,7 +12,7 @@ class TrackTile extends StatelessWidget {
     this.time,
     this.parts,
     this.excludedParts = 0,
-    this.cached,
+    this.cachedCount = 0,
     required this.onTap,
     this.onLongPress,
     this.onAddToPlaylistButtonPressed,
@@ -26,7 +26,7 @@ class TrackTile extends StatelessWidget {
   final String? time;
   final int? parts;
   final int excludedParts;
-  final bool? cached;
+  final int cachedCount;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onAddToPlaylistButtonPressed;
@@ -37,7 +37,7 @@ class TrackTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       elevation: 2,
       shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-      color: cached == true ? Colors.green.withOpacity(0.1) : null,
+      color: cachedCount == parts ? Colors.green.withOpacity(0.1) : cachedCount > 0 ? Colors.blue.withOpacity(0.1) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
@@ -97,7 +97,7 @@ class TrackTile extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            if (cached == true) ...[
+                            if (cachedCount == parts) ...[
                               const Icon(
                                 Icons.check_circle,
                                 size: 16,
