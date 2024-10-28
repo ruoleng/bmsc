@@ -152,7 +152,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                           final src = snapshot.data?.sequence;
                                           return (src == null || src.isEmpty)
                                               ? const SizedBox()
-                                              : playCard(context3);
+                                              : PlayingCard();
                                         },
                                       ));
                                 })

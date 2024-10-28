@@ -1,293 +1,166 @@
-import 'package:bmsc/screen/detail_screen.dart';
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../globals.dart' as globals;
-import '../util/audio.dart';
+import '../screen/detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'playlist_bottom_sheet.dart';
+class PlayingCard extends StatelessWidget {
+  const PlayingCard({super.key});
 
-Widget udn(Widget child) {
-  return RotatedBox(quarterTurns: 2, child: child);
-}
-
-Widget _repeatButton(BuildContext context, LoopMode loopMode) {
-  final icons = [
-    const Icon(Icons.playlist_play),
-    const Icon(Icons.repeat),
-    const Icon(Icons.repeat_one),
-  ];
-  final labels = [
-    const Text("顺序播放"),
-    const Text("歌单循环"),
-    const Text("单曲循环"),
-  ];
-  const cycleModes = [
-    LoopMode.off,
-    LoopMode.all,
-    LoopMode.one,
-  ];
-  final index = cycleModes.indexOf(loopMode);
-  return ElevatedButton.icon(
-    icon: icons[index],
-    style: ElevatedButton.styleFrom(
-      side: BorderSide.none,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(0),
-      ),
-    ),
-    label: labels[index],
-    onPressed: () {
-      globals.api.player.setLoopMode(
-          cycleModes[(cycleModes.indexOf(loopMode) + 1) % cycleModes.length]);
-    },
-  );
-}
-
-Widget _playPauseButton(PlayerState? playerState) {
-  final processingState = playerState?.processingState;
-  if (processingState == ProcessingState.loading ||
-      processingState == ProcessingState.buffering) {
-    return const CircularProgressIndicator();
-  } else if (globals.api.player.playing != true) {
-    return IconButton(
-      icon: const Icon(Icons.play_arrow),
-      onPressed: globals.api.player.play,
-    );
-  } else if (processingState != ProcessingState.completed) {
-    return IconButton(
-      icon: const Icon(Icons.pause),
-      onPressed: globals.api.player.pause,
-    );
-  } else {
-    return IconButton(
-      icon: const Icon(Icons.replay),
-      onPressed: () => globals.api.player.seek(Duration.zero,
-          index: globals.api.player.effectiveIndices!.first),
-    );
-  }
-}
-
-Widget progressIndicator(Duration? dur) {
-  if (dur == null || globals.api.player.duration == null) {
-    return const CircularProgressIndicator(
-      value: 0,
-      color: Colors.white,
-    );
-  }
-  return CircularProgressIndicator(
-      value: dur.inSeconds / globals.api.player.duration!.inSeconds);
-}
-
-Widget playlistView(List<IndexedAudioSource>? x) {
-  final songs = x?.map((item) => item.tag).toList();
-  if (songs == null || songs.isEmpty) {
-    return const Text('暂无歌曲');
-  }
-  return ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxHeight: 300.0,
-      ),
-      child: udn(ReorderableListView.builder(
-        shrinkWrap: true,
-        itemCount: songs.length,
-        onReorder: (oldIndex, newIndex) async {
-          if (oldIndex < newIndex) {
-            --newIndex;
-          }
-          await globals.api.playlist.move(oldIndex, newIndex);
-        },
-        itemBuilder: (BuildContext context, int index) {
-          return Column(
-            key: Key(songs[index].id),
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                dense: true,
-                visualDensity: const VisualDensity(vertical: -3),
-                onTap: () {
-                  globals.api.player.seek(Duration.zero, index: index);
-                },
-                title: Text(
-                  songs[index].title,
-                  style: const TextStyle(fontSize: 12),
-                  maxLines: 1,
-                ),
-                subtitle: Row(
-                  children: [
-                    DecoratedBox(
-                        decoration: BoxDecoration(
-                            color: songs[index].extras['cached'] ? Colors.green : Colors.red,
-                            borderRadius: const BorderRadius.all(Radius.circular(2))),
-                        child: Padding(
-                          padding: const EdgeInsets.all(1.0),
-                          child: Text(
-                            songs[index].extras['cached'] ? '已缓存' : '未缓存',
-                            style: const TextStyle(
-                                fontSize: 7, color: Colors.white),
-                          ),
-                        )),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    DecoratedBox(
-                        decoration: const BoxDecoration(
-                            color: Colors.black38,
-                            borderRadius: BorderRadius.all(Radius.circular(2))),
-                        child: Padding(
-                          padding: const EdgeInsets.all(1.0),
-                          child: Text(
-                            audioQuality(songs[index].extras['quality']),
-                            style: const TextStyle(
-                                fontSize: 7, color: Colors.white),
-                          ),
-                        )),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    const Icon(Icons.person_outline, size: 12),
-                    Text(
-                      songs[index].artist,
-                      style: const TextStyle(fontSize: 10),
-                      maxLines: 1,
-                    ),
-                    const Spacer(),
-                  ],
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () {
-                    globals.api.playlist.removeAt(index);
-                  },
-                ),
-              ),
-              const Divider(
-                height: 1,
-                thickness: 0.5,
-              )
-            ],
-          );
-        },
-      )));
-}
-
-Widget playCard(BuildContext context) {
-  return udn(
-    ExpansionTile(
-        controlAffinity: ListTileControlAffinity.leading,
-        tilePadding: const EdgeInsets.only(left: 10),
-        shape: const Border(bottom: BorderSide(width: 2, color: Colors.black)),
-        leading: const Icon(Icons.expand_more),
-        title: udn(InkWell(
-            onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<Widget>(builder: (BuildContext context) {
-                    return const DetailScreen();
-                  }),
-                ),
-            child: FractionallySizedBox(
-              widthFactor: 0.95,
-              child: Row(
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 8,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Mini Player
+          StreamBuilder<SequenceState?>(
+            stream: globals.api.player.sequenceStateStream,
+            builder: (context, snapshot) {
+              final state = snapshot.data;
+              if (state?.sequence.isEmpty ?? true) return const SizedBox.shrink();
+              
+              return Column(
                 mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Expanded(
-                    flex: 8,
-                    child: ListTile(
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(5.0),
-                        child: SizedBox(
-                            width: 50,
-                            height: 50,
-                            child: StreamBuilder<SequenceState?>(
-                              stream: globals.api.player.sequenceStateStream,
-                              builder: (_, snapshot) {
-                                final src = snapshot.data?.currentSource;
-                                return CachedNetworkImage(
-                                  imageUrl: src?.tag.artUri.toString() ?? "",
-                                  placeholder: (context, url) => const Icon(Icons.music_note),
-                                  errorWidget: (context, url, error) => const Icon(Icons.music_note),
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            )),
-                      ),
-                      title: StreamBuilder<SequenceState?>(
-                        stream: globals.api.player.sequenceStateStream,
-                        builder: (_, snapshot) {
-                          final src = snapshot.data?.currentSource;
-                          return Text(src?.tag.title ?? "",
-                              style: const TextStyle(fontSize: 12),
-                              softWrap: false,
-                              maxLines: 1);
-                        },
-                      ),
-                      subtitle: StreamBuilder<SequenceState?>(
-                        stream: globals.api.player.sequenceStateStream,
-                        builder: (_, snapshot) {
-                          final src = snapshot.data?.currentSource;
-                          return Text(src?.tag.artist ?? "",
-                              style: const TextStyle(fontSize: 10),
-                              softWrap: false,
-                              maxLines: 1);
-                        },
+                children: [
+                  // Progress bar
+                  StreamBuilder<Duration>(
+                    stream: globals.api.player.positionStream,
+                    builder: (context, snapshot) {
+                      return ProgressBar(
+                        progress: snapshot.data ?? Duration.zero,
+                        total: globals.api.player.duration ?? Duration.zero,
+                        onSeek: globals.api.player.seek,
+                        barHeight: 2,
+                        baseBarColor: Colors.grey[300],
+                        progressBarColor: Theme.of(context).colorScheme.primary,
+                        thumbRadius: 0,
+                        timeLabelLocation: TimeLabelLocation.none,
+                      );
+                    },
+                  ),
+
+                  // Main content
+                  InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DetailScreen()),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          // Album art
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: CachedNetworkImage(
+                                imageUrl: state?.currentSource?.tag.artUri.toString() ?? "",
+                                placeholder: (context, url) => Container(
+                                  color: Theme.of(context).colorScheme.surfaceVariant,
+                                  child: Icon(Icons.music_note,
+                                      color: Theme.of(context).colorScheme.primary),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Theme.of(context).colorScheme.surfaceVariant,
+                                  child: Icon(Icons.music_note,
+                                      color: Theme.of(context).colorScheme.primary),
+                                ),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(width: 12),
+                          
+                          // Title and artist
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  state?.currentSource?.tag.title ?? "",
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  state?.currentSource?.tag.artist ?? "",
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Controls
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.skip_previous),
+                                onPressed: globals.api.player.hasPrevious ? globals.api.player.seekToPrevious : null,
+                              ),
+                              StreamBuilder<PlayerState>(
+                                stream: globals.api.player.playerStateStream,
+                                builder: (context, snapshot) {
+                                  final playing = globals.api.player.playing;
+                                  final processingState = snapshot.data?.processingState;
+                                  
+                                  if (processingState == ProcessingState.loading ||
+                                      processingState == ProcessingState.buffering) {
+                                    return const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    );
+                                  }
+                                  
+                                  return IconButton(
+                                    icon: Icon(playing ? Icons.pause : Icons.play_arrow),
+                                    onPressed: playing ? globals.api.player.pause : globals.api.player.play,
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.skip_next),
+                                onPressed: globals.api.player.hasNext ? globals.api.player.seekToNext : null,
+                              ),
+                              // Add playlist button
+                              IconButton(
+                                icon: const Icon(Icons.queue_music),
+                                onPressed: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    builder: (context) => const PlaylistBottomSheet(),
+                                    backgroundColor: Theme.of(context).colorScheme.surface,
+                                    isScrollControlled: true,
+                                    constraints: BoxConstraints(
+                                      maxHeight: MediaQuery.of(context).size.height * 0.7,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  Expanded(
-                    flex: 2,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        StreamBuilder<Duration>(
-                          stream: globals.api.player.positionStream,
-                          builder: (_, snapshot) {
-                            final duration = snapshot.data;
-                            return progressIndicator(duration);
-                          },
-                        ),
-                        StreamBuilder<PlayerState>(
-                          stream: globals.api.player.playerStateStream,
-                          builder: (_, snapshot) {
-                            final playerState = snapshot.data;
-                            return _playPauseButton(playerState);
-                          },
-                        ),
-                      ],
-                    ),
-                  )
                 ],
-              ),
-            ))),
-        children: [
-          StreamBuilder<List<IndexedAudioSource>?>(
-            stream: globals.api.player.sequenceStream,
-            builder: (_, snapshot) {
-              final playerState = snapshot.data;
-              return playlistView(playerState);
+              );
             },
           ),
-          udn(Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 10),
-                child: StreamBuilder<List<IndexedAudioSource>?>(
-                  stream: globals.api.player.sequenceStream,
-                  builder: (_, snapshot) {
-                    return Text("播放列表 (${snapshot.data?.length ?? 0})");
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: StreamBuilder<LoopMode>(
-                  stream: globals.api.player.loopModeStream,
-                  builder: (context, snapshot) {
-                    return _repeatButton(
-                        context, snapshot.data ?? LoopMode.off);
-                  },
-                ),
-              ),
-            ],
-          ))
-        ]),
-  );
+        ],
+      ),
+    );
+  }
 }
