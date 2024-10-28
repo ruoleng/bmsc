@@ -25,6 +25,7 @@ class CacheManager {
           id TEXT PRIMARY KEY,
           bvid TEXT,
           cid INTEGER,
+          aid INTEGER,
           title TEXT,
           artist TEXT,
           artUri TEXT,
@@ -74,6 +75,7 @@ class CacheManager {
         artUri: Uri.parse(results.first['artUri'] as String),
         extras: {
           'bvid': results.first['bvid'] as String,
+          'aid': results.first['aid'] as int,
           'cid': results.first['cid'] as int,
           'quality': results.first['quality'] as int,
           'mid': results.first['mid'] as int,
@@ -91,11 +93,12 @@ class CacheManager {
     return File(filePath);
   }
 
-  static Future<void> saveCacheMetadata(String bvid, int cid, int quality, int mid, String filePath, String title, String artist, String artUri) async {
+  static Future<void> saveCacheMetadata(String bvid, int aid, int cid, int quality, int mid, String filePath, String title, String artist, String artUri) async {
     final db = await database;
     await db.insert(tableName, {
       'id': '${bvid}_$cid',
       'bvid': bvid,
+      'aid': aid,
       'cid': cid,
       'quality': quality,
       'mid': mid,

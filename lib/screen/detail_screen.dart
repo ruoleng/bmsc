@@ -17,9 +17,23 @@ class DetailScreen extends StatefulWidget {
 }
 
 class _DetailScreenState extends State<DetailScreen> {
+  bool? _isFavorite;
+  int? _currentAid;
+
   @override
   void initState() {
     super.initState();
+  }
+
+  Future<void> _checkFavoriteStatus(int? aid) async {
+    if (!mounted) return;
+    if (aid == null) {
+      setState(() => _isFavorite = null);
+      return;
+    }
+    final isFavorited = await globals.api.isFavorited(aid);
+    if (!mounted) return;
+    setState(() => _isFavorite = isFavorited);
   }
 
   Widget progressIndicator(Duration? dur) {
@@ -210,6 +224,103 @@ class _DetailScreenState extends State<DetailScreen> {
                     stream: globals.api.player.sequenceStateStream,
                     builder: (_, __) {
                       return _nextButton();
+                    },
+                  ),
+                  StreamBuilder<SequenceState?>(
+                    stream: globals.api.player.sequenceStateStream,
+                    builder: (context, snapshot) {
+                      final src = snapshot.data?.currentSource;
+                      if (src?.tag.extras['aid'] != _currentAid) {
+                        _currentAid = src?.tag.extras['aid'];
+                        Future.microtask(() => _checkFavoriteStatus(_currentAid));
+                      }
+                      return IconButton(
+                        icon: Icon(
+                          _isFavorite == true ? Icons.favorite : Icons.favorite_border
+                        ),
+                        onPressed: src == null ? null : () async {
+                          final uid = await globals.api.getStoredUID() ?? 0;
+                          final favs = await globals.api.getFavs(uid);
+                          if (favs == null || favs.list.isEmpty) return;
+
+                          final defaultFolderId = await globals.api.getDefaultFavFolder();
+                          
+                          if (!_isFavorite! && defaultFolderId != null) {
+                            // Add to default folder
+                            final success = await globals.api.favoriteVideo(
+                              src.tag.extras['aid'],
+                              [defaultFolderId],
+                              [],
+                            );
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success ? '已添加到默认收藏夹' : '收藏失败'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                            if (success) {
+                              _isFavorite = true;
+                            }
+                          } else {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: const Text('选择收藏夹'),
+                                  content: SizedBox(
+                                    width: double.maxFinite,
+                                    child: ListView.builder(
+                                      shrinkWrap: true,
+                                      itemCount: favs.list.length,
+                                      itemBuilder: (context, index) {
+                                        final folder = favs.list[index];
+                                        final isDefault = folder.id == defaultFolderId;
+                                        
+                                        return ListTile(
+                                          title: Text(folder.title),
+                                          trailing: isDefault 
+                                            ? const Chip(label: Text('默认'))
+                                            : IconButton(
+                                                icon: const Icon(Icons.star_border),
+                                                onPressed: () async {
+                                                  // Set as default folder
+                                                  await globals.api.setDefaultFavFolder(folder.id);
+                                                  if (!context.mounted) return;
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('已设为默认收藏夹'),
+                                                      duration: Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                          onTap: () async {
+                                            final success = await globals.api.favoriteVideo(
+                                              src.tag.extras['aid'],
+                                              [folder.id],
+                                              [],
+                                            );
+                                            if (!success) _checkFavoriteStatus(src.tag.extras['aid']);
+                                            if (!context.mounted) return;
+                                            Navigator.of(context).pop();
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(success ? '收藏成功' : '收藏失败'),
+                                                duration: const Duration(seconds: 2),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          }
+                        },
+                      );
                     },
                   ),
                 ],

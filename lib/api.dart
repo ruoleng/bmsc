@@ -291,6 +291,7 @@ class API {
                 'quality': firstAudio.id,
                 'mid': vid.owner.mid,
                 'bvid': bvid,
+                'aid': vid.aid,
                 'cid': x.cid,
                 'cached': false
               }));
@@ -321,7 +322,7 @@ class API {
     return TagResult.fromJson(response.data);
   }
 
-  Future<void> _downloadAndCache(String bvid, int cid, String url, File file, int quality, int mid, String title, String artist, String artUri) async {
+  Future<void> _downloadAndCache(String bvid, int aid, int cid, String url, File file, int quality, int mid, String title, String artist, String artUri) async {
     try {
       final request = http.Request('GET', Uri.parse(url));
       request.headers.addAll(headers);
@@ -331,7 +332,7 @@ class API {
       await response.stream.pipe(sink);
       await sink.close();
 
-      await CacheManager.saveCacheMetadata(bvid, cid, quality, mid, file.path, title, artist, artUri);
+      await CacheManager.saveCacheMetadata(bvid, aid, cid, quality, mid, file.path, title, artist, artUri);
     } catch (e) {
       await file.delete();
     }
@@ -378,6 +379,7 @@ class API {
     var mediaItem = currentItem.tag as MediaItem;
     final bvid = mediaItem.extras?['bvid'] as String?;
     final cid = mediaItem.extras?['cid'] as int?;
+    final aid = mediaItem.extras?['aid'] as int?;
     final quality = mediaItem.extras?['quality'] as int?;
     final mid = mediaItem.extras?['mid'] as int?;
 
@@ -385,7 +387,7 @@ class API {
       return;
     }
 
-    if (bvid == null || cid == null) {
+    if (bvid == null || cid == null || aid == null) {
       return;
     }
 
@@ -394,7 +396,7 @@ class API {
       // If not cached, start caching
       try {
         final file = await CacheManager.prepareFileForCaching(bvid, cid);
-        await _downloadAndCache(bvid, cid, currentItem.uri.toString(), file, quality ?? 0, mid ?? 0, mediaItem.title, mediaItem.artist ?? '', mediaItem.artUri.toString());
+        await _downloadAndCache(bvid, aid, cid, currentItem.uri.toString(), file, quality ?? 0, mid ?? 0, mediaItem.title, mediaItem.artist ?? '', mediaItem.artUri.toString());
       } catch (e) {
       }
     }
@@ -417,6 +419,7 @@ class API {
             mediaItem.extras?.addAll(extraExtras!);
           }
           if (insertIndex != null) {
+            print(source.uri);
             await playlist.insert(insertIndex, source);
             ret ??= insertIndex;
             insertIndex++;
@@ -444,6 +447,7 @@ class API {
           artUri: tag.artUri?.toString() ?? '',
           audioUri: source.uri.toString(),  // Added this
           bvid: tag.extras?['bvid'] ?? '',
+          aid: tag.extras?['aid'] ?? 0,
           cid: tag.extras?['cid'] ?? 0,
           quality: tag.extras?['quality'] ?? 0,
           mid: tag.extras?['mid'] ?? 0,
@@ -601,5 +605,44 @@ class API {
       }
       return false;
     });
+  }
+
+  Future<bool> favoriteVideo(int avid, List<int> addMediaIds, List<int> delMediaIds) async {
+    final response = await dio.post(
+      'https://api.bilibili.com/x/v3/fav/resource/deal',
+      queryParameters: {
+        'rid': avid,
+        'type': 2,  // 2 represents video type
+        'add_media_ids': addMediaIds.join(','),
+        'del_media_ids': delMediaIds.join(','),
+        'csrf': _extractCSRF(cookies),
+      }
+    );
+    print(response.data);
+    return response.data['code'] == 0;
+  }
+
+  String _extractCSRF(String cookies) {
+    final csrfMatch = RegExp(r'bili_jct=([^;]+)').firstMatch(cookies);
+    return csrfMatch?.group(1) ?? '';
+  }
+
+  Future<bool> isFavorited(int aid) async {
+    final response = await dio.get("https://api.bilibili.com/x/v2/fav/video/favoured",
+      queryParameters: {'aid': aid});
+    if (response.data['code'] != 0) {
+      return false;
+    }
+    return response.data['data']['favoured'];
+  }
+
+  Future<int?> getDefaultFavFolder() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('default_fav_folder');
+  }
+
+  Future<void> setDefaultFavFolder(int folderId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('default_fav_folder', folderId);
   }
 }
