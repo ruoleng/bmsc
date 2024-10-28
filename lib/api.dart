@@ -227,9 +227,9 @@ class API {
     try {
       final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
       if (response.data['code'] != 0) {
-        return null;
+        return 0;
       }
-      return response.data['data']['mid'];
+      return response.data['data']['mid'] ?? 0;
     } catch (e) {
       return null;
     }

@@ -122,7 +122,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         .then((x) async {
       final cookies = x.join(';');
       globals.api.setCookies(cookies);
-      if ((await globals.api.getUID()) == null) {
+      if ((await globals.api.getUID()) == 0) {
         setState(() {
           signedin = false;
         });
