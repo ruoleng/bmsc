@@ -19,6 +19,7 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   bool? _isFavorite;
   int? _currentAid;
+  Map<int, bool> _pendingFavStates = {};
 
   @override
   void initState() {
@@ -240,27 +241,28 @@ class _DetailScreenState extends State<DetailScreen> {
                         ),
                         onPressed: src == null ? null : () async {
                           final uid = await globals.api.getStoredUID() ?? 0;
-                          final favs = await globals.api.getFavs(uid);
+                          final favs = await globals.api.getFavs(uid, rid: src.tag.extras['aid']);
                           if (favs == null || favs.list.isEmpty) return;
 
                           final defaultFolderId = await globals.api.getDefaultFavFolder();
                           
                           if (!_isFavorite! && defaultFolderId != null) {
-                            // Add to default folder
                             final success = await globals.api.favoriteVideo(
                               src.tag.extras['aid'],
-                              [defaultFolderId],
+                              [defaultFolderId['id']],
                               [],
                             );
                             if (!context.mounted) return;
+                            
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(success ? '已添加到默认收藏夹' : '收藏失败'),
+                                content: Text(success ? '已添加到收藏夹 ${defaultFolderId['name']}' : '收藏失败'),
                                 duration: const Duration(seconds: 2),
                               ),
                             );
                             if (success) {
-                              _isFavorite = true;
+                              Future.microtask(() =>
+                                setState(() => _isFavorite = success));
                             }
                           } else {
                             showDialog(
@@ -270,52 +272,132 @@ class _DetailScreenState extends State<DetailScreen> {
                                   title: const Text('选择收藏夹'),
                                   content: SizedBox(
                                     width: double.maxFinite,
-                                    child: ListView.builder(
-                                      shrinkWrap: true,
-                                      itemCount: favs.list.length,
-                                      itemBuilder: (context, index) {
-                                        final folder = favs.list[index];
-                                        final isDefault = folder.id == defaultFolderId;
-                                        
-                                        return ListTile(
-                                          title: Text(folder.title),
-                                          trailing: isDefault 
-                                            ? const Chip(label: Text('默认'))
-                                            : IconButton(
-                                                icon: const Icon(Icons.star_border),
-                                                onPressed: () async {
-                                                  // Set as default folder
-                                                  await globals.api.setDefaultFavFolder(folder.id);
-                                                  if (!context.mounted) return;
-                                                  Future.microtask(() => setState(() { _isFavorite = true; }));
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text('已设为默认收藏夹'),
-                                                      duration: Duration(seconds: 2),
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                          onTap: () async {
-                                            final success = await globals.api.favoriteVideo(
-                                              src.tag.extras['aid'],
-                                              [folder.id],
-                                              [],
-                                            );
-                                            if (!success) _checkFavoriteStatus(src.tag.extras['aid']);
-                                            if (!context.mounted) return;
-                                            Navigator.of(context).pop();
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(success ? '收藏成功' : '收藏失败'),
-                                                duration: const Duration(seconds: 2),
-                                              ),
+                                    child: StatefulBuilder(  // Add StatefulBuilder to manage checkbox states
+                                      builder: (context, setDialogState) {
+                                        return ListView.builder(
+                                          shrinkWrap: true,
+                                          itemCount: favs.list.length,
+                                          itemBuilder: (context, index) {
+                                            final folder = favs.list[index];
+                                            // Use pending state if exists, otherwise use original state
+                                            final isSelected = _pendingFavStates.containsKey(folder.id) 
+                                                ? _pendingFavStates[folder.id]! 
+                                                : folder.favState == 1;
+                                            return FutureBuilder<Map<String, dynamic>?>(
+                                              future: globals.api.getDefaultFavFolder(),
+                                              builder: (context, snapshot) {
+                                                final isDefault = snapshot.data != null && 
+                                                    snapshot.data!['id'] == folder.id;
+                                                return CheckboxListTile(
+                                                  title: Row(
+                                                    children: [
+                                                      Text(folder.title),
+                                                      if (isDefault) 
+                                                        Padding(
+                                                          padding: const EdgeInsets.only(left: 8.0),
+                                                          child: Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                            decoration: BoxDecoration(
+                                                              color: Theme.of(context).colorScheme.primaryContainer,
+                                                              borderRadius: BorderRadius.circular(4),
+                                                            ),
+                                                            child: Text(
+                                                              '默认',
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                  value: isSelected,
+                                                  onChanged: (value) {
+                                                    setDialogState(() {
+                                                      _pendingFavStates[folder.id] = value!;
+                                                    });
+                                                  },
+                                                );
+                                              }
                                             );
                                           },
                                         );
                                       },
                                     ),
                                   ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                        _pendingFavStates.clear();  // Clear pending changes on cancel
+                                      },
+                                      child: const Text('取消'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () async {
+                                        // Store the scaffold context before closing dialog
+                                        final scaffoldContext = context;
+                                        Navigator.of(context).pop();
+                                        
+                                        final toAdd = <int>[];
+                                        final toRemove = <int>[];
+                                        
+                                        _pendingFavStates.forEach((folderId, newState) {
+                                          final originalState = favs.list
+                                              .firstWhere((f) => f.id == folderId)
+                                              .favState == 1;
+                                          
+                                          if (newState != originalState) {
+                                            if (newState) {
+                                              toAdd.add(folderId);
+                                            } else {
+                                              toRemove.add(folderId);
+                                            }
+                                          }
+                                        });
+                                        
+                                        if (toAdd.isEmpty && toRemove.isEmpty) return;
+                                        
+                                        final success = await globals.api.favoriteVideo(
+                                          src.tag.extras['aid'],
+                                          toAdd,
+                                          toRemove,
+                                        );
+                                        
+                                        if (!mounted) return;
+                                        
+                                        if (success) {
+                                          if (toAdd.isNotEmpty) {
+                                            await globals.api.setDefaultFavFolder(toAdd.first, favs.list.firstWhere((f) => f.id == toAdd.first).title);
+                                            Future.microtask(() => setState(() { 
+                                              _isFavorite = true;
+                                            }));
+                                          } else {
+                                            _checkFavoriteStatus(src.tag.extras['aid']);
+                                          }
+                                          
+                                          ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('收藏夹已更新'),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        } else {
+                                          _checkFavoriteStatus(src.tag.extras['aid']);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('操作失败'),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                        
+                                        _pendingFavStates.clear();  // Clear pending changes after applying
+                                      },
+                                      child: const Text('确定'),
+                                    ),
+                                  ],
                                 );
                               },
                             );
