@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bmsc/model/playlist_data.dart';
+import 'package:bmsc/model/tag.dart';
 
 class DurationState {
   const DurationState({
@@ -42,6 +43,8 @@ class API {
     useLazyPreparation: true,
     children: [],
   );
+  bool recommendationMode = false;
+  static const int _recommendationBatchSize = 3;
 
   API(String cookie) {
     setCookies(cookie);
@@ -59,6 +62,9 @@ class API {
       if (state.processingState == ProcessingState.ready && state.playing == true) {
         if (player.currentIndex != null) {
           _checkAndCacheCurrentSong(player.currentIndex!);
+          if (recommendationMode) {
+            _handleTrackChange(player.currentIndex!);
+          }
         }
       }
     });
@@ -119,12 +125,20 @@ class API {
     ));
   }
 
-  Future<void> appendPlaylist(String bvid) async {
+  Future<void> appendPlaylistSingle(String bvid, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     final srcs = await getAudioSources(bvid);
     if (srcs == null) {
       return;
     }
-    await _addUniqueSourcesToPlaylist(srcs);
+    await _addUniqueSourcesToPlaylist([srcs[0]], insertIndex: insertIndex, extraExtras: extraExtras);
+  }
+
+  Future<void> appendPlaylist(String bvid, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
+    final srcs = await getAudioSources(bvid);
+    if (srcs == null) {
+      return;
+    }
+    await _addUniqueSourcesToPlaylist(srcs, insertIndex: insertIndex, extraExtras: extraExtras);
   }
 
   Future<void> playCachedAudio(String bvid, int cid) async {
@@ -296,6 +310,17 @@ class API {
     return VidResult.fromJson(response.data['data']);
   }
 
+  Future<TagResult?> getTags(String bvid) async {
+    final response = await dio.get(
+      'https://api.bilibili.com/x/tag/archive/tags',
+      queryParameters: {'bvid': bvid},
+    );
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return TagResult.fromJson(response.data);
+  }
+
   Future<void> _downloadAndCache(String bvid, int cid, String url, File file, int quality, int mid, String title, String artist, String artUri) async {
     try {
       final request = http.Request('GET', Uri.parse(url));
@@ -375,7 +400,7 @@ class API {
     }
   }
 
-  Future<int?> _addUniqueSourcesToPlaylist(List<UriAudioSource> sources, {int? insertIndex}) async {
+  Future<int?> _addUniqueSourcesToPlaylist(List<UriAudioSource> sources, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     int? ret;
     for (var source in sources) {
       if (source.tag is MediaItem) {
@@ -388,6 +413,9 @@ class API {
         });
 
         if (duplicatePos == -1) {
+          if (extraExtras != null) {
+            mediaItem.extras?.addAll(extraExtras!);
+          }
           if (insertIndex != null) {
             await playlist.insert(insertIndex, source);
             ret ??= insertIndex;
@@ -467,5 +495,111 @@ class API {
     if (sources.isNotEmpty) {
       await player.seek(Duration(milliseconds: position), index: currentIndex);
     }
+  }
+
+  void enableRecommendationMode() async {
+    if (recommendationMode) return;
+    recommendationMode = true;
+    
+    // Get current track's bvid
+    final currentSource = player.sequence?[player.currentIndex ?? 0];
+    if (currentSource == null) return;
+    
+    final currentBvid = (currentSource.tag as MediaItem).extras?['bvid'] as String?;
+    if (currentBvid == null) return;
+
+    // Add initial batch of recommendations
+    await _addRecommendedTracks(currentBvid);
+
+  }
+
+  void disableRecommendationMode() {
+    recommendationMode = false;
+    removeRecommendations();
+  }
+
+  Future<void> removeRecommendations() async {
+    final toRemove = <int>[];
+    for (int i = 0; i < playlist.length; i++) {
+      final source = playlist.sequence[i];
+      if ((source.tag as MediaItem).extras?['isRecommendation'] as bool? ?? false) {
+        toRemove.add(i);
+      }
+    }
+    // Remove in reverse order to maintain correct indices
+    for (final index in toRemove.reversed) {
+      await playlist.removeAt(index);
+    }
+  }
+
+  Future<void> _handleTrackChange(int currentIndex) async {
+    if (!recommendationMode) return;
+    
+    final currentSource = player.sequence?[currentIndex];
+    if (currentSource == null) return;
+    
+    // Check if current song is a recommendation
+    final isRecommendation = (currentSource.tag as MediaItem).extras?['isRecommendation'] as bool? ?? false;
+    
+    if (!isRecommendation) {
+      final lastIndex = currentIndex == 0 ? player.sequence!.length - 1 : currentIndex - 1;
+      final isLastRecommendation =
+          ((player.sequence![lastIndex].tag as MediaItem).extras?['isRecommendation'] as bool? ?? false);
+      final isNextRecommendation =
+          ((player.sequence![currentIndex + 1].tag as MediaItem).extras?['isRecommendation'] as bool? ?? false);
+      if (isLastRecommendation && !isNextRecommendation) {
+        final bvid = (currentSource.tag as MediaItem).extras?['bvid'] as String?;
+        if (bvid != null) {
+          await _addRecommendedTracks(bvid);
+        }
+      }
+    }
+  }
+
+  Future<void> _addRecommendedTracks(String bvid) async {
+    try {
+      final recommendations = await _getRecommendations(bvid);
+      if (recommendations.isEmpty) return;
+
+      // Take up to _recommendationBatchSize unique recommendations
+      final uniqueRecs = recommendations.take(_recommendationBatchSize);
+      final insertIndex = player.currentIndex! + 1;
+      
+      for (final (recBvid, _) in uniqueRecs) {
+        // Add recommendation flag when creating the audio source
+        await appendPlaylistSingle(
+          recBvid,
+          insertIndex: insertIndex,
+          extraExtras: {'isRecommendation': true}
+        );
+      }
+    } catch (e) {
+      print('Failed to get recommendations: $e');
+    }
+  }
+
+  Future<List<(String, int)>> _getRecommendations(String bvid) async {
+    final response = await dio.get(
+      'https://api.bilibili.com/x/web-interface/archive/related',
+      queryParameters: {'bvid': bvid},
+    );
+    
+    if (response.data['code'] == 0) {
+      final List<dynamic> related = response.data['data'];
+      return related
+          .map((video) => (video['bvid'] as String, video['cid'] as int))
+          .where((tuple) => !_isInPlaylist(tuple.$1, tuple.$2))
+          .toList();
+    }
+    return [];
+  }
+
+  bool _isInPlaylist(String bvid, int cid) {
+    return playlist.children.any((source) {
+      if (source is UriAudioSource && source.tag is MediaItem) {
+        return (source.tag as MediaItem).extras?['bvid'] == bvid && (source.tag as MediaItem).extras?['cid'] == cid;
+      }
+      return false;
+    });
   }
 }

@@ -15,20 +15,27 @@ class PlaylistBottomSheet extends StatelessWidget {
           title: StreamBuilder<List<IndexedAudioSource>?>(
             stream: globals.api.player.sequenceStream,
             builder: (_, snapshot) {
-              return Text(
-                "播放列表 (${snapshot.data?.length ?? 0})",
-                style: Theme.of(context).textTheme.titleSmall,
+              return Row(
+                children: [
+                  SizedBox(width: 10),
+                  Text(
+                    "播放列表 (${snapshot.data?.length ?? 0})",
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    ),
+                  ),
+                ],
               );
             },
           ),
-          leading: StreamBuilder<LoopMode>(
+          trailing: StreamBuilder<LoopMode>(
             stream: globals.api.player.loopModeStream,
             builder: (context, snapshot) {
               final loopMode = snapshot.data ?? LoopMode.off;
-              final icons = [Icons.playlist_play, Icons.repeat, Icons.repeat_one];
-              final labels = ["顺序播放", "歌单循环", "单曲循环"];
-              final cycleModes = [LoopMode.off, LoopMode.all, LoopMode.one];
-              final index = cycleModes.indexOf(loopMode);
+              final icons = [Icons.playlist_play, Icons.repeat, Icons.repeat_one, Icons.radio];
+              final labels = ["顺序播放", "歌单循环", "单曲循环", "漫步模式"];
+              final cycleModes = [LoopMode.off, LoopMode.all, LoopMode.one, LoopMode.off];
+              final index = globals.api.recommendationMode ? 3 : cycleModes.indexOf(loopMode);
               
               return IconButton(
                 icon: Icon(icons[index], size: 20),
@@ -38,13 +45,15 @@ class PlaylistBottomSheet extends StatelessWidget {
                   foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 onPressed: () {
-                  globals.api.player.setLoopMode(
-                    cycleModes[(index + 1) % cycleModes.length]
-                  );
-                  ScaffoldMessenger.of(context).clearSnackBars();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(labels[(index + 1) % labels.length]), duration: const Duration(milliseconds: 500)),
-                  );
+                  final nextIndex = (index + 1) % cycleModes.length;
+                  if (nextIndex == 3) {
+                    globals.api.player.setLoopMode(LoopMode.off);
+                    globals.api.enableRecommendationMode();
+                  } else {
+                    globals.api.player.setLoopMode(cycleModes[nextIndex]);
+                    globals.api.disableRecommendationMode();
+                  }
+                  
                 },
               );
             },
@@ -108,6 +117,17 @@ class PlaylistBottomSheet extends StatelessWidget {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  if (item.extras['isRecommendation'] ?? false)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 4),
+                                      child: Chip(
+                                        label: const Text('推'),
+                                        labelStyle: Theme.of(context).textTheme.labelSmall,
+                                        padding: EdgeInsets.zero,
+                                        visualDensity: VisualDensity.compact,
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
                                   if (item.extras['cached'] ?? false)
                                     Icon(Icons.check_circle,
                                       size: 16,
