@@ -135,10 +135,22 @@ class API {
 
   Future<void> appendPlaylist(String bvid, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     final srcs = await getAudioSources(bvid);
+    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    for (var cid in excludedCids) {
+      srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
+    }
     if (srcs == null) {
       return;
     }
     await _addUniqueSourcesToPlaylist(srcs, insertIndex: insertIndex, extraExtras: extraExtras);
+  }
+
+  Future<void> addToPlaylistCachedAudio(String bvid, int cid) async {
+    final cachedSource = await CacheManager.getCachedAudio(bvid, cid);
+    if (cachedSource == null) {
+      return;
+    }
+    final idx = await _addUniqueSourcesToPlaylist([cachedSource], insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
   }
 
   Future<void> playCachedAudio(String bvid, int cid) async {
@@ -158,6 +170,10 @@ class API {
   Future<void> playByBvid(String bvid) async {
     await player.pause();
     final srcs = await getAudioSources(bvid);
+    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    for (var cid in excludedCids) {
+      srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
+    }
     if (srcs == null) {
       return;
     }
@@ -293,7 +309,9 @@ class API {
                 'bvid': bvid,
                 'aid': vid.aid,
                 'cid': x.cid,
-                'cached': false
+                'cached': false,
+                'raw_title': vid.title,
+                'multi': vid.pages.length > 1,
               }));
     })))
         .whereType<UriAudioSource>()
@@ -322,7 +340,7 @@ class API {
     return TagResult.fromJson(response.data);
   }
 
-  Future<void> _downloadAndCache(String bvid, int aid, int cid, String url, File file, int quality, int mid, String title, String artist, String artUri) async {
+  Future<void> _downloadAndCache(String bvid, int aid, int cid, String url, File file, int quality, int mid, String title, String artist, String artUri, bool multi, String rawTitle) async {
     try {
       final request = http.Request('GET', Uri.parse(url));
       request.headers.addAll(headers);
@@ -332,7 +350,7 @@ class API {
       await response.stream.pipe(sink);
       await sink.close();
 
-      await CacheManager.saveCacheMetadata(bvid, aid, cid, quality, mid, file.path, title, artist, artUri);
+      await CacheManager.saveCacheMetadata(bvid, aid, cid, quality, mid, file.path, title, artist, artUri, multi, rawTitle);
     } catch (e) {
       await file.delete();
     }
@@ -379,9 +397,11 @@ class API {
     var mediaItem = currentItem.tag as MediaItem;
     final bvid = mediaItem.extras?['bvid'] as String?;
     final cid = mediaItem.extras?['cid'] as int?;
-    final aid = mediaItem.extras?['aid'] as int?;
-    final quality = mediaItem.extras?['quality'] as int?;
-    final mid = mediaItem.extras?['mid'] as int?;
+    final aid = mediaItem.extras?['aid'] as int? ?? 0;
+    final quality = mediaItem.extras?['quality'] as int? ?? 0;
+    final mid = mediaItem.extras?['mid'] as int? ?? 0;
+    final multi = mediaItem.extras?['multi'] as bool? ?? false;
+    final rawTitle = mediaItem.extras?['raw_title'] as String? ?? '';
 
     if (mediaItem.extras?['cached'] == true) {
       return;
@@ -396,7 +416,7 @@ class API {
       // If not cached, start caching
       try {
         final file = await CacheManager.prepareFileForCaching(bvid, cid);
-        await _downloadAndCache(bvid, aid, cid, currentItem.uri.toString(), file, quality ?? 0, mid ?? 0, mediaItem.title, mediaItem.artist ?? '', mediaItem.artUri.toString());
+        await _downloadAndCache(bvid, aid, cid, currentItem.uri.toString(), file, quality, mid, mediaItem.title, mediaItem.artist ?? '', mediaItem.artUri.toString(), multi, rawTitle);
       } catch (e) {
       }
     }
@@ -449,6 +469,8 @@ class API {
           bvid: tag.extras?['bvid'] ?? '',
           aid: tag.extras?['aid'] ?? 0,
           cid: tag.extras?['cid'] ?? 0,
+          multi: tag.extras?['multi'] ?? false,
+          rawTitle: tag.extras?['raw_title'] ?? '',
           quality: tag.extras?['quality'] ?? 0,
           mid: tag.extras?['mid'] ?? 0,
           cached: tag.extras?['cached'] ?? false,
@@ -483,6 +505,9 @@ class API {
           extras: {
             'bvid': data.bvid,
             'cid': data.cid,
+            'aid': data.aid,
+            'multi': data.multi,
+            'raw_title': data.rawTitle,
             'quality': data.quality,
             'mid': data.mid,
             'cached': data.cached,

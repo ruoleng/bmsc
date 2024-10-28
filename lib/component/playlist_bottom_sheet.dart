@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import '../cache_manager.dart';
 import '../globals.dart' as globals;
 
 class PlaylistBottomSheet extends StatelessWidget {
@@ -23,40 +24,76 @@ class PlaylistBottomSheet extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
                     ),
-                  ),
+                  )
                 ],
               );
             },
           ),
-          trailing: StreamBuilder<LoopMode>(
-            stream: globals.api.player.loopModeStream,
-            builder: (context, snapshot) {
-              final loopMode = snapshot.data ?? LoopMode.off;
-              final icons = [Icons.playlist_play, Icons.repeat, Icons.repeat_one, Icons.radio];
-              final labels = ["顺序播放", "歌单循环", "单曲循环", "漫步模式"];
-              final cycleModes = [LoopMode.off, LoopMode.all, LoopMode.one, LoopMode.off];
-              final index = globals.api.recommendationMode ? 3 : cycleModes.indexOf(loopMode);
-              
-              return IconButton(
-                icon: Icon(icons[index], size: 20),
-                tooltip: labels[index],
-                style: IconButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-                  foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+          trailing: SizedBox(
+            width: 140,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.playlist_remove, size: 20),
+                  tooltip: '清空',
+                  onPressed: () {
+                    if (globals.api.playlist.length == 0) {
+                      return;
+                    }
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('清空播放列表'),
+                        content: const Text('确定要清空播放列表吗？'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('取消'),
+                          ),
+                          FilledButton(
+                            onPressed: () {
+                              globals.api.playlist.clear();
+                              Navigator.pop(context);
+                            },
+                            child: const Text('确定'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-                onPressed: () {
-                  final nextIndex = (index + 1) % cycleModes.length;
-                  if (nextIndex == 3) {
-                    globals.api.player.setLoopMode(LoopMode.off);
-                    globals.api.enableRecommendationMode();
-                  } else {
-                    globals.api.player.setLoopMode(cycleModes[nextIndex]);
-                    globals.api.disableRecommendationMode();
-                  }
-                  
-                },
-              );
-            },
+                StreamBuilder<LoopMode>(
+                  stream: globals.api.player.loopModeStream,
+                  builder: (context, snapshot) {
+                    final loopMode = snapshot.data ?? LoopMode.off;
+                    final icons = [Icons.playlist_play, Icons.repeat, Icons.repeat_one, Icons.radio];
+                    final labels = ["顺序播放", "歌单循环", "单曲循环", "漫步模式"];
+                    final cycleModes = [LoopMode.off, LoopMode.all, LoopMode.one, LoopMode.off];
+                    final index = globals.api.recommendationMode ? 3 : cycleModes.indexOf(loopMode);
+                    
+                    return IconButton(
+                      icon: Icon(icons[index], size: 20),
+                      tooltip: labels[index],
+                      style: IconButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                        foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      onPressed: () {
+                        final nextIndex = (index + 1) % cycleModes.length;
+                        if (nextIndex == 3) {
+                          globals.api.player.setLoopMode(LoopMode.off);
+                          globals.api.enableRecommendationMode();
+                        } else {
+                          globals.api.player.setLoopMode(cycleModes[nextIndex]);
+                          globals.api.disableRecommendationMode();
+                        }
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
 
@@ -127,29 +164,62 @@ class PlaylistBottomSheet extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  if (item.extras['cached'] ?? false)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 4),
+                                      child: Icon(Icons.check_circle,
+                                        size: 16,
+                                        color: Color(0xFF66BB6A)),
+                                    ),
                                 ],
                               ),
-                              subtitle: Text(
-                                item.artist,
-                                style: Theme.of(context).textTheme.bodySmall,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              subtitle: Row(
+                                children: [
+                                  
+                                  if (item.extras['multi'] ?? false) ...[
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4),
+                                      child: Icon(Icons.album, size: 12),
+                                    ),
+                                    Flexible(
+                                      child: Text(
+                                        item.extras['raw_title'] as String,
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ] else
+                                    Flexible(
+                                      child: Text(
+                                        item.artist ?? '',
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                ],
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (item.extras['cached'] ?? false)
-                                    Padding(
-                                      padding: const EdgeInsets.all(4),
-                                      child: Icon(Icons.check_circle,
-                                        size: 16,
-                                        color: Colors.green),
+                                  if (item.extras['multi'] ?? false)
+                                    Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      child: InkWell(
+                                        onTap: () {
+                                          CacheManager.addExcludedPart(item.extras['bvid'] as String, item.extras['cid'] as int);
+                                          globals.api.playlist.removeAt(index);
+                                        },
+                                        child: const Icon(Icons.not_interested, size: 20),
+                                      ),
                                     ),
-                                 
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    icon: const Icon(Icons.delete, size: 20),
-                                    onPressed: () => globals.api.playlist.removeAt(index),
+                                  Container(
+                                    margin: const EdgeInsets.only(right: 8),
+                                    child: InkWell(
+                                      onTap: () => globals.api.playlist.removeAt(index),
+                                      child: const Icon(Icons.delete, size: 20),
+                                    ),
                                   ),
                                   ReorderableDragStartListener(
                                     index: index,

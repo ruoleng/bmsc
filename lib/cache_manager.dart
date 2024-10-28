@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart';
 class CacheManager {
   static Database? _database;
   static const String tableName = 'audio_cache';
+  static const String excludedPartsTable = 'excluded_parts';
 
   static Future<Database> get database async {
     if (_database != null) return _database!;
@@ -31,11 +32,49 @@ class CacheManager {
           artUri TEXT,
           quality INTEGER,
           mid INTEGER,
+          multi INTEGER,
+          raw_title TEXT,
           filePath TEXT,
           createdAt INTEGER
         )
       ''');
+      await db.execute('''
+        CREATE TABLE $excludedPartsTable (
+          bvid TEXT NOT NULL,
+          cid INTEGER NOT NULL,
+          PRIMARY KEY (bvid, cid)
+        )
+      ''');
     });
+  }
+
+  static Future<void> addExcludedPart(String bvid, int cid) async {
+    final db = await database;
+    await db.insert(
+      excludedPartsTable,
+      {'bvid': bvid, 'cid': cid},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  static Future<void> removeExcludedPart(String bvid, int cid) async {
+    final db = await database;
+    await db.delete(
+      excludedPartsTable,
+      where: 'bvid = ? AND cid = ?',
+      whereArgs: [bvid, cid],
+    );
+  }
+
+
+  static Future<List<int>> getExcludedParts(String bvid) async {
+    final db = await database;
+    final results = await db.query(
+      excludedPartsTable,
+      where: 'bvid = ?',
+      whereArgs: [bvid],
+    );
+    return results.map((row) => row['cid'] as int).toList();
   }
 
   static Future<bool> isSingleCached(String bvid) async {
@@ -79,6 +118,8 @@ class CacheManager {
           'cid': results.first['cid'] as int,
           'quality': results.first['quality'] as int,
           'mid': results.first['mid'] as int,
+          'multi': results.first['multi'] as int == 1,
+          'raw_title': results.first['raw_title'] as String,
           'cached': true
         },
       ));
@@ -93,7 +134,7 @@ class CacheManager {
     return File(filePath);
   }
 
-  static Future<void> saveCacheMetadata(String bvid, int aid, int cid, int quality, int mid, String filePath, String title, String artist, String artUri) async {
+  static Future<void> saveCacheMetadata(String bvid, int aid, int cid, int quality, int mid, String filePath, String title, String artist, String artUri, bool multi, String rawTitle) async {
     final db = await database;
     await db.insert(tableName, {
       'id': '${bvid}_$cid',
@@ -107,6 +148,8 @@ class CacheManager {
       'title': title,
       'artist': artist,
       'artUri': artUri,
+      'multi': multi,
+      'raw_title': rawTitle,
     });
   }
 
