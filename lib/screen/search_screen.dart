@@ -3,6 +3,8 @@ import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../model/search.dart';
 import '../util/string.dart';
+import '../component/playing_card.dart';
+import 'package:just_audio/just_audio.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -34,6 +36,15 @@ class _SearchScreenState extends State<SearchScreen> {
       body: vidList.isEmpty
           ? const Center(child: Text('输入关键词开始搜索'))
           : _listView(),
+      bottomNavigationBar: StreamBuilder<SequenceState?>(
+        stream: globals.api.player.sequenceStateStream,
+        builder: (_, snapshot) {
+          final src = snapshot.data?.sequence;
+          return (src == null || src.isEmpty)
+              ? const SizedBox()
+              : const PlayingCard();
+        },
+      ),
     );
   }
 
@@ -95,4 +106,3 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 }
-

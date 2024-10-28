@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../model/dynamic.dart';
+import '../component/playing_card.dart';
+import 'package:just_audio/just_audio.dart';
 
 class DynamicScreen extends StatefulWidget {
   const DynamicScreen({super.key});
@@ -22,7 +24,18 @@ class _DynamicScreenState extends State<DynamicScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text('动态')), body: dynListView());
+        appBar: AppBar(title: const Text('动态')),
+        body: dynListView(),
+        bottomNavigationBar: StreamBuilder<SequenceState?>(
+          stream: globals.api.player.sequenceStateStream,
+          builder: (_, snapshot) {
+            final src = snapshot.data?.sequence;
+            return (src == null || src.isEmpty)
+                ? const SizedBox()
+                : const PlayingCard();
+          },
+        ),
+    );
   }
 
   dynListView() {

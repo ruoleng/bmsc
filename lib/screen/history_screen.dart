@@ -3,6 +3,8 @@ import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../model/history.dart';
 import '../util/string.dart';
+import '../component/playing_card.dart';
+import 'package:just_audio/just_audio.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -23,7 +25,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text('历史记录')), body: hisListView());
+        appBar: AppBar(title: const Text('历史记录')),
+        body: hisListView(),
+        bottomNavigationBar: StreamBuilder<SequenceState?>(
+          stream: globals.api.player.sequenceStateStream,
+          builder: (_, snapshot) {
+            final src = snapshot.data?.sequence;
+            return (src == null || src.isEmpty)
+                ? const SizedBox()
+                : const PlayingCard();
+          },
+        ));
   }
 
   hisListView() {

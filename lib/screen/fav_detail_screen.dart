@@ -6,6 +6,9 @@ import '../globals.dart' as globals;
 import '../util/string.dart';
 import 'package:bmsc/cache_manager.dart';
 import 'package:bmsc/component/excluded_parts_dialog.dart';
+import '../component/playing_card.dart';
+import 'package:just_audio/just_audio.dart';
+
 class FavDetailScreen extends StatefulWidget {
   final Fav fav;
 
@@ -101,6 +104,15 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
           itemCount: favInfo.length,
           itemBuilder: (context, index) => favDetailListTileView(index),
         ),
+      ),
+      bottomNavigationBar: StreamBuilder<SequenceState?>(
+        stream: globals.api.player.sequenceStateStream,
+        builder: (_, snapshot) {
+          final src = snapshot.data?.sequence;
+          return (src == null || src.isEmpty)
+              ? const SizedBox()
+              : const PlayingCard();
+        },
       ),
     );
   }
