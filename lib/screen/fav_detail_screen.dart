@@ -5,7 +5,7 @@ import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../util/string.dart';
 import 'package:bmsc/cache_manager.dart';
-
+import 'package:bmsc/component/excluded_parts_dialog.dart';
 class FavDetailScreen extends StatefulWidget {
   final Fav fav;
 
@@ -124,6 +124,18 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
             view: unit(favInfo[index].cntInfo.play),
             cached: favInfo[index].page == 1 && (snapshot.data ?? false),
             onTap: () => globals.api.playByBvid(favInfo[index].bvid),
+            onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(favInfo[index].bvid, insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1),
+            onLongPress: favInfo[index].page > 1 ? () async {
+              if (!context.mounted) return;
+              showDialog(
+                context: context,
+                builder: (context) => ExcludedPartsDialog(
+                  bvid: favInfo[index].bvid,
+                  title: favInfo[index].title,
+                ),
+              );
+            } : null,
+
           ),
         );
       },

@@ -66,6 +66,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
       time: dynList[index].moduleAuthor.pubTime,
       onTap: () =>
           globals.api.playByBvid(dynList[index].moduleDynamic.major.archive.bvid),
+      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(dynList[index].moduleDynamic.major.archive.bvid, insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1),
     );
   }
 }

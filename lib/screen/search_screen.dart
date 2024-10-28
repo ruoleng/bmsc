@@ -69,6 +69,7 @@ class _SearchScreenState extends State<SearchScreen> {
       len: duration,
       view: unit(vid.play),
       onTap: () => globals.api.playByBvid(vid.bvid),
+      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(vid.bvid, insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1),
     );
   }
 

@@ -32,7 +32,6 @@ class Info {
     required this.mtime,
     required this.state,
     required this.favState,
-    required this.likeState,
     required this.mediaCount,
   });
   late final int id;
@@ -50,7 +49,6 @@ class Info {
   late final int mtime;
   late final int state;
   late final int favState;
-  late final int likeState;
   late final int mediaCount;
 
   Info.fromJson(Map<String, dynamic> json) {
@@ -69,7 +67,6 @@ class Info {
     mtime = json['mtime'];
     state = json['state'];
     favState = json['fav_state'];
-    likeState = json['like_state'];
     mediaCount = json['media_count'];
   }
 }

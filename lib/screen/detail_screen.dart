@@ -287,6 +287,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                                   // Set as default folder
                                                   await globals.api.setDefaultFavFolder(folder.id);
                                                   if (!context.mounted) return;
+                                                  Future.microtask(() => setState(() { _isFavorite = true; }));
                                                   ScaffoldMessenger.of(context).showSnackBar(
                                                     const SnackBar(
                                                       content: Text('已设为默认收藏夹'),

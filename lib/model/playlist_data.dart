@@ -5,10 +5,13 @@ class PlaylistData {
   final String artUri;
   final String audioUri;
   final String bvid;
+  final int aid;
   final int cid;
+  final bool multi;
   final int quality;
   final int mid;
   final bool cached;
+  final String rawTitle;
 
   PlaylistData({
     required this.id,
@@ -17,10 +20,13 @@ class PlaylistData {
     required this.artUri,
     required this.audioUri,
     required this.bvid,
+    required this.aid,
     required this.cid,
+    required this.multi,
     required this.quality,
     required this.mid,
     required this.cached,
+    required this.rawTitle,
   });
 
   Map<String, dynamic> toJson() => {
@@ -30,10 +36,13 @@ class PlaylistData {
         'artUri': artUri,
         'audioUri': audioUri,
         'bvid': bvid,
+        'aid': aid,
         'cid': cid,
+        'multi': multi,
         'quality': quality,
         'mid': mid,
         'cached': cached,
+        'raw_title': rawTitle,
       };
 
   factory PlaylistData.fromJson(Map<String, dynamic> json) => PlaylistData(
@@ -43,9 +52,12 @@ class PlaylistData {
         artUri: json['artUri'],
         audioUri: json['audioUri'],
         bvid: json['bvid'],
+        aid: json['aid'],
         cid: json['cid'],
+        multi: json['multi'],
         quality: json['quality'],
         mid: json['mid'],
         cached: json['cached'],
+        rawTitle: json['raw_title'],
       );
 }

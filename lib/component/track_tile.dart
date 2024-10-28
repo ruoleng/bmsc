@@ -13,6 +13,8 @@ class TrackTile extends StatelessWidget {
     this.parts,
     this.cached,
     required this.onTap,
+    this.onLongPress,
+    this.onAddToPlaylistButtonPressed,
   });
 
   final String? pic;
@@ -24,6 +26,8 @@ class TrackTile extends StatelessWidget {
   final int? parts;
   final bool? cached;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onAddToPlaylistButtonPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -35,175 +39,202 @@ class TrackTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: pic == null
-                      ? Container(
-                          color: Theme.of(context).colorScheme.primaryContainer,
-                          child: Icon(
-                            Icons.music_note,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 20,
-                          ),
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: pic!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: Theme.of(context).colorScheme.primaryContainer,
-                            child: Icon(
-                              Icons.music_note,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 20,
+      child: Stack(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: onTap,
+            onLongPress: parts != null && parts! > 1 ? onLongPress : null,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: pic == null
+                          ? Container(
+                              color: Theme.of(context).colorScheme.primaryContainer,
+                              child: Icon(
+                                Icons.music_note,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 20,
+                              ),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: pic!,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                child: Icon(
+                                  Icons.music_note,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => Container(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                child: Icon(
+                                  Icons.music_note,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              memCacheWidth: 96,
+                              memCacheHeight: 96,
                             ),
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            color: Theme.of(context).colorScheme.primaryContainer,
-                            child: Icon(
-                              Icons.music_note,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 20,
-                            ),
-                          ),
-                          memCacheWidth: 96,
-                          memCacheHeight: 96,
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        if (cached == true) ...[
-                          Icon(
-                            Icons.check_circle,
-                            size: 16,
-                            color: Colors.green,
-                          ),
-                          const SizedBox(width: 2),
-                        ],
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
                     ),
-                    
-                    const SizedBox(height: 2),
-                    Row(
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 12,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          child: Text(
-                            author,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.secondary,
+                        Row(
+                          children: [
+                            if (cached == true) ...[
+                              Icon(
+                                Icons.check_circle,
+                                size: 16,
+                                color: Colors.green,
+                              ),
+                              const SizedBox(width: 2),
+                            ],
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
                         
-                        if (parts != null) ...[
-                          Icon(
-                            Icons.playlist_play,
-                            size: 12,
-                            color: Theme.of(context).colorScheme.secondary,
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            parts.toString(),
-                            style: TextStyle(
-                              fontSize: 11,
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.person_outline,
+                              size: 12,
                               color: Theme.of(context).colorScheme.secondary,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Icon(
-                          Icons.schedule,
-                          size: 12,
-                          color: Theme.of(context).colorScheme.secondary,
+                            const SizedBox(width: 2),
+                            Expanded(
+                              child: Text(
+                                author,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.secondary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 2),
-                        Text(
-                          len,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.secondary,
-                          ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            
+                            if (parts != null) ...[
+                              Icon(
+                                Icons.playlist_play,
+                                size: 12,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                parts.toString(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context).colorScheme.secondary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Icon(
+                              Icons.schedule,
+                              size: 12,
+                              color: Theme.of(context).colorScheme.secondary,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              len,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ),
+                            if (view != null) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.visibility_outlined,
+                                size: 12,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                view!,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context).colorScheme.secondary,
+                                ),
+                              ),
+                            ],
+                            if (time != null) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.access_time,
+                                size: 12,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                time!,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context).colorScheme.secondary,
+                                ),
+                              ),
+                            ],
+                            if (onAddToPlaylistButtonPressed != null)
+                              const SizedBox(width: 48),
+                          ],
                         ),
-                        if (view != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.visibility_outlined,
-                            size: 12,
-                            color: Theme.of(context).colorScheme.secondary,
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            view!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).colorScheme.secondary,
-                            ),
-                          ),
-                        ],
-                        if (time != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.access_time,
-                            size: 12,
-                            color: Theme.of(context).colorScheme.secondary,
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            time!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).colorScheme.secondary,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (onAddToPlaylistButtonPressed != null)
+            Positioned(
+              top: 30,
+              bottom: 0,
+              right: 0,
+              width: 48,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onAddToPlaylistButtonPressed,
+                  child: Center(
+                    child: Icon(
+                      Icons.add_circle_outline_rounded,
+                      size: 24,
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }

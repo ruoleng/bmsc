@@ -175,46 +175,57 @@ class _CacheScreenState extends State<CacheScreen> {
         ),
         body: isLoading
             ? const Center(child: CircularProgressIndicator())
-            : filteredFiles.isEmpty
-                ? Center(
-                    child: Text(
-                      _searchController.text.isEmpty
-                          ? '没有缓存文件'
-                          : '没有找到匹配的文件',
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: filteredFiles.length,
-                    itemBuilder: (context, index) {
-                      final file = filteredFiles[index];
-                      final fileSize = getFileSize(file['filePath']);
+            : RefreshIndicator(
+                onRefresh: loadCachedFiles,
+                child: filteredFiles.isEmpty
+                    ? ListView( // Wrap Center in ListView for RefreshIndicator to work
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.8, // Push content to center
+                            child: Center(
+                              child: Text(
+                                _searchController.text.isEmpty
+                                    ? '没有缓存文件'
+                                    : '没有找到匹配的文件',
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        itemCount: filteredFiles.length,
+                        itemBuilder: (context, index) {
+                          final file = filteredFiles[index];
+                          final fileSize = getFileSize(file['filePath']);
 
-                      return Dismissible(
-                        key: Key(file['id']),
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20.0),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        direction: DismissDirection.endToStart,
-                        onDismissed: (direction) {
-                          deleteCache(file['id'], file['filePath']);
+                          return Dismissible(
+                            key: Key(file['id']),
+                            background: Container(
+                              color: Colors.red,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20.0),
+                              child: const Icon(Icons.delete, color: Colors.white),
+                            ),
+                            direction: DismissDirection.endToStart,
+                            onDismissed: (direction) {
+                              deleteCache(file['id'], file['filePath']);
+                            },
+                            child: TrackTile(
+                              key: Key(file['id']),
+                              pic: file['artUri'],
+                              title: file['title'],
+                              author: file['artist'],
+                              len: fileSize,
+                              view: DateTime.fromMillisecondsSinceEpoch(
+                                file['createdAt'],
+                              ).toString().substring(0, 19),
+                              onTap: () => globals.api.playCachedAudio(file['bvid'], file['cid']),
+                              onAddToPlaylistButtonPressed: () => globals.api.addToPlaylistCachedAudio(file['bvid'], file['cid']),
+                            ),
+                          );
                         },
-                        child: TrackTile(
-                          key: Key(file['id']),
-                          pic: file['artUri'],
-                          title: file['title'],
-                          author: file['artist'],
-                          len: fileSize,
-                          view: DateTime.fromMillisecondsSinceEpoch(
-                            file['createdAt'],
-                          ).toString().substring(0, 19),
-                          onTap: () => globals.api.playCachedAudio(file['bvid'], file['cid']),
-                        ),
-                      );
-                    },
-                  ),
-      );
+                      ),
+              ),
+    );
   }
 }
