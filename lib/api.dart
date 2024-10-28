@@ -201,10 +201,10 @@ class API {
     return response.data['data']['mid'];
   }
 
-  Future<FavResult?> getFavs(int uid) async {
+  Future<FavResult?> getFavs(int uid, {int? rid}) async {
     final response = await dio.get(
         'https://api.bilibili.com/x/v3/fav/folder/created/list-all',
-        queryParameters: {'up_mid': uid});
+        queryParameters: {'up_mid': uid, 'rid': rid});
     if (response.data['code'] != 0) {
       return null;
     }
@@ -439,7 +439,6 @@ class API {
             mediaItem.extras?.addAll(extraExtras!);
           }
           if (insertIndex != null) {
-            print(source.uri);
             await playlist.insert(insertIndex, source);
             ret ??= insertIndex;
             insertIndex++;
@@ -562,6 +561,7 @@ class API {
   }
 
   Future<void> _handleTrackChange(int currentIndex) async {
+    if (currentIndex < 0 || currentIndex >= playlist.length) return;
     if (!recommendationMode) return;
     
     final currentSource = player.sequence?[currentIndex];
@@ -572,10 +572,11 @@ class API {
     
     if (!isRecommendation) {
       final lastIndex = currentIndex == 0 ? player.sequence!.length - 1 : currentIndex - 1;
+      final nextIndex = currentIndex == player.sequence!.length - 1 ? 0 : currentIndex + 1;
       final isLastRecommendation =
           ((player.sequence![lastIndex].tag as MediaItem).extras?['isRecommendation'] as bool? ?? false);
       final isNextRecommendation =
-          ((player.sequence![currentIndex + 1].tag as MediaItem).extras?['isRecommendation'] as bool? ?? false);
+          ((player.sequence![nextIndex].tag as MediaItem).extras?['isRecommendation'] as bool? ?? false);
       if (isLastRecommendation && !isNextRecommendation) {
         final bvid = (currentSource.tag as MediaItem).extras?['bvid'] as String?;
         if (bvid != null) {
@@ -643,7 +644,6 @@ class API {
         'csrf': _extractCSRF(cookies),
       }
     );
-    print(response.data);
     return response.data['code'] == 0;
   }
 
@@ -661,13 +661,20 @@ class API {
     return response.data['data']['favoured'];
   }
 
-  Future<int?> getDefaultFavFolder() async {
+  Future<Map<String, dynamic>?> getDefaultFavFolder() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('default_fav_folder');
+    final id = prefs.getInt('default_fav_folder');
+    final name = prefs.getString('default_fav_folder_name');
+    if (id == null) return null;
+    return {
+      'id': id,
+      'name': name,
+    };
   }
 
-  Future<void> setDefaultFavFolder(int folderId) async {
+  Future<void> setDefaultFavFolder(int folderId, String folderName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('default_fav_folder', folderId);
+    await prefs.setString('default_fav_folder_name', folderName);
   }
 }

@@ -207,8 +207,27 @@ class _CacheScreenState extends State<CacheScreen> {
                               child: const Icon(Icons.delete, color: Colors.white),
                             ),
                             direction: DismissDirection.endToStart,
-                            onDismissed: (direction) {
-                              deleteCache(file['id'], file['filePath']);
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('删除缓存'),
+                                  content: const Text('确定要删除这个缓存文件吗？'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('取消'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () {
+                                        Navigator.pop(context, true);
+                                        deleteCache(file['id'], file['filePath']);
+                                      },
+                                      child: const Text('确定'),
+                                    ),
+                                  ],
+                                ),
+                              );
                             },
                             child: TrackTile(
                               key: Key(file['id']),

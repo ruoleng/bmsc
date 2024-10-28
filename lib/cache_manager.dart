@@ -19,7 +19,7 @@ class CacheManager {
 
   static Future<Database> initDB() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String path = join(documentsDirectory.path, "AudioCache.db");
+    String path = join(documentsDirectory.path, "AudioCache3.db");
     return await openDatabase(path, version: 1, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE $tableName (
@@ -148,7 +148,7 @@ class CacheManager {
       'title': title,
       'artist': artist,
       'artUri': artUri,
-      'multi': multi,
+      'multi': multi ? 1 : 0,
       'raw_title': rawTitle,
     });
   }

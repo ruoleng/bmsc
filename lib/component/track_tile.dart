@@ -11,6 +11,7 @@ class TrackTile extends StatelessWidget {
     this.view,
     this.time,
     this.parts,
+    this.excludedParts = 0,
     this.cached,
     required this.onTap,
     this.onLongPress,
@@ -24,6 +25,7 @@ class TrackTile extends StatelessWidget {
   final String? view;
   final String? time;
   final int? parts;
+  final int excludedParts;
   final bool? cached;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
@@ -44,7 +46,7 @@ class TrackTile extends StatelessWidget {
           InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: onTap,
-            onLongPress: parts != null && parts! > 1 ? onLongPress : null,
+            onLongPress: onLongPress,
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Row(
@@ -96,7 +98,7 @@ class TrackTile extends StatelessWidget {
                         Row(
                           children: [
                             if (cached == true) ...[
-                              Icon(
+                              const Icon(
                                 Icons.check_circle,
                                 size: 16,
                                 color: Colors.green,
@@ -116,7 +118,6 @@ class TrackTile extends StatelessWidget {
                             ),
                           ],
                         ),
-                        
                         const SizedBox(height: 2),
                         Row(
                           children: [
@@ -141,7 +142,6 @@ class TrackTile extends StatelessWidget {
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            
                             if (parts != null) ...[
                               Icon(
                                 Icons.playlist_play,
@@ -150,12 +150,21 @@ class TrackTile extends StatelessWidget {
                               ),
                               const SizedBox(width: 2),
                               Text(
-                                parts.toString(),
+                                '$parts',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Theme.of(context).colorScheme.secondary,
                                 ),
                               ),
+                              if (excludedParts > 0) ...[
+                                Text(
+                                  ' (-$excludedParts)',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(width: 8),
                             ],
                             Icon(
@@ -224,11 +233,10 @@ class TrackTile extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: onAddToPlaylistButtonPressed,
-                  child: Center(
+                  child: const Center(
                     child: Icon(
                       Icons.add_circle_outline_rounded,
                       size: 24,
-                      color: Theme.of(context).colorScheme.secondary,
                     ),
                   ),
                 ),
