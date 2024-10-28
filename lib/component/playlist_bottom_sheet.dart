@@ -92,21 +92,42 @@ class PlaylistBottomSheet extends StatelessWidget {
                               visualDensity: const VisualDensity(vertical: -2),
                               contentPadding: const EdgeInsets.only(left: 16, right: 8),
                               minLeadingWidth: 24,
-                              leading: isPlaying 
-                                ? Icon(Icons.play_arrow, 
-                                    color: Theme.of(context).colorScheme.primary,
+                              leading: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  isPlaying 
+                                    ? Icon(Icons.play_arrow, 
+                                        color: Theme.of(context).colorScheme.primary,
                                     size: 20)
-                                : Text('${index + 1}',
-                                    style: Theme.of(context).textTheme.bodySmall),
-                              title: Text(
-                                item.title,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: isPlaying 
-                                    ? Theme.of(context).colorScheme.primary
-                                    : null,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                    : Text('${index + 1}',
+                                        style: Theme.of(context).textTheme.bodySmall),
+                                ],
+                              ),
+                              title: Row(
+                                children: [
+                                  if (item.extras['isRecommendation'] ?? false)
+                                    Container(
+                                      margin: const EdgeInsets.only(right: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.surfaceVariant,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Icon(Icons.radio, size: 12),
+                                    ),
+                                  Flexible( // Added Flexible widget here
+                                    child: Text(
+                                      item.title,
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: isPlaying 
+                                          ? Theme.of(context).colorScheme.primary
+                                          : null,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                               subtitle: Text(
                                 item.artist,
@@ -117,21 +138,14 @@ class PlaylistBottomSheet extends StatelessWidget {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (item.extras['isRecommendation'] ?? false)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 4),
-                                      child: Chip(
-                                        label: const Text('推'),
-                                        labelStyle: Theme.of(context).textTheme.labelSmall,
-                                        padding: EdgeInsets.zero,
-                                        visualDensity: VisualDensity.compact,
-                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                    ),
                                   if (item.extras['cached'] ?? false)
-                                    Icon(Icons.check_circle,
-                                      size: 16,
-                                      color: Colors.green),
+                                    Padding(
+                                      padding: const EdgeInsets.all(4),
+                                      child: Icon(Icons.check_circle,
+                                        size: 16,
+                                        color: Colors.green),
+                                    ),
+                                 
                                   IconButton(
                                     padding: EdgeInsets.zero,
                                     icon: const Icon(Icons.delete, size: 20),
