@@ -17,6 +17,8 @@ import 'component/playing_card.dart';
 import 'component/track_tile.dart';
 import 'util/string.dart';
 import 'globals.dart' as globals;
+import 'package:flutter/foundation.dart';
+import 'util/error_handler.dart';
 
 Future<void> main() async {
   await JustAudioBackground.init(
@@ -24,6 +26,17 @@ Future<void> main() async {
     androidNotificationChannelName: 'Audio playback',
     androidNotificationOngoing: true,
   );
+  
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    ErrorHandler.handleException(details.exception);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    ErrorHandler.handleException(error);
+    return true;
+  };
+
   globals.api.initAudioSession();
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
@@ -40,30 +53,23 @@ class MyApp extends StatelessWidget {
     );
 
     return MaterialApp(
+      navigatorKey: ErrorHandler.navigatorKey,
       theme: theme,
-      home: MaterialApp(
-        theme: theme,
-        home: const MyHomePage(title: 'BiliMusic'),
-        builder: (context2, child) {
-          return Overlay(
-            initialEntries: [
-              OverlayEntry(builder: (context3) {
-                return Scaffold(
-                  body: child,
-                  bottomNavigationBar: StreamBuilder<SequenceState?>(
-                    stream: globals.api.player.sequenceStateStream,
-                    builder: (_, snapshot) {
-                      final src = snapshot.data?.sequence;
-                      return (src == null || src.isEmpty)
-                          ? const SizedBox()
-                          : PlayingCard();
-                    },
-                  ),
-                );
-              })
-            ],
+      home: Builder(
+        builder: (context) {
+          return Scaffold(
+            body: MyHomePage(title: 'BiliMusic'),
+            bottomNavigationBar: StreamBuilder<SequenceState?>(
+              stream: globals.api.player.sequenceStateStream,
+              builder: (_, snapshot) {
+                final src = snapshot.data?.sequence;
+                return (src == null || src.isEmpty)
+                    ? const SizedBox()
+                    : PlayingCard();
+              },
+            ),
           );
-        },
+        }
       ),
     );
   }

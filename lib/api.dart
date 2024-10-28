@@ -651,14 +651,17 @@ class API {
     final csrfMatch = RegExp(r'bili_jct=([^;]+)').firstMatch(cookies);
     return csrfMatch?.group(1) ?? '';
   }
-
-  Future<bool> isFavorited(int aid) async {
-    final response = await dio.get("https://api.bilibili.com/x/v2/fav/video/favoured",
-      queryParameters: {'aid': aid});
-    if (response.data['code'] != 0) {
-      return false;
+  Future<bool?> isFavorited(int aid) async {
+    try {
+      final response = await dio.get("https://api.bilibili.com/x/v2/fav/video/favoured",
+        queryParameters: {'aid': aid});
+      if (response.data['code'] != 0) {
+        return null;
+      }
+      return response.data['data']['favoured'];
+    } catch (e) {
+      return null;
     }
-    return response.data['data']['favoured'];
   }
 
   Future<Map<String, dynamic>?> getDefaultFavFolder() async {
