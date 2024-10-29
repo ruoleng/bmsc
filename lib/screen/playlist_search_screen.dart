@@ -7,6 +7,7 @@ import '../api.dart';
 import 'dart:math';
 import 'dart:collection';
 import 'dart:async';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class PlaylistSearchScreen extends StatefulWidget {
   const PlaylistSearchScreen({super.key});
@@ -36,6 +37,23 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   int processedTracks = 0;
   int totalFavorites = 0;
   int processedFavorites = 0;
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  bool _notificationsInitialized = false;
+
+  Future<void> _initializeNotifications() async {
+    if (_notificationsInitialized) return;
+    
+    const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initializationSettingsIOS = DarwinInitializationSettings();
+    const initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+    
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    _notificationsInitialized = true;
+  }
 
   void _toggleSearchPause() {
     setState(() {
@@ -231,6 +249,26 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                             totalFavorites = foundTracks.length;
                                           });
                                           
+                                          // Show initial favorite notification
+                                          await flutterLocalNotificationsPlugin.show(
+                                            1, // Use a different notification ID for favorites
+                                            '添加收藏',
+                                            '准备添加到收藏夹...',
+                                            const NotificationDetails(
+                                              android: AndroidNotificationDetails(
+                                                'favorite_progress',
+                                                'Favorite Progress',
+                                                channelDescription: 'Notifications for favorite progress',
+                                                importance: Importance.high,
+                                                priority: Priority.high,
+                                                ongoing: true,
+                                                showProgress: true,
+                                                onlyAlertOnce: true,
+                                                playSound: false,
+                                              ),
+                                            ),
+                                          );
+                                          
                                           for (var i = 0; i < foundTracks.length; i++) {
                                             await _waitForSavingPause();
                                             final track = foundTracks[i];
@@ -241,14 +279,38 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                             );
                                             if (success == null) {
                                               showErrorSnackBar("收藏失败，已暂停");
-                                              ++i;
+                                              --i;
                                               _toggleSavingPause();
                                               continue;
                                             }
+
                                             setState(() {
                                               results[track['index']]['favAddStatus'] = success;
                                               processedFavorites = i + 1;
                                             });
+
+                                            // Update favorite progress notification
+                                            await flutterLocalNotificationsPlugin.show(
+                                              1,
+                                              '添加收藏',
+                                              '处理中: ${i + 1}/${foundTracks.length}',
+                                              NotificationDetails(
+                                                android: AndroidNotificationDetails(
+                                                  'favorite_progress',
+                                                  'Favorite Progress',
+                                                  channelDescription: 'Notifications for favorite progress',
+                                                  importance: Importance.high,
+                                                  priority: Priority.high,
+                                                  ongoing: true,
+                                                  showProgress: true,
+                                                  maxProgress: foundTracks.length,
+                                                  progress: i + 1,
+                                                  onlyAlertOnce: true,
+                                                  playSound: false,
+                                                ),
+                                              ),
+                                            );
+
                                             if (autoscroll) {
                                               scrollTo(track['index']);
                                             }
@@ -256,6 +318,25 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                             
                                             await Future.delayed(const Duration(milliseconds: 1200));
                                           }
+
+                                          // Show completion notification
+                                          await flutterLocalNotificationsPlugin.show(
+                                            1,
+                                            '添加收藏',
+                                            '完成: 已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}',
+                                            const NotificationDetails(
+                                              android: AndroidNotificationDetails(
+                                                'favorite_progress',
+                                                'Favorite Progress',
+                                                channelDescription: 'Notifications for favorite progress',
+                                                importance: Importance.high,
+                                                priority: Priority.high,
+                                                onlyAlertOnce: true,
+                                                playSound: false,
+                                              ),
+                                            ),
+                                          );
+
                                           setState(() {
                                             isSaving = false;
                                           });
@@ -418,6 +499,30 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   }
 
   Future<void> _processPlaylist() async {
+    await _initializeNotifications();
+    
+    // Show initial notification
+    const androidDetails = AndroidNotificationDetails(
+      'playlist_search',
+      'Playlist Search',
+      channelDescription: 'Notifications for playlist search progress',
+      importance: Importance.high,
+      priority: Priority.high,
+      showProgress: true,
+      onlyAlertOnce: true,
+      playSound: false,
+      ongoing: true,
+      autoCancel: false,
+    );
+    const notificationDetails = NotificationDetails(android: androidDetails);
+    
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      '歌单搜索',
+      '准备处理...',
+      notificationDetails,
+    );
+
     setState(() {
       isSearching = true;
       isSaving = false;
@@ -431,25 +536,26 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
 
     List<Map<String, dynamic>> tracks = [];
 
-    // Get tracks list first
-    if (textController.text.startsWith('netease:')) {
-      final playlistId = textController.text.split(':')[1].trim();
-      tracks = await globals.api.fetchNeteasePlaylistTracks(playlistId);
-    } else if (textController.text.startsWith('tencent:')) {
-      final playlistId = textController.text.split(':')[1].trim();
-      tracks = await globals.api.fetchTencentPlaylistTracks(playlistId);
-    } else {
-      final lines = textController.text.split('\n');
-      for (final line in lines) {
-        if (line.trim().isEmpty) continue;
+    final lines = textController.text.split('\n');
+
+    for (final line in lines) {
+      List<Map<String, dynamic>> appendTracks = [];
+      if (line.startsWith('netease:')) {
+        final playlistId = line.split(':')[1].trim();
+        appendTracks = await globals.api.fetchNeteasePlaylistTracks(playlistId);
+      } else if (line.startsWith('tencent:')) {
+        final playlistId = line.split(':')[1].trim();
+        appendTracks = await globals.api.fetchTencentPlaylistTracks(playlistId);
+      } else {
         final parts = line.split('\$').map((e) => e.trim()).toList();
         if (parts.length != 3) continue;
-        tracks.add({
+        appendTracks.add({
           'name': parts[0],
           'artist': parts[1],
           'duration': int.parse(parts[2]),
         });
       }
+      tracks.addAll(appendTracks);
     }
 
     if (isReverse) {
@@ -467,11 +573,32 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       totalTracks = tracks.length;
     });
 
+    // Update the notification with total tracks
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      '歌单搜索',
+      '处理中: 0/$totalTracks',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'playlist_search',
+          'Playlist Search',
+          channelDescription: 'Notifications for playlist search progress',
+          importance: Importance.high,
+          priority: Priority.high,
+          ongoing: true,
+          showProgress: true,
+          maxProgress: totalTracks,
+          progress: 0,
+          onlyAlertOnce: true,
+          playSound: false,
+        ),
+      ),
+    );
 
     // Then process each track
     for (var i = 0; i < tracks.length; i++) {
       await _waitForSearchPause();
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(milliseconds: 1200));
       final track = tracks[i];
       final result = await _searchTrack(track['name'], track['artist'], track['duration']);
       if (result == null) {
@@ -484,10 +611,51 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
         results[i] = result;
         processedTracks = i + 1;
       });
+
+      // Update notification progress
+      await flutterLocalNotificationsPlugin.show(
+        0,
+        '歌单搜索',
+        '处理中: ${i + 1}/$totalTracks',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'playlist_search',
+            'Playlist Search',
+            channelDescription: 'Notifications for playlist search progress',
+            importance: Importance.high,
+            priority: Priority.high,
+            ongoing: true,
+            showProgress: true,
+            maxProgress: totalTracks,
+            progress: i + 1,
+            onlyAlertOnce: true,
+            playSound: false,
+          ),
+        ),
+      );
+
       if (autoscroll) {
         scrollTo(i);
       }
     }
+
+    // Show completion notification
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      '歌单搜索',
+      '处理完成: $totalTracks 首歌曲',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'playlist_search',
+          'Playlist Search',
+          channelDescription: 'Notifications for playlist search progress',
+          importance: Importance.high,
+          priority: Priority.high,
+          onlyAlertOnce: true,
+          playSound: false,
+        ),
+      ),
+    );
 
     setState(() {
       isSearching = false;
@@ -598,7 +766,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       int score = _rankScore(video);
       if (score == -INF) continue;
       int durationDiff = (_parseDuration(video.duration) - duration).abs();
-      int videoPlayCount = (log(video.play) / log(10)).toInt();
+      int videoPlayCount = video.play > 0 ? (log(video.play) / log(10)).toInt() : 0;
       score += priority * 1000 - durationDiff + videoPlayCount * 5;
       if (score > bestMatch['score']) {
         bestMatch = {

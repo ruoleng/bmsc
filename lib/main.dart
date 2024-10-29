@@ -20,11 +20,14 @@ import 'util/string.dart';
 import 'globals.dart' as globals;
 import 'package:flutter/foundation.dart';
 import 'util/error_handler.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
 
 Future<void> main() async {
   await JustAudioBackground.init(
     androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
-    androidNotificationChannelName: 'Audio playback',
+    androidNotificationChannelName: 'Audio Playback',
     androidNotificationOngoing: true,
   );
   
@@ -40,6 +43,12 @@ Future<void> main() async {
 
   globals.api.initAudioSession();
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Request notification permission
+  if (Platform.isAndroid) {
+    await Permission.notification.request();
+  }
+
   runApp(const MyApp());
 }
 
