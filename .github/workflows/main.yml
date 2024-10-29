@@ -40,11 +40,23 @@ jobs:
       - name: Build apks
         run: flutter build apk --release --split-per-abi
 
+      - name: Extract Changelog
+        id: changelog
+        run: |
+          version="# $(echo ${{ steps.tagName.outputs.tagName }} | sed 's/^v//')"
+          changelog=$(awk -v version="$version" '
+            $0 ~ version { flag=1; next }
+            /^# / && flag { exit }
+            flag
+          ' changelog.md)
+          echo "changelog=$changelog" >> $GITHUB_ENV
+
       - name: Create Github Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "build/app/outputs/flutter-apk/*.apk"
           token: ${{ secrets.PERSONAL_RELEASE_TOKEN }}
+          body: ${{ env.changelog }}
 
       - name: Save apks to Artifacts
         uses: actions/upload-artifact@v3
