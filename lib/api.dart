@@ -719,12 +719,11 @@ class API {
     await prefs.setString('default_fav_folder_name', folderName);
   }
 
-  Future<List<Map<String, dynamic>>> fetchNeteasePlaylistTracks(String playlistId) async {
+  Future<List<Map<String, dynamic>>?> fetchNeteasePlaylistTracks(String playlistId) async {
     try {
       final response = await dio.get(
         'https://rp.u2x1.work/playlist/track/all',
         queryParameters: {'id': playlistId});
-
       final List<Map<String, dynamic>> tracks = [];
       for (final song in response.data['songs']) {
         tracks.add({
@@ -734,17 +733,24 @@ class API {
         });
       }
       return tracks;
+    } on DioError catch (e) {
+      if (e.response?.statusCode == 404) {
+        return [];
+      }
+      return null;
     } catch (e) {
-      return [];
+      return null;
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchTencentPlaylistTracks(String playlistId) async {
+  Future<List<Map<String, dynamic>>?> fetchTencentPlaylistTracks(String playlistId) async {
     try {
       final response = await dio.get(
         'https://api.timelessq.com/music/tencent/songList',
         queryParameters: {'disstid': playlistId});
-
+      if (response.data['errno'] != 0) {
+        return [];
+      }
       final List<Map<String, dynamic>> tracks = [];
       for (final song in response.data['data']['songlist']) {
         tracks.add({
@@ -755,7 +761,28 @@ class API {
       }
       return tracks;
     } catch (e) {
-      return [];
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>?> fetchKuGouPlaylistTracks(String playlistId) async {
+    try {
+      final response = await dio.get(
+        'https://kg.u2x1.work/playlist/track/all?id=$playlistId');
+      if (response.data['status'] == 0) {
+        return [];
+      }
+      final List<Map<String, dynamic>> tracks = [];
+      for (final song in response.data['data']['info']) {
+        tracks.add({
+          'name': song['albuminfo']['name'],
+          'artist': song['singerinfo'].map((e) => e['name']).join(', '),
+          'duration': song['timelen'] ~/ 1000,
+        });
+      }
+      return tracks;
+    } catch (e) {
+      return null;
     }
   }
 }

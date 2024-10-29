@@ -116,9 +116,9 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: textController,
-              maxLines: 6,
+              maxLines: 7,
               decoration: const InputDecoration(
-                hintText: '[示例1] 歌名 \$ 作者 \$ 时长(秒)\nTRUE \$ Yoari \$ 192\n夏日已所剩无几 \$ 泠鸢yousa \$ 271\n[示例2] 平台:歌单ID\nnetease:1234567890\ntencent:1207922987',
+                hintText: '[示例1] 歌名 \$ 作者 \$ 时长(秒)\nTRUE \$ Yoari \$ 192\n夏日已所剩无几 \$ 泠鸢yousa \$ 271\n[示例2] 平台:歌单ID\nnetease:1234567890\ntencent:1207922987\nkugou:collection_3_1323003327_2_0',
                 border: OutlineInputBorder(),
                 isDense: true,
                 contentPadding: EdgeInsets.all(8),
@@ -542,10 +542,37 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       List<Map<String, dynamic>> appendTracks = [];
       if (line.startsWith('netease:')) {
         final playlistId = line.split(':')[1].trim();
-        appendTracks = await globals.api.fetchNeteasePlaylistTracks(playlistId);
+        final tracks = await globals.api.fetchNeteasePlaylistTracks(playlistId);
+        if (tracks == null) {
+          showErrorSnackBar("获取歌单 netease:$playlistId 失败");
+          continue;
+        } else if (tracks.isEmpty) {
+          showErrorSnackBar("查无歌单 netease:$playlistId");
+          continue;
+        }
+        appendTracks.addAll(tracks);
       } else if (line.startsWith('tencent:')) {
         final playlistId = line.split(':')[1].trim();
-        appendTracks = await globals.api.fetchTencentPlaylistTracks(playlistId);
+        final tracks = await globals.api.fetchTencentPlaylistTracks(playlistId);
+        if (tracks == null) {
+          showErrorSnackBar("获取歌单 tencent:$playlistId 失败");
+          continue;
+        } else if (tracks.isEmpty) {
+          showErrorSnackBar("查无歌单 tencent:$playlistId");
+          continue;
+        }
+        appendTracks.addAll(tracks);
+      } else if (line.startsWith('kugou:')) {
+        final playlistId = line.split(':')[1].trim();
+        final tracks = await globals.api.fetchKuGouPlaylistTracks(playlistId);
+        if (tracks == null) {
+          showErrorSnackBar("获取歌单 kugou:$playlistId 失败");
+          continue;
+        } else if (tracks.isEmpty) {
+          showErrorSnackBar("查无歌单 kugou:$playlistId");
+          continue;
+        }
+        appendTracks.addAll(tracks);
       } else {
         final parts = line.split('\$').map((e) => e.trim()).toList();
         if (parts.length != 3) continue;
