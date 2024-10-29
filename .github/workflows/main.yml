@@ -34,6 +34,18 @@ jobs:
         run: |
           sed -i 's/99.99.99/'$GIT_TAG_NAME'/g' pubspec.yaml|
           echo "Tag used version:"$GIT_TAG_NAME
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
+
+      - name: Create key.properties
+        run: |
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=keystore.jks" >> android/key.properties
+
       - name: Pub Get Packages
         run: flutter pub get
 
