@@ -270,14 +270,18 @@ class API {
   }
 
   Future<SearchResult?> search(String value, int pn) async {
-    final response = await dio.get(
-      'https://api.bilibili.com/x/web-interface/search/type',
-      queryParameters: {'search_type': 'video', 'keyword': value, 'page': pn},
-    );
-    if (response.data['code'] != 0) {
+    try {
+      final response = await dio.get(
+        'https://api.bilibili.com/x/web-interface/search/type',
+        queryParameters: {'search_type': 'video', 'keyword': value, 'page': pn},
+      );
+      if (response.data['code'] != 0 || response.data['data'] == null) {
+        return null;
+      }
+      return SearchResult.fromJson(response.data['data']);
+    } catch (e) {
       return null;
     }
-    return SearchResult.fromJson(response.data['data']);
   }
 
   Future<HistoryResult?> getHistory(int? timestamp) async {
@@ -663,18 +667,22 @@ class API {
     });
   }
 
-  Future<bool> favoriteVideo(int avid, List<int> addMediaIds, List<int> delMediaIds) async {
-    final response = await dio.post(
-      'https://api.bilibili.com/x/v3/fav/resource/deal',
-      queryParameters: {
-        'rid': avid,
-        'type': 2,  // 2 represents video type
-        'add_media_ids': addMediaIds.join(','),
-        'del_media_ids': delMediaIds.join(','),
-        'csrf': _extractCSRF(cookies),
-      }
-    );
-    return response.data['code'] == 0;
+  Future<bool?> favoriteVideo(int avid, List<int> addMediaIds, List<int> delMediaIds) async {
+    try {
+      final response = await dio.post(
+          'https://api.bilibili.com/x/v3/fav/resource/deal',
+        queryParameters: {
+          'rid': avid,
+          'type': 2,  // 2 represents video type
+          'add_media_ids': addMediaIds.join(','),
+          'del_media_ids': delMediaIds.join(','),
+          'csrf': _extractCSRF(cookies),
+        }
+      );
+      return response.data['code'] == 0;
+    } catch (e) {
+      return null;
+    }
   }
 
   String _extractCSRF(String cookies) {
@@ -709,5 +717,45 @@ class API {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('default_fav_folder', folderId);
     await prefs.setString('default_fav_folder_name', folderName);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchNeteasePlaylistTracks(String playlistId) async {
+    try {
+      final response = await dio.get(
+        'https://rp.u2x1.work/playlist/track/all',
+        queryParameters: {'id': playlistId});
+
+      final List<Map<String, dynamic>> tracks = [];
+      for (final song in response.data['songs']) {
+        tracks.add({
+          'name': song['name'],
+          'artist': song['ar'][0]['name'],
+          'duration': song['dt'] ~/ 1000, // Convert ms to seconds
+        });
+      }
+      return tracks;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchTencentPlaylistTracks(String playlistId) async {
+    try {
+      final response = await dio.get(
+        'https://api.timelessq.com/music/tencent/songList',
+        queryParameters: {'disstid': playlistId});
+
+      final List<Map<String, dynamic>> tracks = [];
+      for (final song in response.data['data']['songlist']) {
+        tracks.add({
+          'name': song['songname'],
+          'artist': song['singer'].map((e) => e['name']).join(', '),
+          'duration': song['interval'],
+        });
+      }
+      return tracks;
+    } catch (e) {
+      return [];
+    }
   }
 }

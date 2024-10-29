@@ -12,6 +12,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:webview_cookie_manager/webview_cookie_manager.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:bmsc/screen/search_screen.dart';
+import 'package:bmsc/screen/playlist_search_screen.dart';
 
 import 'component/playing_card.dart';
 import 'component/track_tile.dart';
@@ -174,6 +175,13 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                 Icons.arrow_circle_up_outlined,
                 color: Colors.red,
               )
+            ),
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<Widget>(builder: (_) => const PlaylistSearchScreen()),
+              ),
+              icon: const Icon(Icons.input),
             ),
           IconButton(
             onPressed: () => Navigator.push(

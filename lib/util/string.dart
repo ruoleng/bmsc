@@ -1,5 +1,5 @@
 String stripHtmlIfNeeded(String text) {
-  return text.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), ' ');
+  return text.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
 }
 
 String unit(int cnt) {
@@ -23,3 +23,50 @@ String time(int t) {
   }
 }
 
+bool containsSubarrayKMP(List<String> mainList, List<String> subList) {
+  if (subList.isEmpty) return true;
+  if (subList.length > mainList.length) return false;
+  
+  List<int> lps = _buildLPS(subList);
+  int i = 0, j = 0;
+  
+  while (i < mainList.length) {
+    if (mainList[i] == subList[j]) {
+      i++;
+      j++;
+      if (j == subList.length) {
+        return true;
+      }
+    } else {
+      if (j != 0) {
+        j = lps[j - 1];
+      } else {
+        i++;
+      }
+    }
+  }
+  
+  return false;
+}
+
+List<int> _buildLPS(List<String> pattern) {
+  List<int> lps = List.filled(pattern.length, 0);
+  int length = 0, i = 1;
+  
+  while (i < pattern.length) {
+    if (pattern[i] == pattern[length]) {
+      length++;
+      lps[i] = length;
+      i++;
+    } else {
+      if (length != 0) {
+        length = lps[length - 1];
+      } else {
+        lps[i] = 0;
+        i++;
+      }
+    }
+  }
+  
+  return lps;
+}

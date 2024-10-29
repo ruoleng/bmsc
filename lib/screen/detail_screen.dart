@@ -251,7 +251,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               src.tag.extras['aid'],
                               [defaultFolderId['id']],
                               [],
-                            );
+                            ) ?? false;
                             if (!context.mounted) return;
                             
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -363,7 +363,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                           src.tag.extras['aid'],
                                           toAdd,
                                           toRemove,
-                                        );
+                                        ) ?? false;
                                         
                                         if (!mounted) return;
                                         

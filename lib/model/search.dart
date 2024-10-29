@@ -39,41 +39,6 @@ class SearchResult {
   }
 }
 
-class CostTime {
-  CostTime({
-    required this.paramsCheck,
-    required this.illegalHandler,
-    required this.asResponseFormat,
-    required this.asRequest,
-    required this.saveCache,
-    required this.deserializeResponse,
-    required this.asRequestFormat,
-    required this.total,
-    required this.mainHandler,
-  });
-  late final String paramsCheck;
-  late final String illegalHandler;
-  late final String asResponseFormat;
-  late final String asRequest;
-  late final String saveCache;
-  late final String deserializeResponse;
-  late final String asRequestFormat;
-  late final String total;
-  late final String mainHandler;
-
-  CostTime.fromJson(Map<String, dynamic> json) {
-    paramsCheck = json['params_check'];
-    illegalHandler = json['illegal_handler'];
-    asResponseFormat = json['as_response_format'];
-    asRequest = json['as_request'];
-    saveCache = json['save_cache'];
-    deserializeResponse = json['deserialize_response'];
-    asRequestFormat = json['as_request_format'];
-    total = json['total'];
-    mainHandler = json['main_handler'];
-  }
-}
-
 class Result {
   Result({
     required this.type,

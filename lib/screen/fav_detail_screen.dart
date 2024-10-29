@@ -247,7 +247,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                             favInfo[index].id,
                             [],
                             [widget.fav.id],
-                          );
+                          ) ?? false;
                           
                           if (!context.mounted) return;
                           
