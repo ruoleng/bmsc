@@ -17,11 +17,21 @@ Future<ReleaseResult?> checkNewVersion() async {
 
 showUpdateDialog(
     BuildContext context, ReleaseResult newVersion, String curVersion) {
-  Widget continueButton = TextButton(
+  Widget viewButton = TextButton(
     child: const Text("查看"),
     onPressed: () async {
       await launchUrl(Uri.parse('https://github.com/u2x1/bmsc/releases/latest'),
           mode: LaunchMode.externalApplication);
+    },
+  );
+
+  Widget downloadButton = TextButton(
+    child: const Text("下载"),
+    onPressed: () async {
+      if (newVersion.assets.isNotEmpty) {
+        await launchUrl(Uri.parse('https://ghp.ci/' + newVersion.assets.first.browserDownloadUrl),
+            mode: LaunchMode.externalApplication);
+      }
     },
   );
 
@@ -30,7 +40,8 @@ showUpdateDialog(
     content: Text(
         "检测到版本更新 ($curVersion -> ${newVersion.tagName})。\n\n更新日志: \n${newVersion.body}"),
     actions: [
-      continueButton,
+      viewButton,
+      downloadButton,
     ],
   );
 
