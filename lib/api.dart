@@ -768,17 +768,40 @@ class API {
   Future<List<Map<String, dynamic>>?> fetchKuGouPlaylistTracks(String playlistId) async {
     try {
       final response = await dio.get(
-        'https://kg.u2x1.work/playlist/track/all?id=$playlistId');
+        'https://kg.u2x1.work/playlist/track/all?id=$playlistId&pagesize=300');
       if (response.data['status'] == 0) {
         return [];
       }
+      final total = response.data['data']['count'];
       final List<Map<String, dynamic>> tracks = [];
       for (final song in response.data['data']['info']) {
+        final fullname = song['name'];
+        final pos = fullname.indexOf('-');
+        final name = pos == -1 ? fullname : fullname.substring(0, pos);
+        final artist = pos == -1 ? '' : fullname.substring(pos + 1).trim();
         tracks.add({
-          'name': song['albuminfo']['name'],
-          'artist': song['singerinfo'].map((e) => e['name']).join(', '),
+          'name': name,
+          'artist': artist,
           'duration': song['timelen'] ~/ 1000,
         });
+      }
+      if (total > 300) {
+        final pageSize = (total / 300).ceil();
+        for (int i = 2; i <= pageSize; i++) {
+          final response = await dio.get(
+            'https://kg.u2x1.work/playlist/track/all?id=$playlistId&pagesize=300&page=$i');
+          for (final song in response.data['data']['info']) {
+            final fullname = song['name'];
+            final pos = fullname.indexOf('-');
+            final name = pos == -1 ? fullname : fullname.substring(0, pos);
+            final artist = pos == -1 ? '' : fullname.substring(pos + 1).trim();
+            tracks.add({
+              'name': name,
+              'artist': artist,
+              'duration': song['timelen'] ~/ 1000,
+            });
+          }
+        }
       }
       return tracks;
     } catch (e) {
