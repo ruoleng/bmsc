@@ -342,7 +342,6 @@ class API {
               artUri: Uri.parse(vid.pic),
               artist: vid.owner.name,
               extras: {
-                'quality': firstAudio.id,
                 'mid': vid.owner.mid,
                 'bvid': bvid,
                 'aid': vid.aid,
@@ -378,7 +377,7 @@ class API {
     return TagResult.fromJson(response.data);
   }
 
-  Future<void> _downloadAndCache(String bvid, int aid, int cid, String url, File file, int quality, int mid, String title, String artist, String artUri, bool multi, String rawTitle) async {
+  Future<void> _downloadAndCache(String bvid, int aid, int cid, String url, File file, int mid, String title, String artist, String artUri, bool multi, String rawTitle) async {
     try {
       final request = http.Request('GET', Uri.parse(url));
       request.headers.addAll(headers);
@@ -388,7 +387,7 @@ class API {
       await response.stream.pipe(sink);
       await sink.close();
 
-      await CacheManager.saveCacheMetadata(bvid, aid, cid, quality, mid, file.path, title, artist, artUri, multi, rawTitle);
+      await CacheManager.saveCacheMetadata(bvid, aid, cid, mid, file.path, title, artist, artUri, multi, rawTitle);
     } catch (e) {
       await file.delete();
     }
@@ -436,7 +435,6 @@ class API {
     final bvid = mediaItem.extras?['bvid'] as String?;
     final cid = mediaItem.extras?['cid'] as int?;
     final aid = mediaItem.extras?['aid'] as int? ?? 0;
-    final quality = mediaItem.extras?['quality'] as int? ?? 0;
     final mid = mediaItem.extras?['mid'] as int? ?? 0;
     final multi = mediaItem.extras?['multi'] as bool? ?? false;
     final rawTitle = mediaItem.extras?['raw_title'] as String? ?? '';
@@ -454,7 +452,7 @@ class API {
       // If not cached, start caching
       try {
         final file = await CacheManager.prepareFileForCaching(bvid, cid);
-        await _downloadAndCache(bvid, aid, cid, currentItem.uri.toString(), file, quality, mid, mediaItem.title, mediaItem.artist ?? '', mediaItem.artUri.toString(), multi, rawTitle);
+        await _downloadAndCache(bvid, aid, cid, currentItem.uri.toString(), file, mid, mediaItem.title, mediaItem.artist ?? '', mediaItem.artUri.toString(), multi, rawTitle);
       } catch (e) {
       }
     }
@@ -508,7 +506,6 @@ class API {
           cid: tag.extras?['cid'] ?? 0,
           multi: tag.extras?['multi'] ?? false,
           rawTitle: tag.extras?['raw_title'] ?? '',
-          quality: tag.extras?['quality'] ?? 0,
           mid: tag.extras?['mid'] ?? 0,
           cached: tag.extras?['cached'] ?? false,
         ).toJson();
@@ -545,7 +542,6 @@ class API {
             'aid': data.aid,
             'multi': data.multi,
             'raw_title': data.rawTitle,
-            'quality': data.quality,
             'mid': data.mid,
             'cached': data.cached,
           },

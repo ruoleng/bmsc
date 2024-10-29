@@ -35,7 +35,6 @@ class CacheManager {
           title TEXT,
           artist TEXT,
           artUri TEXT,
-          quality INTEGER,
           mid INTEGER,
           multi INTEGER,
           raw_title TEXT,
@@ -43,6 +42,7 @@ class CacheManager {
           createdAt INTEGER
         )
       ''');
+
       await db.execute('''
         CREATE TABLE $excludedPartsTable (
           bvid TEXT NOT NULL,
@@ -152,7 +152,6 @@ class CacheManager {
           'bvid': result['bvid'] as String,
           'aid': result['aid'] as int,
           'cid': result['cid'] as int,
-          'quality': result['quality'] as int,
           'mid': result['mid'] as int,
           'multi': result['multi'] as int == 1,
           'raw_title': result['raw_title'] as String,
@@ -183,7 +182,6 @@ class CacheManager {
           'bvid': results.first['bvid'] as String,
           'aid': results.first['aid'] as int,
           'cid': results.first['cid'] as int,
-          'quality': results.first['quality'] as int,
           'mid': results.first['mid'] as int,
           'multi': results.first['multi'] as int == 1,
           'raw_title': results.first['raw_title'] as String,
@@ -201,14 +199,13 @@ class CacheManager {
     return File(filePath);
   }
 
-  static Future<void> saveCacheMetadata(String bvid, int aid, int cid, int quality, int mid, String filePath, String title, String artist, String artUri, bool multi, String rawTitle) async {
+  static Future<void> saveCacheMetadata(String bvid, int aid, int cid, int mid, String filePath, String title, String artist, String artUri, bool multi, String rawTitle) async {
     final db = await database;
     await db.insert(tableName, {
       'id': '${bvid}_$cid',
       'bvid': bvid,
       'aid': aid,
       'cid': cid,
-      'quality': quality,
       'mid': mid,
       'filePath': filePath,
       'createdAt': DateTime.now().millisecondsSinceEpoch,
@@ -227,7 +224,12 @@ class CacheManager {
 
   static Future<void> cacheFavList(List<Fav> favs) async {
     final db = await database;
+    
+    // Clear existing table first
+    await db.delete(favListTable);
+    
     final batch = db.batch();
+    final now = DateTime.now().millisecondsSinceEpoch;
     
     for (int i = 0; i < favs.length; i++) {
       batch.insert(
@@ -240,7 +242,7 @@ class CacheManager {
           'title': favs[i].title,
           'favState': favs[i].favState,
           'mediaCount': favs[i].mediaCount,
-          'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+          'lastUpdated': now,
           'list_order': i,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
