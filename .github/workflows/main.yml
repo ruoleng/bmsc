@@ -43,13 +43,11 @@ jobs:
       - name: Extract Changelog
         id: changelog
         run: |
-          version="# $(echo ${{ steps.tagName.outputs.tagName }} | sed 's/^v//')"
-          changelog=$(awk -v version="$version" '
-            $0 ~ version { flag=1; next }
-            /^# / && flag { exit }
-            flag
-          ' changelog.md)
-          echo "changelog=$changelog" >> $GITHUB_ENV
+          version=$(echo "${{ steps.tagName.outputs.tagName }}" | sed 's/v//')
+          changelog=$(awk "/^# $version$/,/^# /" changelog.md | sed '1d;$d')
+          echo "changelog<<EOF" >> $GITHUB_ENV
+          echo "$changelog" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create Github Release
         uses: ncipollo/release-action@v1
