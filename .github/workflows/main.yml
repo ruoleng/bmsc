@@ -44,7 +44,7 @@ jobs:
         id: changelog
         run: |
           version=$(echo "${{ steps.tagName.outputs.tagName }}" | sed 's/v//')
-          changelog=$(awk "/^# $version$/,/^# /" changelog.md | sed '1d;$d')
+          changelog=$(awk "/^# $version$/{flag=1; next} /^# /{flag=0} flag" changelog.md)
           echo "changelog<<EOF" >> $GITHUB_ENV
           echo "$changelog" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
