@@ -6,7 +6,7 @@ import 'package:bmsc/model/history.dart';
 import 'package:bmsc/model/search.dart';
 import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/user_card.dart';
-import 'package:bmsc/model/user_upload.dart';
+import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
 import 'package:dio/dio.dart';
 import 'package:just_audio/just_audio.dart';
@@ -19,6 +19,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bmsc/model/playlist_data.dart';
 import 'package:bmsc/model/tag.dart';
+import 'package:bmsc/model/meta.dart';
+import 'model/entity.dart';
 
 class DurationState {
   const DurationState({
@@ -162,7 +164,7 @@ class API {
     if (cachedSource == null) {
       return;
     }
-    final idx = await _addUniqueSourcesToPlaylist([cachedSource], insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
+    await _addUniqueSourcesToPlaylist([cachedSource], insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
   }
 
   Future<void> playCachedAudio(String bvid, int cid) async {
@@ -225,11 +227,18 @@ class API {
 
   Future<int?> getUID() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getInt('uid');
+      if (uid != null) {
+        return uid;
+      }
       final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
       if (response.data['code'] != 0) {
         return 0;
       }
-      return response.data['data']['mid'] ?? 0;
+      final ret = response.data['data']['mid'] ?? 0;
+      await prefs.setInt('uid', ret);
+      return ret;
     } catch (e) {
       return null;
     }
@@ -242,7 +251,12 @@ class API {
     if (response.data['code'] != 0) {
       return null;
     }
-    return FavResult.fromJson(response.data['data']);
+    final ret = FavResult.fromJson(response.data['data']);
+    if (rid == null) {
+      await CacheManager.cacheFavList(ret.list);
+      print("cached fav list");
+    }
+    return ret;
   }
 
   Future<FavDetail?> getFavDetail(int mid, int pn) async {
@@ -253,6 +267,40 @@ class API {
       return null;
     }
     return FavDetail.fromJson(response.data['data']);
+  }
+
+  Future<List<Meta>> getCachedFavListVideo(int mid) async {
+    final bvids = await CacheManager.getCachedFavListVideo(mid);
+    final metas = await CacheManager.getMetas(bvids);
+    return metas;
+  }
+
+  Future<List<Meta>?> getFavMetas(int mid) async {
+    bool hasMore = true;
+    int pn = 1;
+    List<Meta> ret = [];
+    while (hasMore) {
+      final response = await dio.get(
+        'https://api.bilibili.com/x/v3/fav/resource/list',
+        queryParameters: {'media_id': mid, 'ps': 40, 'pn': pn});
+      if (response.data['code'] != 0) {
+        return null;
+      }
+      ret.addAll((response.data['data']['medias'] as List).map((x) => Meta(
+        bvid: x['bvid'],
+        title: x['title'],
+        artist: x['upper']['name'],
+        mid: x['upper']['mid'],
+        aid: x['id'],
+        duration: x['duration'],
+        parts: x['page'],
+      )).toList());
+      hasMore = response.data['data']['has_more'] as bool;
+      pn++;
+    }
+    await CacheManager.cacheMetas(ret);
+    await CacheManager.cacheFavListVideo(ret.map((x) => x.bvid).toList(), mid);
+    return ret;
   }
 
   Future<List<String>?> getFavBvids(int mid) async {
@@ -363,7 +411,20 @@ class API {
     if (response.data['code'] != 0) {
       return null;
     }
-    return VidResult.fromJson(response.data['data']);
+
+    final ret = VidResult.fromJson(response.data['data']);
+    await CacheManager.cacheEntities(ret.pages.map((x) => Entity(
+      bvid: bvid,
+      aid: ret.aid,
+      cid: x.cid,
+      duration: x.duration,
+      part: x.page,
+      artist: ret.owner.name,
+      partTitle: x.part,
+      bvidTitle: ret.title,
+      excluded: 0,
+    )).toList());
+    return ret;
   }
 
   Future<TagResult?> getTags(String bvid) async {
@@ -434,7 +495,7 @@ class API {
     var mediaItem = currentItem.tag as MediaItem;
     final bvid = mediaItem.extras?['bvid'] as String?;
     final cid = mediaItem.extras?['cid'] as int?;
-    final aid = mediaItem.extras?['aid'] as int? ?? 0;
+    final aid = mediaItem.extras?['aid'] as int?;
     final mid = mediaItem.extras?['mid'] as int? ?? 0;
     final multi = mediaItem.extras?['multi'] as bool? ?? false;
     final rawTitle = mediaItem.extras?['raw_title'] as String? ?? '';
@@ -454,6 +515,7 @@ class API {
         final file = await CacheManager.prepareFileForCaching(bvid, cid);
         await _downloadAndCache(bvid, aid, cid, currentItem.uri.toString(), file, mid, mediaItem.title, mediaItem.artist ?? '', mediaItem.artUri.toString(), multi, rawTitle);
       } catch (e) {
+        // If caching fails, do nothing
       }
     }
   }

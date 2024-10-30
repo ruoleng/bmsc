@@ -15,26 +15,17 @@ class FavResult {
 class Fav {
   Fav({
     required this.id,
-    required this.fid,
-    required this.mid,
-    required this.attr,
     required this.title,
-    required this.favState,
+    this.favState = 0,
     required this.mediaCount,
   });
   late final int id;
-  late final int fid;
-  late final int mid;
-  late final int attr;
   late final String title;
-  late final int favState;
+  int favState = 0;
   late final int mediaCount;
 
   Fav.fromJson(Map<String, dynamic> json) {
     id = json['id'];
-    fid = json['fid'];
-    mid = json['mid'];
-    attr = json['attr'];
     title = json['title'];
     favState = json['fav_state'];
     mediaCount = json['media_count'];

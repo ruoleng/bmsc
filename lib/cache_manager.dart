@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:bmsc/model/entity.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:audio_service/audio_service.dart';
@@ -7,12 +8,14 @@ import 'package:path/path.dart';
 import 'package:just_audio/just_audio.dart';
 import '../model/fav.dart';
 import '../model/fav_detail.dart';
-import '../model/search.dart';
+import '../model/meta.dart';
 
 class CacheManager {
   static Database? _database;
   static const String tableName = 'audio_cache';
-  static const String excludedPartsTable = 'excluded_parts';
+  static const String metaTable = 'meta_cache';
+  static const String favListVideoTable = 'fav_list_video';
+  static const String entityTable = 'entity_cache';
   static const String favListTable = 'fav_list';
   static const String favDetailTable = 'fav_detail';
 
@@ -44,23 +47,46 @@ class CacheManager {
       ''');
 
       await db.execute('''
-        CREATE TABLE $excludedPartsTable (
-          bvid TEXT NOT NULL,
-          cid INTEGER NOT NULL,
+        CREATE TABLE $entityTable (
+          aid INTEGER,
+          cid INTEGER,
+          bvid TEXT,
+          artist TEXT,
+          part INTEGER,
+          duration INTEGER,
+          excluded INTEGER,
+          part_title TEXT,
+          bvid_title TEXT,
           PRIMARY KEY (bvid, cid)
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE $metaTable (
+          bvid TEXT PRIMARY KEY,
+          aid INTEGER,
+          title TEXT,
+          artist TEXT,
+          mid INTEGER,
+          duration INTEGER,
+          parts INTEGER,
+          list_order INTEGER
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE $favListVideoTable (
+          bvid TEXT,
+          mid INTEGER,
+          PRIMARY KEY (bvid, mid)
         )
       ''');
       
       await db.execute('''
         CREATE TABLE $favListTable (
           id INTEGER PRIMARY KEY,
-          fid INTEGER,
-          mid INTEGER,
-          attr INTEGER,
           title TEXT,
-          favState INTEGER,
           mediaCount INTEGER,
-          lastUpdated INTEGER,
           list_order INTEGER
         )
       ''');
@@ -85,31 +111,84 @@ class CacheManager {
 
   static Future<void> addExcludedPart(String bvid, int cid) async {
     final db = await database;
-    await db.insert(
-      excludedPartsTable,
-      {'bvid': bvid, 'cid': cid},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  static Future<void> removeExcludedPart(String bvid, int cid) async {
-    final db = await database;
-    await db.delete(
-      excludedPartsTable,
+    await db.update(
+      entityTable,
+      {'excluded': 1},
       where: 'bvid = ? AND cid = ?',
       whereArgs: [bvid, cid],
     );
   }
 
+  static Future<void> cacheMetas(List<Meta> metas) async {
+    final db = await database;
+    final batch = db.batch();
+    for (int i = 0; i < metas.length; i++) {
+      var json = metas[i].toJson();
+      json['list_order'] = i;
+      batch.insert(metaTable, json, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit();
+  }
+
+  static Future<Meta?> getMeta(String bvid) async {
+    final db = await database;
+    final results = await db.query(metaTable, where: 'bvid = ?', whereArgs: [bvid]);
+    final ret = results.firstOrNull;
+    if (ret == null) {
+      return null;
+    }
+    return Meta.fromJson(ret);
+  }
+
+  static Future<List<Meta>> getMetas(List<String> bvids) async {
+    final db = await database;
+    final placeholders = List.filled(bvids.length, '?').join(',');
+    final results = await db.query(
+      metaTable,
+      where: 'bvid IN ($placeholders)',
+      whereArgs: bvids,
+      orderBy: 'list_order ASC'
+    );
+    return results.map((e) => Meta.fromJson(e)).toList();
+  }
+
+  static Future<void> removeExcludedPart(String bvid, int cid) async {
+    final db = await database;
+     await db.update(
+      entityTable,
+      {'excluded': 0},
+      where: 'bvid = ? AND cid = ?',
+      whereArgs: [bvid, cid],
+    );
+  }
 
   static Future<List<int>> getExcludedParts(String bvid) async {
     final db = await database;
     final results = await db.query(
-      excludedPartsTable,
-      where: 'bvid = ?',
+      entityTable,
+      where: 'bvid = ? AND excluded = 1',
       whereArgs: [bvid],
     );
     return results.map((row) => row['cid'] as int).toList();
+  }
+
+  static Future<void> cacheEntities(List<Entity> data) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var item in data) {
+      batch.insert(entityTable, item.toJson());
+    }
+    await batch.commit();
+  }
+
+  static Future<List<Entity>> getEntities(String bvid) async {
+    final db = await database;
+    final results = await db.query(
+      entityTable,
+      where: 'bvid = ?',
+      whereArgs: [bvid],
+    );
+    return results.map((e) => Entity.fromJson(e)).toList();
   }
 
   static Future<int> cachedCount(String bvid) async {
@@ -229,20 +308,14 @@ class CacheManager {
     await db.delete(favListTable);
     
     final batch = db.batch();
-    final now = DateTime.now().millisecondsSinceEpoch;
     
     for (int i = 0; i < favs.length; i++) {
       batch.insert(
         favListTable,
         {
           'id': favs[i].id,
-          'fid': favs[i].fid,
-          'mid': favs[i].mid,
-          'attr': favs[i].attr,
           'title': favs[i].title,
-          'favState': favs[i].favState,
           'mediaCount': favs[i].mediaCount,
-          'lastUpdated': now,
           'list_order': i,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
@@ -331,13 +404,24 @@ class CacheManager {
     
     return results.map((row) => Fav(
       id: row['id'] as int,
-      fid: row['fid'] as int,
-      mid: row['mid'] as int,
-      attr: row['attr'] as int,
       title: row['title'] as String,
-      favState: row['favState'] as int,
       mediaCount: row['mediaCount'] as int,
     )).toList();
+  }
+
+  static Future<void> cacheFavListVideo(List<String> bvids, int mid) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var bvid in bvids) {
+      batch.insert(favListVideoTable, {'bvid': bvid, 'mid': mid});
+    }
+    await batch.commit();
+  }
+
+  static Future<List<String>> getCachedFavListVideo(int mid) async {
+    final db = await database;
+    final results = await db.query(favListVideoTable, where: 'mid = ?', whereArgs: [mid]);
+    return results.map((row) => row['bvid'] as String).toList();
   }
 
   static Future<List<Medias>> getCachedFavDetail(int favId) async {

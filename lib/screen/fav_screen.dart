@@ -1,8 +1,5 @@
 import 'package:bmsc/model/fav.dart';
-import 'package:bmsc/model/fav_detail.dart';
-import 'package:bmsc/util/string.dart';
 import 'package:flutter/material.dart';
-import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import 'fav_detail_screen.dart';
 import 'package:bmsc/cache_manager.dart' as cache_manager;
@@ -15,7 +12,7 @@ class FavScreen extends StatefulWidget {
 }
 
 class _FavScreenState extends State<FavScreen> {
-  bool login = true;
+  bool isLoading = true;
   List<Fav> favList = [];
 
   @override
@@ -25,16 +22,19 @@ class _FavScreenState extends State<FavScreen> {
   }
 
   Future<void> loadFavorites() async {
+    setState(() => isLoading = true);
+    
     globals.api.getStoredUID().then((uid) async {
       if (uid == null) {
         setState(() {
-          login = false;
+          isLoading = false;
         });
         return;
       }
 
       // Try to load from cache first
       var cachedFavs = await cache_manager.CacheManager.getCachedFavList();
+      print("cached fav list: $cachedFavs");
       if (cachedFavs.isNotEmpty) {
         setState(() {
           favList = cachedFavs;
@@ -44,6 +44,7 @@ class _FavScreenState extends State<FavScreen> {
       // Then try to fetch from network
       try {
         final ret = (await globals.api.getFavs(uid))?.list ?? [];
+        print(ret);
         if (ret.isNotEmpty) {
           setState(() {
             favList = ret;
@@ -53,11 +54,8 @@ class _FavScreenState extends State<FavScreen> {
         }
       } catch (e) {
         // If network fetch fails, we'll still have the cached data
-        if (cachedFavs.isEmpty) {
-          setState(() {
-            login = false;
-          });
-        }
+      } finally {
+        setState(() => isLoading = false);
       }
     });
   }
@@ -66,35 +64,77 @@ class _FavScreenState extends State<FavScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('云收藏夹', style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: ListView.builder(
-        itemCount: favList.length,
-        itemBuilder: (context, index) => Card(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          elevation: 2,
-          child: ListTile(
-            title: Text(
-              favList[index].title,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              "${favList[index].mediaCount} 首",
-              style: TextStyle(color: Theme.of(context).colorScheme.secondary),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FavDetailScreen(fav: favList[index]),
-                ),
-              );
-            },
-          ),
+        title: const Text('云收藏夹', 
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: loadFavorites,
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: loadFavorites,
+        child: isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : favList.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.folder_outlined, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(
+                        '暂无收藏夹',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: favList.length,
+                  itemBuilder: (context, index) => Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    elevation: 2,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      leading: CircleAvatar(
+                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                        child: Text(
+                          favList[index].title.characters.first,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        favList[index].title,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          "${favList[index].mediaCount} 首曲目",
+                          style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+                        ),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FavDetailScreen(fav: favList[index]),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
       ),
     );
   }

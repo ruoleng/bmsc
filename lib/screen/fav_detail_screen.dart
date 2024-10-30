@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:bmsc/model/fav_detail.dart';
 import 'package:bmsc/model/fav.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
-import '../util/string.dart';
 import 'package:bmsc/cache_manager.dart';
 import 'package:bmsc/component/excluded_parts_dialog.dart';
 import '../component/playing_card.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:bmsc/model/meta.dart';
 
 class FavDetailScreen extends StatefulWidget {
   final Fav fav;
@@ -19,9 +18,7 @@ class FavDetailScreen extends StatefulWidget {
 }
 
 class _FavDetailScreenState extends State<FavDetailScreen> {
-  List<Medias> favInfo = [];
-  bool hasMore = true;
-  int nextPn = 1;
+  List<Meta> favInfo = [];
   bool isLoading = false;
 
   @override
@@ -32,64 +29,42 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
 
   Future<void> _loadInitialData() async {
     // First try to load from cache
-    final cachedData = await CacheManager.getCachedFavDetail(widget.fav.id);
+    final cachedData = await globals.api.getCachedFavListVideo(widget.fav.id);
     if (cachedData.isNotEmpty) {
       setState(() {
         favInfo = cachedData;
       });
+    } else {
+      await loadMetas();
     }
-
-    // Then load from network
-    await loadMore();
   }
 
-  Future<void> loadMore() async {
-    if (isLoading || !hasMore) return;
+  Future<void> loadMetas() async {
+    if (isLoading) return;
 
     setState(() {
       isLoading = true;
     });
 
-    try {
-      final detail = await globals.api.getFavDetail(widget.fav.id, nextPn);
-      if (detail == null) {
-        return;
-      }
-
+    final metas = await globals.api.getFavMetas(widget.fav.id);
+    if (metas != null) {
       setState(() {
-        if (nextPn == 1) {
-          // Replace all data if it's the first page
-          favInfo = detail.medias;
-        } else {
-          // Append data for subsequent pages
-          favInfo.addAll(detail.medias);
-        }
-        hasMore = detail.hasMore;
-        nextPn++;
-      });
-
-      // Cache the new data
-      if (nextPn == 2) { // Only cache first page
-        await CacheManager.cacheFavDetail(widget.fav.id, detail.medias);
-      } else {
-        await CacheManager.appendCacheFavDetail(widget.fav.id, detail.medias);
-      }
-    } catch (_) {
-      
-    } finally {
-      setState(() {
-        isLoading = false;
+        favInfo = metas;
       });
     }
+
+    CacheManager.cacheMetas(favInfo);
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
   Future<void> _refreshData() async {
     setState(() {
-      nextPn = 1;
-      hasMore = true;
       favInfo.clear();
     });
-    await loadMore();
+    await loadMetas();
   }
 
   @override
@@ -140,23 +115,11 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
           ),
         ],
       ),
-      body: NotificationListener<ScrollEndNotification>(
-        onNotification: (scrollEnd) {
-          final metrics = scrollEnd.metrics;
-          if (metrics.atEdge) {
-            bool isTop = metrics.pixels == 0;
-            if (!isTop && hasMore) {
-              loadMore();
-            }
-          }
-          return true;
-        },
-        child: RefreshIndicator(
-          onRefresh: _refreshData,
-          child: ListView.builder(
-            itemCount: favInfo.length,
-            itemBuilder: (context, index) => favDetailListTileView(index),
-          ),
+      body:  RefreshIndicator(
+        onRefresh: _refreshData,
+        child: ListView.builder(
+          itemCount: favInfo.length,
+          itemBuilder: (context, index) => favDetailListTileView(index),
         ),
       ),
       bottomNavigationBar: StreamBuilder<SequenceState?>(
@@ -189,13 +152,13 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: TrackTile(
             key: Key(favInfo[index].bvid),
-            pic: favInfo[index].cover,
-            parts: favInfo[index].page,
+            // pic: favInfo[index].cover,
+            parts: favInfo[index].parts,
             excludedParts: excludedCount,
             title: favInfo[index].title,
-            author: favInfo[index].upper.name,
+            author: favInfo[index].artist,
             len: duration,
-            view: unit(favInfo[index].cntInfo.play),
+            // view: unit(favInfo[index].stat.view),
             cachedCount: cachedCount,
             onTap: () async {
               try {
@@ -223,7 +186,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (favInfo[index].page > 1)
+                      if (favInfo[index].parts > 1)
                         ListTile(
                           leading: const Icon(Icons.playlist_remove),
                           title: const Text('管理分P'),
@@ -244,7 +207,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                         onTap: () async {
                           Navigator.pop(dialogContext);
                           final success = await globals.api.favoriteVideo(
-                            favInfo[index].id,
+                            favInfo[index].aid,
                             [],
                             [widget.fav.id],
                           ) ?? false;

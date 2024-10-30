@@ -17,7 +17,6 @@ class VidResult {
     required this.owner,
     required this.stat,
     required this.cid,
-    required this.dimension,
     required this.teenageMode,
     required this.isChargeableSeason,
     required this.isStory,
@@ -44,7 +43,6 @@ class VidResult {
   late final Owner owner;
   late final Stat stat;
   late final int cid;
-  late final Dimension dimension;
   late final int teenageMode;
   late final bool isChargeableSeason;
   late final bool isStory;
@@ -72,7 +70,6 @@ class VidResult {
     owner = Owner.fromJson(json['owner']);
     stat = Stat.fromJson(json['stat']);
     cid = json['cid'];
-    dimension = Dimension.fromJson(json['dimension']);
     teenageMode = json['teenage_mode'];
     isChargeableSeason = json['is_chargeable_season'];
     isStory = json['is_story'];
@@ -220,23 +217,6 @@ class Stat {
   }
 }
 
-class Dimension {
-  Dimension({
-    required this.width,
-    required this.height,
-    required this.rotate,
-  });
-  late final int width;
-  late final int height;
-  late final int rotate;
-
-  Dimension.fromJson(Map<String, dynamic> json) {
-    width = json['width'];
-    height = json['height'];
-    rotate = json['rotate'];
-  }
-}
-
 class Pages {
   Pages({
     required this.cid,
@@ -244,18 +224,12 @@ class Pages {
     required this.from,
     required this.part,
     required this.duration,
-    required this.vid,
-    required this.weblink,
-    required this.dimension,
   });
   late final int cid;
   late final int page;
   late final String from;
   late final String part;
   late final int duration;
-  late final String vid;
-  late final String weblink;
-  late final Dimension dimension;
 
   Pages.fromJson(Map<String, dynamic> json) {
     cid = json['cid'];
@@ -263,9 +237,6 @@ class Pages {
     from = json['from'];
     part = json['part'];
     duration = json['duration'];
-    vid = json['vid'];
-    weblink = json['weblink'];
-    dimension = Dimension.fromJson(json['dimension']);
   }
 }
 

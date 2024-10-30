@@ -30,15 +30,30 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
   }
 
   Future<void> _loadExcludedParts() async {
-    final vid = await globals.api.getVidDetail(widget.bvid);
-    if (vid == null) return;
-    final excluded = await CacheManager.getExcludedParts(widget.bvid);
-    setState(() {
-      excludedCids = excluded.toSet();
-      pendingExcludedCids = excluded.toSet();
-      isLoading = false;
-      pages = vid.pages;
-    });
+    final entities = await CacheManager.getEntities(widget.bvid);
+    if (entities.isNotEmpty) {
+      setState(() {
+        excludedCids = entities.where((e) => e.excluded == 1).map((e) => e.cid).toSet();
+        pendingExcludedCids = excludedCids;
+        isLoading = false;
+        pages = entities.map((e) => Pages(cid: e.cid, page: e.part, duration: e.duration, from: e.artist, part: e.partTitle)).toList();
+      });
+    } else {
+      try {
+        final vid = await globals.api.getVidDetail(widget.bvid);
+        if (vid == null) return;
+        final excluded = await CacheManager.getExcludedParts(widget.bvid);
+        setState(() {
+          excludedCids = excluded.toSet();
+          pendingExcludedCids = excluded.toSet();
+          pages = vid.pages;
+        });
+      } finally {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   void _toggleAll(bool include) {
