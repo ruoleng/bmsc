@@ -148,7 +148,7 @@ class API {
     final srcs = await Future.wait(bvids.map((x) async {
       final meta = await CacheManager.getMeta(x);
       return AudioSource.uri(Uri.parse('asset:///assets/silent.mp3'),
-          tag: MediaItem(id: x, title: meta?.title ?? '', artist: meta?.artist ?? '', extras: {'dummy': true}));
+          tag: MediaItem(id: x, title: meta?.title ?? '', artUri: Uri.parse(meta?.artUri ?? ''), artist: meta?.artist ?? '', extras: {'dummy': true}));
     }).toList());
     await player.stop();
     await playlist.clear();
@@ -315,6 +315,7 @@ class API {
         mid: x['upper']['mid'],
         aid: x['id'],
         duration: x['duration'],
+        artUri: x['cover'],
         parts: x['page'],
       )).toList());
       hasMore = response.data['data']['has_more'] as bool;
@@ -442,6 +443,7 @@ class API {
       aid: response.data['data']['aid'],
       duration: response.data['data']['duration'],
       parts: response.data['data']['videos'],
+      artUri: response.data['data']['pic'],
     )]);
     final ret = VidResult.fromJson(response.data['data']);
     await CacheManager.cacheEntities(ret.pages.map((x) => Entity(
@@ -451,6 +453,7 @@ class API {
       duration: x.duration,
       part: x.page,
       artist: ret.owner.name,
+      artUri: ret.pic,
       partTitle: x.part,
       bvidTitle: ret.title,
       excluded: 0,

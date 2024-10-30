@@ -1,4 +1,6 @@
+import 'package:bmsc/component/playing_card.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../cache_manager.dart';
@@ -40,7 +42,8 @@ class _CacheScreenState extends State<CacheScreen> {
         filteredFiles = cachedFiles.where((file) {
           final title = file['title'].toString().toLowerCase();
           final artist = file['artist'].toString().toLowerCase();
-          return title.contains(query) || artist.contains(query);
+          final bvidTitle = file['bvid_title'].toString().toLowerCase();
+          return title.contains(query) || artist.contains(query) || bvidTitle.contains(query);
         }).toList();
       }
     });
@@ -73,6 +76,7 @@ class _CacheScreenState extends State<CacheScreen> {
         'artist': entity['artist'],
         'part': entity['part'],
         'bvid_title': entity['bvid_title'],
+        'artUri': entity['art_uri'],
       };
     }))).whereType<Map<String, dynamic>>().toList();
 
@@ -98,24 +102,21 @@ class _CacheScreenState extends State<CacheScreen> {
   }
 
   Future<void> deleteCache(String bvid, int cid, String filePath) async {
-    try {
-      final file = File(filePath);
-      if (await file.exists()) {
-        await file.delete();
-      }
-      
-      final db = await CacheManager.database;
-      await db.delete(
-        CacheManager.tableName,
-        where: 'bvid = ? AND cid = ?',
-        whereArgs: [bvid, cid],
-      );
-
-      setState(() {
-        cachedFiles.removeWhere((item) => item['bvid'] == bvid && item['cid'] == cid);
-      });
-    } catch (e) {
+    final file = File(filePath);
+    if (await file.exists()) {
+      await file.delete();
     }
+    
+    final db = await CacheManager.database;
+    await db.delete(
+      CacheManager.tableName,
+      where: 'bvid = ? AND cid = ?',
+      whereArgs: [bvid, cid],
+    );
+
+    setState(() {
+      cachedFiles.removeWhere((item) => item['bvid'] == bvid && item['cid'] == cid);
+    });
   }
 
   Future<void> clearAllCache() async {
@@ -255,42 +256,12 @@ class _CacheScreenState extends State<CacheScreen> {
                           final fileSize = getFileSize(file['filePath']);
                           final id = '${file['bvid']}_${file['cid']}';
 
-                          return Dismissible(
-                            key: Key(id),
-                            background: Container(
-                              color: Colors.red,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20.0),
-                              child: const Icon(Icons.delete, color: Colors.white),
-                            ),
-                            direction: DismissDirection.endToStart,
-                            confirmDismiss: (direction) async {
-                              return await showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('删除缓存'),
-                                  content: const Text('确定要删除这个缓存文件吗？'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context, false),
-                                      child: const Text('取消'),
-                                    ),
-                                    FilledButton(
-                                      onPressed: () {
-                                        Navigator.pop(context, true);
-                                        deleteCache(file['bvid'], file['cid'], file['filePath']);
-                                      },
-                                      child: const Text('确定'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                            child: TrackTile(
+                          return TrackTile(
                               key: Key(id),
                               title: file['title'],
                               author: file['artist'],
                               len: fileSize,
+                              pic: file['artUri'],
                               album: file['part'] == 0 ? null : file['bvid_title'],
                               view: DateTime.fromMillisecondsSinceEpoch(
                                 file['createdAt'],
@@ -298,33 +269,94 @@ class _CacheScreenState extends State<CacheScreen> {
                               onTap: () => globals.api.playCachedAudio(file['bvid'], file['cid']),
                               onAddToPlaylistButtonPressed: () => globals.api.addToPlaylistCachedAudio(file['bvid'], file['cid']),
                               onLongPress: () {
-                                
                                 showDialog(
                                   context: context,
                                   builder: (context) => AlertDialog(
-                                    title: const Text('保存到下载'),
-                                    content: const Text('确定要保存到下载文件夹吗？'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('取消'),
-                                      ),
-                                      FilledButton(
-                                        onPressed: () {
-                                          Navigator.pop(context);
-                                          saveToDownloads(file);
-                                        },
-                                        child: const Text('确定'),
-                                      ),
-                                    ],
+                                    title: const Text('选择操作'),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ListTile(
+                                          leading: const Icon(Icons.delete),
+                                          title: const Text('删除缓存'),
+                                          onTap: () {
+                                            Navigator.pop(context);
+                                            _showDeleteCacheDialog(context, file);
+                                          },
+                                        ),
+                                        ListTile(
+                                          leading: const Icon(Icons.download),
+                                          title: const Text('保存到下载'),
+                                          onTap: () {
+                                            Navigator.pop(context);
+                                            _showSaveToDownloadsDialog(context, file);
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 );
                               },
-                            ),
-                          );
+                            );
                         },
                       ),
               ),
+              bottomNavigationBar: StreamBuilder<SequenceState?>(
+        stream: globals.api.player.sequenceStateStream,
+        builder: (_, snapshot) {
+          final src = snapshot.data?.sequence;
+          return (src == null || src.isEmpty)
+              ? const SizedBox()
+              : const PlayingCard();
+        },
+      ),
+    );
+  }
+
+  void _showDeleteCacheDialog(BuildContext context, Map<String, dynamic> file) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除缓存'),
+        content: const Text('确定要删除这个缓存文件吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context, true);
+              deleteCache(file['bvid'], file['cid'], file['filePath']);
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSaveToDownloadsDialog(BuildContext context, Map<String, dynamic> file) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('保存到下载'),
+        content: const Text('确定要保存到下载文件夹吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              saveToDownloads(file);
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
     );
   }
 }
+

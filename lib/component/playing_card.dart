@@ -25,6 +25,7 @@ class PlayingCard extends StatelessWidget {
             builder: (context, snapshot) {
               final state = snapshot.data;
               if (state?.sequence.isEmpty ?? true) return const SizedBox.shrink();
+              final artUri = state?.currentSource?.tag.artUri.toString() ?? "";
               
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -62,15 +63,19 @@ class PlayingCard extends StatelessWidget {
                             child: SizedBox(
                               width: 48,
                               height: 48,
-                              child: CachedNetworkImage(
-                                imageUrl: state?.currentSource?.tag.artUri.toString() ?? "",
+                              child: artUri == "" ? Container(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                child: Icon(Icons.music_note,
+                                    color: Theme.of(context).colorScheme.primary),
+                              ) :  CachedNetworkImage(
+                                imageUrl: artUri,
                                 placeholder: (context, url) => Container(
-                                  color: Theme.of(context).colorScheme.surfaceVariant,
+                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   child: Icon(Icons.music_note,
                                       color: Theme.of(context).colorScheme.primary),
                                 ),
                                 errorWidget: (context, url, error) => Container(
-                                  color: Theme.of(context).colorScheme.surfaceVariant,
+                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   child: Icon(Icons.music_note,
                                       color: Theme.of(context).colorScheme.primary),
                                 ),

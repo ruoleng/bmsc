@@ -76,7 +76,7 @@ class PlaylistBottomSheet extends StatelessWidget {
                       icon: Icon(icons[index], size: 20),
                       tooltip: labels[index],
                       style: IconButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       onPressed: () {
@@ -125,6 +125,16 @@ class PlaylistBottomSheet extends StatelessWidget {
                           stream: globals.api.player.sequenceStateStream,
                           builder: (context, snapshot) {
                             final isPlaying = snapshot.data?.currentIndex == index;
+                            if (isPlaying) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                Scrollable.ensureVisible(
+                                  context,
+                                  alignment: 0.2,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              });
+                            }
                             return ListTile(
                               dense: true,
                               visualDensity: const VisualDensity(vertical: -2),
@@ -148,7 +158,7 @@ class PlaylistBottomSheet extends StatelessWidget {
                                       margin: const EdgeInsets.only(right: 4),
                                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.surfaceVariant,
+                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Icon(Icons.radio, size: 12),

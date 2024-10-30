@@ -142,7 +142,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: TrackTile(
             key: Key(favInfo[index].bvid),
-            // pic: favInfo[index].cover,
+            pic: favInfo[index].artUri,
             parts: favInfo[index].parts,
             excludedParts: excludedCount,
             title: favInfo[index].title,

@@ -8,6 +8,7 @@ class Entity {
   late final int excluded;
   late final String partTitle;
   late final String bvidTitle;
+  late final String artUri;
 
   Entity({
     required this.bvid,
@@ -16,6 +17,7 @@ class Entity {
     required this.part,
     required this.duration,
     required this.artist,
+    required this.artUri,
     required this.partTitle,
     required this.bvidTitle,
     required this.excluded,
@@ -31,6 +33,7 @@ class Entity {
     excluded = json['excluded'];
     partTitle = json['part_title'];
     bvidTitle = json['bvid_title'];
+    artUri = json['art_uri'];
   }
 
   Map<String, dynamic> toJson() {
@@ -44,6 +47,7 @@ class Entity {
       'excluded': excluded,
       'part_title': partTitle,
       'bvid_title': bvidTitle,
+      'art_uri': artUri,
     };
   }
 }

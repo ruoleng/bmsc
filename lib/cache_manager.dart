@@ -54,6 +54,7 @@ class CacheManager {
           excluded INTEGER,
           part_title TEXT,
           bvid_title TEXT,
+          art_uri TEXT,
           PRIMARY KEY (bvid, cid)
         )
       ''');
@@ -64,6 +65,7 @@ class CacheManager {
           aid INTEGER,
           title TEXT,
           artist TEXT,
+          artUri TEXT,
           mid INTEGER,
           duration INTEGER,
           parts INTEGER,
@@ -236,11 +238,12 @@ class CacheManager {
       final entities = await getEntities(bvid);
       return results.map((result) {
         final filePath = result['filePath'] as String;
-        final entity = entities.firstWhere((e) => e.cid == result['cid']);
+        final entity = entities.firstWhere((e) => e.bvid == bvid && e.cid == result['cid']);
         return AudioSource.file(filePath, tag: MediaItem(
           id: '${bvid}_${result['cid']}',
           title: entity.partTitle,
           artist: entity.artist,
+          artUri: Uri.parse(entity.artUri),
           extras: {
             'bvid': bvid,
             'aid': entity.aid,
@@ -276,6 +279,7 @@ class CacheManager {
       final tag = MediaItem(id: '${bvid}_$cid',
         title: entity.partTitle,
         artist: entity.artist,
+        artUri: Uri.parse(entity.artUri),
         extras: {
           'bvid': bvid,
           'aid': entity.aid,

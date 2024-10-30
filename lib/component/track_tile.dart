@@ -56,9 +56,9 @@ class TrackTile extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: SizedBox(
-                      width: 48,
+                      width: 85,
                       height: 48,
-                      child: pic == null
+                      child: pic == null || pic == ""
                           ? Container(
                               color: Theme.of(context).colorScheme.primaryContainer,
                               child: Icon(
@@ -86,8 +86,6 @@ class TrackTile extends StatelessWidget {
                                   size: 20,
                                 ),
                               ),
-                              memCacheWidth: 96,
-                              memCacheHeight: 96,
                             ),
                     ),
                   ),
