@@ -1,5 +1,4 @@
 import 'package:bmsc/model/release.dart';
-import 'package:bmsc/model/search.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
@@ -15,12 +14,9 @@ import 'package:bmsc/screen/search_screen.dart';
 import 'package:bmsc/screen/playlist_search_screen.dart';
 
 import 'component/playing_card.dart';
-import 'component/track_tile.dart';
-import 'util/string.dart';
 import 'globals.dart' as globals;
 import 'package:flutter/foundation.dart';
 import 'util/error_handler.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
@@ -216,15 +212,15 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute<Widget>(builder: (_) => const FavScreen()),
+              MaterialPageRoute<Widget>(builder: (_) => const CacheScreen()),
             ),
-            icon: const Icon(Icons.star_outline),
+            icon: const Icon(Icons.storage),
           ),
         ],
       ),
       body: !signedin
         ? WebViewWidget(controller: controller)
-        : const CacheScreen(),
+        : const FavScreen(),
     );
   }
 }

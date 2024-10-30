@@ -99,17 +99,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                 ],
               ),
               onPressed: () async {
-                final bvids = await globals.api.getFavBvids(widget.fav.id);
-                if (bvids == null) {
-                  return;
-                }
-                await globals.api.player.stop();
-                await globals.api.playlist.clear();
-                for (final x in bvids) {
-                  await globals.api.appendPlaylist(x);
-                }
-                await globals.api.player.seek(Duration.zero, index: 0);
-                await globals.api.player.play();
+                await globals.api.playFavList(widget.fav.id);
               },
             ),
           ),

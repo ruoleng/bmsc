@@ -69,12 +69,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   hisListTileView(int index) {
-    int pmin = hisList[index].progress ~/ 60;
-    int psec = hisList[index].progress % 60;
     int min = hisList[index].duration ~/ 60;
     int sec = hisList[index].duration % 60;
     final duration = "$min:${sec.toString().padLeft(2, '0')}";
-    final progress = "$pmin:${psec.toString().padLeft(2, '0')}";
     return TrackTile(
       key: Key(hisList[index].history.bvid),
       pic: hisList[index].cover,

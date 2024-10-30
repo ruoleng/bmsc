@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:bmsc/audio/lazy_audio_source.dart';
 import 'package:bmsc/model/entity.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -9,6 +10,8 @@ import 'package:just_audio/just_audio.dart';
 import '../model/fav.dart';
 import '../model/fav_detail.dart';
 import '../model/meta.dart';
+
+const String _dbName = 'AudioCache.db';
 
 class CacheManager {
   static Database? _database;
@@ -27,22 +30,15 @@ class CacheManager {
 
   static Future<Database> initDB() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String path = join(documentsDirectory.path, "AudioCache.db");
+    String path = join(documentsDirectory.path, _dbName);
     return await openDatabase(path, version: 1, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE $tableName (
-          id TEXT PRIMARY KEY,
           bvid TEXT,
           cid INTEGER,
-          aid INTEGER,
-          title TEXT,
-          artist TEXT,
-          artUri TEXT,
-          mid INTEGER,
-          multi INTEGER,
-          raw_title TEXT,
           filePath TEXT,
-          createdAt INTEGER
+          createdAt INTEGER,
+          PRIMARY KEY (bvid, cid)
         )
       ''');
 
@@ -176,7 +172,7 @@ class CacheManager {
     final db = await database;
     final batch = db.batch();
     for (var item in data) {
-      batch.insert(entityTable, item.toJson());
+      batch.insert(entityTable, item.toJson(), conflictAlgorithm: ConflictAlgorithm.ignore);
     }
     await batch.commit();
   }
@@ -212,6 +208,11 @@ class CacheManager {
   }
 
   static Future<List<UriAudioSource>?> getCachedAudioList(String bvid) async {
+    final meta = await getMeta(bvid);
+    if (meta == null) {
+      return null;
+    }
+    
     final db = await database;
     final results = await db.query(
       tableName,
@@ -220,29 +221,35 @@ class CacheManager {
     );
 
     if (results.isNotEmpty) {
+      final entities = await getEntities(bvid);
       return results.map((result) {
-      final filePath = result['filePath'] as String;
-      return AudioSource.file(filePath, tag: MediaItem(
-        id: result['id'] as String,
-        title: result['title'] as String,
-        artist: result['artist'] as String,
-        artUri: Uri.parse(result['artUri'] as String),
-        extras: {
-          'bvid': result['bvid'] as String,
-          'aid': result['aid'] as int,
-          'cid': result['cid'] as int,
-          'mid': result['mid'] as int,
-          'multi': result['multi'] as int == 1,
-          'raw_title': result['raw_title'] as String,
-          'cached': true
-          },
-        ));
+        final filePath = result['filePath'] as String;
+        final entity = entities.firstWhere((e) => e.cid == result['cid']);
+        return AudioSource.file(filePath, tag: MediaItem(
+          id: '${bvid}_${result['cid']}',
+          title: entity.partTitle,
+          artist: entity.artist,
+          extras: {
+            'bvid': bvid,
+            'aid': entity.aid,
+            'cid': entity.cid,
+            'mid': meta.mid,
+            'multi': entity.part > 0,
+            'raw_title': entity.bvidTitle,
+            'cached': true
+            },
+          ));
       }).toList();
     }
     return null;
   }
 
-  static Future<UriAudioSource?> getCachedAudio(String bvid, int cid) async {
+
+  static Future<LazyAudioSource?> getCachedAudio(String bvid, int cid) async {
+    final meta = await getMeta(bvid);
+    if (meta == null) {
+      return null;
+    }
     final db = await database;
     final results = await db.query(
       tableName,
@@ -252,21 +259,22 @@ class CacheManager {
 
     if (results.isNotEmpty) {
       final filePath = results.first['filePath'] as String;
-      return AudioSource.file(filePath, tag: MediaItem(
-        id: results.first['id'] as String,
-        title: results.first['title'] as String,
-        artist: results.first['artist'] as String,
+      final entities = await getEntities(bvid);
+      final entity = entities.firstWhere((e) => e.cid == cid);
+      final tag = MediaItem(id: results.first['id'] as String,
+        title: entity.partTitle,
+        artist: entity.artist,
         artUri: Uri.parse(results.first['artUri'] as String),
         extras: {
-          'bvid': results.first['bvid'] as String,
-          'aid': results.first['aid'] as int,
-          'cid': results.first['cid'] as int,
-          'mid': results.first['mid'] as int,
-          'multi': results.first['multi'] as int == 1,
-          'raw_title': results.first['raw_title'] as String,
+          'bvid': bvid,
+          'aid': entity.aid,
+          'cid': cid,
+          'mid': meta.mid,
+          'multi': entity.part > 0,
+          'raw_title': entity.bvidTitle,
           'cached': true
-        },
-      ));
+        });
+      return LazyAudioSource.create(bvid, cid, Uri.parse(filePath), tag);
     }
     return null;
   }
@@ -278,22 +286,14 @@ class CacheManager {
     return File(filePath);
   }
 
-  static Future<void> saveCacheMetadata(String bvid, int aid, int cid, int mid, String filePath, String title, String artist, String artUri, bool multi, String rawTitle) async {
+  static Future<void> saveCacheMetadata(String bvid, int cid, String filePath) async {
     final db = await database;
     await db.insert(tableName, {
-      'id': '${bvid}_$cid',
       'bvid': bvid,
-      'aid': aid,
       'cid': cid,
-      'mid': mid,
       'filePath': filePath,
       'createdAt': DateTime.now().millisecondsSinceEpoch,
-      'title': title,
-      'artist': artist,
-      'artUri': artUri,
-      'multi': multi ? 1 : 0,
-      'raw_title': rawTitle,
-    });
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   static Future<void> resetCache() async {
@@ -412,6 +412,7 @@ class CacheManager {
   static Future<void> cacheFavListVideo(List<String> bvids, int mid) async {
     final db = await database;
     final batch = db.batch();
+    batch.delete(favListVideoTable, where: 'mid = ?', whereArgs: [mid]);
     for (var bvid in bvids) {
       batch.insert(favListVideoTable, {'bvid': bvid, 'mid': mid});
     }
@@ -424,38 +425,5 @@ class CacheManager {
     return results.map((row) => row['bvid'] as String).toList();
   }
 
-  static Future<List<Medias>> getCachedFavDetail(int favId) async {
-    final db = await database;
-    final results = await db.query(
-      favDetailTable,
-      where: 'fav_id = ?',
-      whereArgs: [favId],
-      orderBy: 'list_order ASC'  // Order by the list_order field
-    );
-    
-    return results.map((row) => Medias(
-      id: row['id'] as int,
-      title: row['title'] as String,
-      cover: row['cover'] as String,
-      page: row['page'] as int,
-      duration: row['duration'] as int,
-      bvid: row['bvid'] as String,
-      upper: Upper(
-        name: row['upper_name'] as String,
-        mid: 0,  // Default value since we don't need it
-        face: '',  // Default value since we don't need it
-      ),
-      cntInfo: CntInfo(
-        play: row['play_count'] as int,
-        collect: 0,  // Default value since we don't need it
-      ),
-      link: '',  // Default value since we don't need it
-      ctime: 0,  // Default value since we don't need it
-      pubtime: 0,  // Default value since we don't need it
-      favTime: 0,  // Default value since we don't need it
-      type: 0,  // Default value since we don't need it
-      intro: '',  // Default value since we don't need it
-    )).toList();
-  }
 
 }

@@ -3,9 +3,7 @@ import 'package:flutter/services.dart';
 import '../globals.dart' as globals;
 import '../model/search.dart';
 import '../util/string.dart';
-import '../api.dart';
 import 'dart:math';
-import 'dart:collection';
 import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 

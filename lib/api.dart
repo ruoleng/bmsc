@@ -1,4 +1,5 @@
 import 'package:audio_session/audio_session.dart';
+import 'package:bmsc/audio/lazy_audio_source.dart';
 import 'package:bmsc/model/dynamic.dart';
 import 'package:bmsc/model/fav.dart';
 import 'package:bmsc/model/fav_detail.dart';
@@ -12,9 +13,7 @@ import 'package:dio/dio.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:rxdart/rxdart.dart';
-import 'dart:io';
 import 'package:bmsc/cache_manager.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bmsc/model/playlist_data.dart';
@@ -60,19 +59,25 @@ class API {
               buffered: playbackEvent.bufferedPosition,
               total: playbackEvent.duration,
             )).asBroadcastStream();
-    player.playerStateStream.listen((state) {
+    player.playerStateStream.listen((state) async {
       if (state.processingState == ProcessingState.ready && state.playing == true) {
-        if (player.currentIndex != null) {
-          _checkAndCacheCurrentSong(player.currentIndex!);
-          if (recommendationMode) {
-            _handleTrackChange(player.currentIndex!);
-          }
+        final index = player.currentIndex;
+        if (index == null) {
+          return;
         }
-      }
-    });
-    player.sequenceStateStream.listen((sequenceState) {
-      if (sequenceState != null) {
-        _prepareNextSong(sequenceState);
+        final currentSource = playlist.children[index];
+        if (currentSource is IndexedAudioSource && currentSource.tag.extras['dummy'] == true) {
+          await player.pause();
+          final srcs = await getAudioSources(currentSource.tag.id);
+          if (srcs == null) {
+            return;
+          }
+          await playlist.removeAt(index);
+          await playlist.insertAll(index, srcs);
+          await player.seek(Duration.zero, index: index);
+          await player.play();
+          return;
+        }
       }
     });
   }
@@ -133,6 +138,22 @@ class API {
       return;
     }
     await _addUniqueSourcesToPlaylist([srcs[0]], insertIndex: insertIndex, extraExtras: extraExtras);
+  }
+
+  Future<void> playFavList(int mid) async {
+    final bvids = await CacheManager.getCachedFavListVideo(mid);
+    if (bvids.isEmpty) {
+      return;
+    }
+    final srcs = await Future.wait(bvids.map((x) async {
+      final meta = await CacheManager.getMeta(x);
+      return AudioSource.uri(Uri.parse('asset:///assets/silent.mp3'),
+          tag: MediaItem(id: x, title: meta?.title ?? '', artist: meta?.artist ?? '', extras: {'dummy': true}));
+    }).toList());
+    await player.stop();
+    await playlist.clear();
+    await playlist.addAll(srcs);
+    await player.play();
   }
 
   Future<void> appendPlaylist(String bvid, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
@@ -207,7 +228,7 @@ class API {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
     if (srcs == null) {
-      return;
+      throw Exception('无网络');
     }
 
     final idx = await _addUniqueSourcesToPlaylist(srcs, insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
@@ -366,12 +387,12 @@ class API {
     return track.dash.audio;
   }
 
-  Future<List<UriAudioSource>?> getAudioSources(String bvid) async {
+  Future<List<LazyAudioSource>?> getAudioSources(String bvid) async {
     final vid = await getVidDetail(bvid);
     if (vid == null) {
       return null;
     }
-    return (await Future.wait<UriAudioSource?>(vid.pages.map((x) async {
+    return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
       final cachedSource = await CacheManager.getCachedAudio(bvid, x.cid);
       if (cachedSource != null) {
         return cachedSource;
@@ -381,25 +402,25 @@ class API {
         return null;
       }
       final firstAudio = audios[0];
-      return AudioSource.uri(Uri.parse(firstAudio.baseUrl),
-          headers: headers,
-          tag: MediaItem(
-              id: '${bvid}_${x.cid}',
-              title:
-                  vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
-              artUri: Uri.parse(vid.pic),
-              artist: vid.owner.name,
-              extras: {
-                'mid': vid.owner.mid,
-                'bvid': bvid,
-                'aid': vid.aid,
-                'cid': x.cid,
-                'cached': false,
-                'raw_title': vid.title,
-                'multi': vid.pages.length > 1,
-              }));
+      final tag = MediaItem(
+        id: '${bvid}_${x.cid}',
+        title:
+            vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
+        artUri: Uri.parse(vid.pic),
+        artist: vid.owner.name,
+        extras: {
+          'mid': vid.owner.mid,
+          'bvid': bvid,
+          'aid': vid.aid,
+          'cid': x.cid,
+          'cached': false,
+          'raw_title': vid.title,
+          'multi': vid.pages.length > 1,
+        }
+      );
+      return LazyAudioSource.create(bvid, x.cid, Uri.parse(firstAudio.baseUrl), tag);
     })))
-        .whereType<UriAudioSource>()
+        .whereType<LazyAudioSource>()
         .toList();
   }
 
@@ -438,95 +459,13 @@ class API {
     return TagResult.fromJson(response.data);
   }
 
-  Future<void> _downloadAndCache(String bvid, int aid, int cid, String url, File file, int mid, String title, String artist, String artUri, bool multi, String rawTitle) async {
-    try {
-      final request = http.Request('GET', Uri.parse(url));
-      request.headers.addAll(headers);
-      final response = await http.Client().send(request);
-
-      final sink = file.openWrite();
-      await response.stream.pipe(sink);
-      await sink.close();
-
-      await CacheManager.saveCacheMetadata(bvid, aid, cid, mid, file.path, title, artist, artUri, multi, rawTitle);
-    } catch (e) {
-      await file.delete();
-    }
-  }
-
-  Future<void> _prepareNextSong(SequenceState sequenceState) async {
-    final currentIndex = sequenceState.currentIndex;
-    if (currentIndex + 1 >= sequenceState.effectiveSequence.length) {
-      return;
-    }
-    final nextIndex = (currentIndex + 1) % sequenceState.effectiveSequence.length;
-    final nextItem = sequenceState.effectiveSequence[nextIndex];
-    
-    if (nextItem.tag is MediaItem) {
-      var mediaItem = nextItem.tag as MediaItem;
-      final bvid = mediaItem.extras?['bvid'] as String?;
-      final cid = mediaItem.extras?['cid'] as int?;
-
-      if (mediaItem.extras?['cached'] == true) {
-        return;
-      }
-
-      if (bvid == null || cid == null) {
-        return;
-      }
-
-      final cached = await CacheManager.isCached(bvid, cid);
-      if (cached) {
-        // If cached, prepare to switch to cached file
-        final cachedSource = await CacheManager.getCachedAudio(bvid, cid);
-        if (cachedSource != null) {
-          await playlist.removeAt(nextIndex);
-          await playlist.insert(nextIndex, cachedSource);
-        }
-      }
-    }
-  }
-
-  Future<void> _checkAndCacheCurrentSong(int index) async {
-    if (index < 0 || index >= playlist.length) {
-      return;
-    }
-    final currentItem = playlist.children[index] as UriAudioSource;
-    var mediaItem = currentItem.tag as MediaItem;
-    final bvid = mediaItem.extras?['bvid'] as String?;
-    final cid = mediaItem.extras?['cid'] as int?;
-    final aid = mediaItem.extras?['aid'] as int?;
-    final mid = mediaItem.extras?['mid'] as int? ?? 0;
-    final multi = mediaItem.extras?['multi'] as bool? ?? false;
-    final rawTitle = mediaItem.extras?['raw_title'] as String? ?? '';
-
-    if (mediaItem.extras?['cached'] == true) {
-      return;
-    }
-
-    if (bvid == null || cid == null || aid == null) {
-      return;
-    }
-
-    final cached = await CacheManager.isCached(bvid, cid);
-    if (!cached) {
-      // If not cached, start caching
-      try {
-        final file = await CacheManager.prepareFileForCaching(bvid, cid);
-        await _downloadAndCache(bvid, aid, cid, currentItem.uri.toString(), file, mid, mediaItem.title, mediaItem.artist ?? '', mediaItem.artUri.toString(), multi, rawTitle);
-      } catch (e) {
-        // If caching fails, do nothing
-      }
-    }
-  }
-
-  Future<int?> _addUniqueSourcesToPlaylist(List<UriAudioSource> sources, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
+  Future<int?> _addUniqueSourcesToPlaylist(List<IndexedAudioSource> sources, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     int? ret;
     for (var source in sources) {
       if (source.tag is MediaItem) {
         var mediaItem = source.tag as MediaItem;
         var duplicatePos = playlist.children.indexWhere((child) {
-          if (child is UriAudioSource && child.tag is MediaItem) {
+          if (child is IndexedAudioSource && child.tag is MediaItem) {
             return (child.tag as MediaItem).id == mediaItem.id;
           }
           return false;
@@ -534,7 +473,7 @@ class API {
 
         if (duplicatePos == -1) {
           if (extraExtras != null) {
-            mediaItem.extras?.addAll(extraExtras!);
+            mediaItem.extras?.addAll(extraExtras);
           }
           if (insertIndex != null) {
             await playlist.insert(insertIndex, source);
@@ -555,7 +494,7 @@ class API {
   Future<void> savePlaylist() async {
     final prefs = await SharedPreferences.getInstance();
     final playlistData = playlist.children.map((source) {
-      if (source is UriAudioSource && source.tag is MediaItem) {
+      if (source is LazyAudioSource && source.tag is MediaItem) {
         final tag = source.tag as MediaItem;
         return PlaylistData(
           id: tag.id,
@@ -588,12 +527,7 @@ class API {
     final List<dynamic> playlistData = jsonDecode(playlistJson);
     final sources = await Future.wait(playlistData.map((item) async {
       final data = PlaylistData.fromJson(item);
-      final cachedSource = await CacheManager.getCachedAudio(data.bvid, data.cid);
-      if (cachedSource != null) return cachedSource;
-
-      return AudioSource.uri(
-        Uri.parse(data.audioUri),  // Use the stored audio URI
-        tag: MediaItem(
+      return LazyAudioSource.create(data.bvid, data.cid, Uri.parse(data.audioUri), MediaItem(
           id: data.id,
           title: data.title,
           artist: data.artist,
@@ -718,7 +652,7 @@ class API {
 
   bool _isInPlaylist(String bvid, int cid) {
     return playlist.children.any((source) {
-      if (source is UriAudioSource && source.tag is MediaItem) {
+      if (source is IndexedAudioSource && source.tag is MediaItem) {
         return (source.tag as MediaItem).extras?['bvid'] == bvid && (source.tag as MediaItem).extras?['cid'] == cid;
       }
       return false;
@@ -791,7 +725,7 @@ class API {
         });
       }
       return tracks;
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
         return [];
       }

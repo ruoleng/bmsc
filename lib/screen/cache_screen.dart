@@ -48,10 +48,34 @@ class _CacheScreenState extends State<CacheScreen> {
 
   Future<void> loadCachedFiles() async {
     final db = await CacheManager.database;
-    final results = await db.query(
+    final dbResults = await db.query(
       CacheManager.tableName,
       orderBy: 'createdAt DESC',
     );
+
+    final results = (await Future.wait(dbResults.map((x) async {
+      var entity = (await db.query(
+        CacheManager.entityTable,
+        where: 'bvid = ? AND cid = ?',
+        whereArgs: [x['bvid'], x['cid']],
+      )).firstOrNull;
+
+      if (entity == null) {
+        return null;
+      }
+
+      return {
+        'filePath': x['filePath'],
+        'bvid': x['bvid'],
+        'cid': x['cid'],
+        'createdAt': x['createdAt'],
+        'title': entity['part_title'],
+        'artist': entity['artist'],
+        'part': entity['part'],
+        'bvid_title': entity['bvid_title'],
+      };
+    }))).whereType<Map<String, dynamic>>().toList();
+
 
     setState(() {
       cachedFiles = results;
@@ -73,7 +97,7 @@ class _CacheScreenState extends State<CacheScreen> {
     }
   }
 
-  Future<void> deleteCache(String id, String filePath) async {
+  Future<void> deleteCache(String bvid, int cid, String filePath) async {
     try {
       final file = File(filePath);
       if (await file.exists()) {
@@ -83,12 +107,12 @@ class _CacheScreenState extends State<CacheScreen> {
       final db = await CacheManager.database;
       await db.delete(
         CacheManager.tableName,
-        where: 'id = ?',
-        whereArgs: [id],
+        where: 'bvid = ? AND cid = ?',
+        whereArgs: [bvid, cid],
       );
 
       setState(() {
-        cachedFiles.removeWhere((item) => item['id'] == id);
+        cachedFiles.removeWhere((item) => item['bvid'] == bvid && item['cid'] == cid);
       });
     } catch (e) {
     }
@@ -97,7 +121,7 @@ class _CacheScreenState extends State<CacheScreen> {
   Future<void> clearAllCache() async {
     try {
       for (var file in cachedFiles) {
-        await deleteCache(file['id'], file['filePath']);
+        await deleteCache(file['bvid'], file['cid'], file['filePath']);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -229,9 +253,10 @@ class _CacheScreenState extends State<CacheScreen> {
                         itemBuilder: (context, index) {
                           final file = filteredFiles[index];
                           final fileSize = getFileSize(file['filePath']);
+                          final id = '${file['bvid']}_${file['cid']}';
 
                           return Dismissible(
-                            key: Key(file['id']),
+                            key: Key(id),
                             background: Container(
                               color: Colors.red,
                               alignment: Alignment.centerRight,
@@ -253,7 +278,7 @@ class _CacheScreenState extends State<CacheScreen> {
                                     FilledButton(
                                       onPressed: () {
                                         Navigator.pop(context, true);
-                                        deleteCache(file['id'], file['filePath']);
+                                        deleteCache(file['bvid'], file['cid'], file['filePath']);
                                       },
                                       child: const Text('确定'),
                                     ),
@@ -262,11 +287,11 @@ class _CacheScreenState extends State<CacheScreen> {
                               );
                             },
                             child: TrackTile(
-                              key: Key(file['id']),
-                              pic: file['artUri'],
+                              key: Key(id),
                               title: file['title'],
                               author: file['artist'],
                               len: fileSize,
+                              album: file['part'] == 0 ? null : file['bvid_title'],
                               view: DateTime.fromMillisecondsSinceEpoch(
                                 file['createdAt'],
                               ).toString().substring(0, 19),

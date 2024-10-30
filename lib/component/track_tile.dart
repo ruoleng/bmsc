@@ -11,6 +11,7 @@ class TrackTile extends StatelessWidget {
     this.view,
     this.time,
     this.parts,
+    this.album,
     this.excludedParts = 0,
     this.cachedCount = 0,
     required this.onTap,
@@ -25,6 +26,7 @@ class TrackTile extends StatelessWidget {
   final String? view;
   final String? time;
   final int? parts;
+  final String? album;
   final int excludedParts;
   final int cachedCount;
   final VoidCallback onTap;
@@ -119,15 +121,36 @@ class TrackTile extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Row(
-                          children: [
+                        Container(
+                          margin: const EdgeInsets.only(right: 40),
+                          child: Row(
+                            children: [
+                            if (album != null) ...[
+                              Icon(
+                                Icons.album,
+                                size: 12,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
+                                  album!,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(context).colorScheme.secondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             Icon(
                               Icons.person_outline,
                               size: 12,
                               color: Theme.of(context).colorScheme.secondary,
                             ),
                             const SizedBox(width: 2),
-                            Expanded(
+                            Flexible(
                               child: Text(
                                 author,
                                 style: TextStyle(
@@ -137,7 +160,9 @@ class TrackTile extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            // const SizedBox(width: 24),
                           ],
+                        ),
                         ),
                         const SizedBox(height: 2),
                         Row(
