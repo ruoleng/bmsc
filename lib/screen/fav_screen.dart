@@ -21,10 +21,17 @@ class _FavScreenState extends State<FavScreen> {
     loadFavorites();
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   Future<void> loadFavorites() async {
+    if (!mounted) return;
     setState(() => isLoading = true);
     
     globals.api.getStoredUID().then((uid) async {
+      if (!mounted) return;
       if (uid == null) {
         setState(() {
           isLoading = false;
@@ -34,7 +41,7 @@ class _FavScreenState extends State<FavScreen> {
 
       // Try to load from cache first
       var cachedFavs = await cache_manager.CacheManager.getCachedFavList();
-      print("cached fav list: $cachedFavs");
+      if (!mounted) return;
       if (cachedFavs.isNotEmpty) {
         setState(() {
           favList = cachedFavs;
@@ -44,7 +51,7 @@ class _FavScreenState extends State<FavScreen> {
       // Then try to fetch from network
       try {
         final ret = (await globals.api.getFavs(uid))?.list ?? [];
-        print(ret);
+        if (!mounted) return;
         if (ret.isNotEmpty) {
           setState(() {
             favList = ret;
@@ -55,7 +62,9 @@ class _FavScreenState extends State<FavScreen> {
       } catch (e) {
         // If network fetch fails, we'll still have the cached data
       } finally {
-        setState(() => isLoading = false);
+        if (mounted) {
+          setState(() => isLoading = false);
+        }
       }
     });
   }

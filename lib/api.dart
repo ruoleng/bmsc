@@ -140,7 +140,7 @@ class API {
     await _addUniqueSourcesToPlaylist([srcs[0]], insertIndex: insertIndex, extraExtras: extraExtras);
   }
 
-  Future<void> playFavList(int mid) async {
+  Future<void> playFavList(int mid, {int index = 0}) async {
     final bvids = await CacheManager.getCachedFavListVideo(mid);
     if (bvids.isEmpty) {
       return;
@@ -153,6 +153,7 @@ class API {
     await player.stop();
     await playlist.clear();
     await playlist.addAll(srcs);
+    await player.seek(Duration.zero, index: index);
     await player.play();
   }
 
@@ -247,12 +248,8 @@ class API {
   }
 
   Future<int?> getUID() async {
+    final prefs = await SharedPreferences.getInstance();
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final uid = prefs.getInt('uid');
-      if (uid != null) {
-        return uid;
-      }
       final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
       if (response.data['code'] != 0) {
         return 0;
@@ -261,6 +258,10 @@ class API {
       await prefs.setInt('uid', ret);
       return ret;
     } catch (e) {
+      final uid = prefs.getInt('uid');
+      if (uid != null) {
+        return uid;
+      }
       return null;
     }
   }

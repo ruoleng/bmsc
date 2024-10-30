@@ -152,7 +152,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
             cachedCount: cachedCount,
             onTap: () async {
               try {
-                await globals.api.playByBvid(favInfo[index].bvid);
+                await globals.api.playFavList(widget.fav.id, index: index);
               } catch (e) {
                 await globals.api.playCachedBvid(favInfo[index].bvid);
               }
