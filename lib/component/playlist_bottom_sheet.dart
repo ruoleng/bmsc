@@ -67,10 +67,10 @@ class PlaylistBottomSheet extends StatelessWidget {
                   stream: globals.api.player.loopModeStream,
                   builder: (context, snapshot) {
                     final loopMode = snapshot.data ?? LoopMode.off;
-                    final icons = [Icons.playlist_play, Icons.repeat, Icons.repeat_one, Icons.radio];
-                    final labels = ["顺序播放", "歌单循环", "单曲循环", "漫步模式"];
-                    final cycleModes = [LoopMode.off, LoopMode.all, LoopMode.one, LoopMode.off];
-                    final index = globals.api.recommendationMode ? 3 : cycleModes.indexOf(loopMode);
+                    final icons = [Icons.playlist_play, Icons.repeat, Icons.repeat_one];
+                    final labels = ["顺序播放", "歌单循环", "单曲循环"];
+                    final cycleModes = [LoopMode.off, LoopMode.all, LoopMode.one];
+                    final index = cycleModes.indexOf(loopMode);
                     
                     return IconButton(
                       icon: Icon(icons[index], size: 20),
@@ -81,13 +81,7 @@ class PlaylistBottomSheet extends StatelessWidget {
                       ),
                       onPressed: () {
                         final nextIndex = (index + 1) % cycleModes.length;
-                        if (nextIndex == 3) {
-                          globals.api.player.setLoopMode(LoopMode.off);
-                          globals.api.enableRecommendationMode();
-                        } else {
-                          globals.api.player.setLoopMode(cycleModes[nextIndex]);
-                          globals.api.disableRecommendationMode();
-                        }
+                        globals.api.player.setLoopMode(cycleModes[nextIndex]);
                       },
                     );
                   },
@@ -153,16 +147,6 @@ class PlaylistBottomSheet extends StatelessWidget {
                               ),
                               title: Row(
                                 children: [
-                                  if (item.extras['isRecommendation'] ?? false)
-                                    Container(
-                                      margin: const EdgeInsets.only(right: 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Icon(Icons.radio, size: 12),
-                                    ),
                                   Flexible( // Added Flexible widget here
                                     child: Text(
                                       item.title,
