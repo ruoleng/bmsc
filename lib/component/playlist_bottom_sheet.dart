@@ -53,7 +53,9 @@ class PlaylistBottomSheet extends StatelessWidget {
                           ),
                           FilledButton(
                             onPressed: () {
-                              globals.api.playlist.clear();
+                              globals.api.doAndSave(() async {
+                                await globals.api.playlist.clear();
+                              });
                               Navigator.pop(context);
                             },
                             child: const Text('确定'),
@@ -109,7 +111,9 @@ class PlaylistBottomSheet extends StatelessWidget {
                 itemCount: playlist.length,
                 onReorder: (oldIndex, newIndex) async {
                   if (oldIndex < newIndex) newIndex--;
-                  await globals.api.playlist.move(oldIndex, newIndex);
+                  await globals.api.doAndSave(() async {
+                    await globals.api.playlist.move(oldIndex, newIndex);
+                  });
                 },
                 itemBuilder: (context, index) {
                  final item = playlist[index].tag;
@@ -204,7 +208,9 @@ class PlaylistBottomSheet extends StatelessWidget {
                                       child: InkWell(
                                         onTap: () {
                                           CacheManager.addExcludedPart(item.extras['bvid'] as String, item.extras['cid'] as int);
-                                          globals.api.playlist.removeAt(index);
+                                          globals.api.doAndSave(() async {
+                                            await globals.api.playlist.removeAt(index);
+                                          });
                                         },
                                         child: const Icon(Icons.not_interested, size: 20),
                                       ),
@@ -212,7 +218,11 @@ class PlaylistBottomSheet extends StatelessWidget {
                                   Container(
                                     margin: const EdgeInsets.only(right: 8),
                                     child: InkWell(
-                                      onTap: () => globals.api.playlist.removeAt(index),
+                                      onTap: () {
+                                        globals.api.doAndSave(() async {
+                                          await globals.api.playlist.removeAt(index);
+                                        });
+                                      },
                                       child: const Icon(Icons.delete, size: 20),
                                     ),
                                   ),

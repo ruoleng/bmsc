@@ -44,6 +44,7 @@ class API {
     useLazyPreparation: true,
     children: [],
   );
+  bool restored = false;
 
   API(String cookie) {
     setCookies(cookie);
@@ -58,9 +59,20 @@ class API {
               total: playbackEvent.duration,
             )).asBroadcastStream();
     player.playerStateStream.listen((state) async {
-      if (state.processingState == ProcessingState.ready && state.playing == true) {
+      if (state.processingState == ProcessingState.completed) {
+        if (!restored) {
+          restored = true;
+          await restorePlaylist();
+        }
+      }
+      if (state.processingState == ProcessingState.ready) {
         final index = player.currentIndex;
         if (index == null) {
+          return;
+        }
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('currentIndex', index);
+        if (state.playing == false) {
           return;
         }
         final currentSource = playlist.children[index];
@@ -70,13 +82,20 @@ class API {
           if (srcs == null) {
             return;
           }
-          await playlist.removeAt(index);
-          await playlist.insertAll(index, srcs);
+          await doAndSave(() async {
+            await playlist.removeAt(index);
+            await playlist.insertAll(index, srcs);
+          });
           await player.seek(Duration.zero, index: index);
           await player.play();
         }
       }
     });
+  }
+
+  Future<void> doAndSave(Future<void> Function() func) async {
+    await func();
+    await savePlaylist();
   }
 
   Future<UserUploadResult?> getUserUploads(int mid, int pn) async {
@@ -148,8 +167,10 @@ class API {
           tag: MediaItem(id: x, title: meta?.title ?? '', artUri: Uri.parse(meta?.artUri ?? ''), artist: meta?.artist ?? '', extras: {'dummy': true}));
     }).toList());
     await player.stop();
-    await playlist.clear();
-    await playlist.addAll(srcs);
+    await doAndSave(() async {
+      await playlist.clear();
+      await playlist.addAll(srcs);
+    });
     await player.seek(Duration.zero, index: index);
     await player.play();
   }
@@ -485,11 +506,15 @@ class API {
             mediaItem.extras?.addAll(extraExtras);
           }
           if (insertIndex != null) {
-            await playlist.insert(insertIndex, source);
+            await doAndSave(() async {
+              await playlist.insert(insertIndex!, source);
+            });
             ret ??= insertIndex;
             insertIndex++;
           } else {
-            await playlist.add(source);
+            await doAndSave(() async {
+              await playlist.add(source);
+            });
             ret ??= playlist.length - 1;
           }
         } else {
@@ -543,12 +568,13 @@ class API {
 
     await prefs.setString('playlist', jsonEncode(playlistData));
     await prefs.setInt('currentIndex', player.currentIndex ?? 0);
-    await prefs.setInt('position', player.position.inMilliseconds);
   }
 
   Future<void> restorePlaylist() async {
     final prefs = await SharedPreferences.getInstance();
     final playlistJson = prefs.getString('playlist');
+    final currentIndex = prefs.getInt('currentIndex') ?? 0;
+
     if (playlistJson == null) return;
 
     final List<dynamic> playlistData = jsonDecode(playlistJson);
@@ -586,11 +612,9 @@ class API {
 
     await playlist.clear();
     await playlist.addAll(sources);
-    
-    final currentIndex = prefs.getInt('currentIndex') ?? 0;
-    final position = prefs.getInt('position') ?? 0;
+
     if (sources.isNotEmpty) {
-      await player.seek(Duration(milliseconds: position), index: currentIndex);
+      await player.seek(Duration(seconds: 0), index: currentIndex);
     }
   }
 
