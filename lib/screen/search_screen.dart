@@ -85,14 +85,16 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void onSearching(String value) async {
-    _curSearch = value;
-    _hasMore = true;
-    _curPage = 1;
-    vidList.clear();
-    loadMore();
+    setState(() {
+      _curSearch = value;
+      _hasMore = true;
+      _curPage = 1;
+      vidList.clear();
+    });
+    await loadMore();
   }
 
-  void loadMore() async {
+  Future<void> loadMore() async {
     if (!_hasMore) {
       return;
     }
