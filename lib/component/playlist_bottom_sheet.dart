@@ -151,6 +151,17 @@ class PlaylistBottomSheet extends StatelessWidget {
                               ),
                               title: Row(
                                 children: [
+                                  if (item.extras['dummy'] ?? false)
+                                    Container(
+                                      margin: const EdgeInsets.only(right: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Icon(Icons.hourglass_empty, size: 12),
+                                    ),
+
                                   Flexible( // Added Flexible widget here
                                     child: Text(
                                       item.title,
@@ -232,8 +243,9 @@ class PlaylistBottomSheet extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              onTap: () {
-                                globals.api.player.seek(Duration.zero, index: index);
+                              onTap: () async {
+                                await globals.api.player.seek(Duration.zero, index: index);
+                                await globals.api.player.play();
                               },
                             );
                           }
