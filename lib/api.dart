@@ -434,6 +434,15 @@ class API {
       return null;
     }
 
+    await CacheManager.cacheMetas([Meta(  
+      bvid: bvid,
+      title: response.data['data']['title'],
+      artist: response.data['data']['owner']['name'],
+      mid: response.data['data']['owner']['mid'],
+      aid: response.data['data']['aid'],
+      duration: response.data['data']['duration'],
+      parts: response.data['data']['videos'],
+    )]);
     final ret = VidResult.fromJson(response.data['data']);
     await CacheManager.cacheEntities(ret.pages.map((x) => Entity(
       bvid: bvid,
@@ -509,7 +518,25 @@ class API {
           multi: tag.extras?['multi'] ?? false,
           rawTitle: tag.extras?['raw_title'] ?? '',
           mid: tag.extras?['mid'] ?? 0,
-          cached: tag.extras?['cached'] ?? false,
+          cached: false,
+          dummy: false,
+        ).toJson();
+      } else if (source is UriAudioSource && source.tag is MediaItem) {
+        final tag = source.tag as MediaItem;
+        return PlaylistData(
+          id: tag.id,
+          title: tag.title,
+          artist: tag.artist ?? '',
+          artUri: '',
+          audioUri: '',
+          bvid: tag.extras?['bvid'] ?? '',
+          aid: tag.extras?['aid'] ?? 0,
+          cid: 0,
+          multi: false,
+          rawTitle: '',
+          mid: 0,
+          cached: false,
+          dummy: true,
         ).toJson();
       }
       return null;
@@ -528,22 +555,34 @@ class API {
     final List<dynamic> playlistData = jsonDecode(playlistJson);
     final sources = await Future.wait(playlistData.map((item) async {
       final data = PlaylistData.fromJson(item);
-      return LazyAudioSource.create(data.bvid, data.cid, Uri.parse(data.audioUri), MediaItem(
+      if (data.dummy) {
+        return AudioSource.uri(Uri.parse(data.audioUri), tag: MediaItem(
           id: data.id,
           title: data.title,
           artist: data.artist,
           artUri: Uri.parse(data.artUri),
           extras: {
-            'bvid': data.bvid,
-            'cid': data.cid,
-            'aid': data.aid,
-            'multi': data.multi,
-            'raw_title': data.rawTitle,
-            'mid': data.mid,
-            'cached': data.cached,
+            'dummy': true,
           },
-        ),
-      );
+        ));
+      } else {
+        return LazyAudioSource.create(data.bvid, data.cid, Uri.parse(data.audioUri), MediaItem(
+            id: data.id,
+            title: data.title,
+            artist: data.artist,
+            artUri: Uri.parse(data.artUri),
+            extras: {
+              'bvid': data.bvid,
+              'cid': data.cid,
+              'aid': data.aid,
+              'multi': data.multi,
+              'raw_title': data.rawTitle,
+              'mid': data.mid,
+              'cached': data.cached,
+            },
+          ),
+        );
+      }
     }));
 
     await playlist.clear();

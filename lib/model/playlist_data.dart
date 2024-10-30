@@ -11,7 +11,7 @@ class PlaylistData {
   final int mid;
   final bool cached;
   final String rawTitle;
-
+  final bool dummy;
   PlaylistData({
     required this.id,
     required this.title,
@@ -25,6 +25,7 @@ class PlaylistData {
     required this.mid,
     required this.cached,
     required this.rawTitle,
+    required this.dummy,
   });
 
   Map<String, dynamic> toJson() => {
@@ -40,6 +41,7 @@ class PlaylistData {
         'mid': mid,
         'cached': cached,
         'raw_title': rawTitle,
+        'dummy': dummy,
       };
 
   factory PlaylistData.fromJson(Map<String, dynamic> json) => PlaylistData(
@@ -55,5 +57,6 @@ class PlaylistData {
         mid: json['mid'],
         cached: json['cached'],
         rawTitle: json['raw_title'],
+        dummy: json['dummy'],
       );
 }
