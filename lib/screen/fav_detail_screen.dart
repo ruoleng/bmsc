@@ -53,8 +53,6 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
       });
     }
 
-    CacheManager.cacheMetas(favInfo);
-
     setState(() {
       isLoading = false;
     });
@@ -188,7 +186,9 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                                 bvid: favInfo[index].bvid,
                                 title: favInfo[index].title,
                               ),
-                            );
+                            ).then((_) {
+                              setState(() {});
+                            });
                           },
                         ),
                       ListTile(
