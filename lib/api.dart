@@ -78,7 +78,11 @@ class API {
         final currentSource = playlist.children[index];
         if (currentSource is IndexedAudioSource && currentSource.tag.extras['dummy'] == true) {
           await player.pause();
-          final srcs = await getAudioSources(currentSource.tag.id);
+          var srcs = await getAudioSources(currentSource.tag.id);
+          final excludedCids = await CacheManager.getExcludedParts(currentSource.tag.id);
+          for (var cid in excludedCids) {
+            srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
+          }
           if (srcs == null) {
             return;
           }
@@ -551,8 +555,8 @@ class API {
           id: tag.id,
           title: tag.title,
           artist: tag.artist ?? '',
-          artUri: '',
-          audioUri: '',
+          artUri: tag.artUri?.toString() ?? '',
+          audioUri: 'asset:///assets/silent.mp3',
           bvid: tag.extras?['bvid'] ?? '',
           aid: tag.extras?['aid'] ?? 0,
           cid: 0,
