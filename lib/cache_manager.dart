@@ -10,6 +10,7 @@ import 'package:just_audio/just_audio.dart';
 import '../model/fav.dart';
 import '../model/fav_detail.dart';
 import '../model/meta.dart';
+import 'dart:math' show min;
 
 const String _dbName = 'AudioCache.db';
 
@@ -138,14 +139,25 @@ class CacheManager {
 
   static Future<List<Meta>> getMetas(List<String> bvids) async {
     final db = await database;
-    final placeholders = List.filled(bvids.length, '?').join(',');
-    final results = await db.query(
-      metaTable,
-      where: 'bvid IN ($placeholders)',
-      whereArgs: bvids,
-      orderBy: 'list_order ASC'
-    );
-    return results.map((e) => Meta.fromJson(e)).toList();
+    const int chunkSize = 500; // Safe size for most SQLite configurations
+    final List<Meta> allResults = [];
+    
+    // Process in chunks
+    for (var i = 0; i < bvids.length; i += chunkSize) {
+      final chunk = bvids.sublist(i, min(i + chunkSize, bvids.length));
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final orderString = ',${chunk.join(',')},';
+      
+      final results = await db.rawQuery('''
+        SELECT * FROM $metaTable 
+        WHERE bvid IN ($placeholders)
+        ORDER BY INSTR(?, ',' || bvid || ',')
+      ''', [...chunk, orderString]);
+      
+      allResults.addAll(results.map((e) => Meta.fromJson(e)));
+    }
+    
+    return allResults;
   }
 
   static Future<void> removeExcludedPart(String bvid, int cid) async {
@@ -260,11 +272,10 @@ class CacheManager {
     if (results.isNotEmpty) {
       final filePath = results.first['filePath'] as String;
       final entities = await getEntities(bvid);
-      final entity = entities.firstWhere((e) => e.cid == cid);
-      final tag = MediaItem(id: results.first['id'] as String,
+      final entity = entities.firstWhere((e) => e.bvid == bvid && e.cid == cid);
+      final tag = MediaItem(id: '${bvid}_$cid',
         title: entity.partTitle,
         artist: entity.artist,
-        artUri: Uri.parse(results.first['artUri'] as String),
         extras: {
           'bvid': bvid,
           'aid': entity.aid,
@@ -424,6 +435,4 @@ class CacheManager {
     final results = await db.query(favListVideoTable, where: 'mid = ?', whereArgs: [mid]);
     return results.map((row) => row['bvid'] as String).toList();
   }
-
-
 }
