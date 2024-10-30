@@ -34,7 +34,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
     if (entities.isNotEmpty) {
       setState(() {
         excludedCids = entities.where((e) => e.excluded == 1).map((e) => e.cid).toSet();
-        pendingExcludedCids = excludedCids;
+        pendingExcludedCids = {...excludedCids};
         isLoading = false;
         pages = entities.map((e) => Pages(cid: e.cid, page: e.part, duration: e.duration, from: e.artist, part: e.partTitle)).toList();
       });
@@ -45,7 +45,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
         final excluded = await CacheManager.getExcludedParts(widget.bvid);
         setState(() {
           excludedCids = excluded.toSet();
-          pendingExcludedCids = excluded.toSet();
+          pendingExcludedCids = {...excludedCids};
           pages = vid.pages;
         });
       } finally {
