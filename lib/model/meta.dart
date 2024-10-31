@@ -32,12 +32,12 @@ class Meta {
   Map<String, dynamic> toJson() {
     return {
       'bvid': bvid,
-      'aid': aid,
       'title': title,
       'artist': artist,
-      'artUri': artUri,
       'mid': mid,
+      'aid': aid,
       'duration': duration,
+      'artUri': artUri,
       'parts': parts,
     };
   }

@@ -28,5 +28,6 @@ class ErrorHandler {
 
   static void handleException(dynamic error) {
     showError(error.toString());
+    throw error;
   }
 }

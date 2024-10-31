@@ -10,6 +10,7 @@ import 'package:bmsc/model/user_card.dart';
 import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:rxdart/rxdart.dart';
@@ -70,37 +71,52 @@ class API {
         if (index == null) {
           return;
         }
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt('currentIndex', index);
         if (state.playing == false) {
           return;
         }
-        final currentSource = playlist.children[index];
-        if (currentSource is IndexedAudioSource &&
-            currentSource.tag.extras['dummy'] == true) {
-          await player.pause();
-          List<IndexedAudioSource>? srcs;
-          try {
-            srcs = await getAudioSources(currentSource.tag.id);
-          } catch (e) {
-            srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
-          }
-          final excludedCids =
-              await CacheManager.getExcludedParts(currentSource.tag.id);
-          for (var cid in excludedCids) {
-            srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
-          }
-          if (srcs == null) {
-            return;
-          }
-          await doAndSave(() async {
-            await playlist.insertAll(index + 1, srcs!);
-            await playlist.removeAt(index);
-          });
-          await player.play();
+        await _hijackDummySource(index: index);
+      }
+    });
+    player.currentIndexStream.listen((index) async {
+      if (index != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('currentIndex', index);
+        if (player.playing) {
+          await _hijackDummySource(index: index);
         }
       }
     });
+  }
+
+  Future<void> _hijackDummySource({int? index}) async {
+    index ??= player.currentIndex;
+    if (index == null) {
+      return;
+    }
+    final currentSource = playlist.children[index];
+    if (currentSource is IndexedAudioSource &&
+        currentSource.tag.extras['dummy'] == true) {
+      await player.pause();
+      List<IndexedAudioSource>? srcs;
+      try {
+        srcs = await getAudioSources(currentSource.tag.id);
+      } catch (e) {
+        srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
+      }
+      final excludedCids =
+          await CacheManager.getExcludedParts(currentSource.tag.id);
+      for (var cid in excludedCids) {
+        srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
+      }
+      if (srcs == null) {
+        return;
+      }
+      await doAndSave(() async {
+        await playlist.insertAll(index! + 1, srcs!);
+        await playlist.removeAt(index);
+      });
+      await player.play();
+    }
   }
 
   Future<void> doAndSave(Future<void> Function() func) async {
@@ -173,6 +189,21 @@ class API {
     if (bvids.isEmpty) {
       return;
     }
+    await playByBvids(bvids, index: index);
+  }
+
+  Future<void> addFavListToPlaylist(int mid) async {
+    final bvids = await CacheManager.getCachedFavListVideo(mid);
+    if (bvids.isEmpty) {
+      return;
+    }
+    await addBvidsToPlaylist(bvids, insertIndex: playlist.length);
+  }
+
+  Future<void> playByBvids(List<String> bvids, {int index = 0}) async {
+    if (bvids.isEmpty) {
+      return;
+    }
     final srcs = await Future.wait(bvids.map((x) async {
       final meta = await CacheManager.getMeta(x);
       return AudioSource.uri(Uri.parse('asset:///assets/silent.m4a'),
@@ -190,6 +221,27 @@ class API {
     });
     await player.seek(Duration.zero, index: index);
     await player.play();
+  }
+
+  Future<void> addBvidsToPlaylist(List<String> bvids,
+      {int? insertIndex}) async {
+    if (bvids.isEmpty) {
+      return;
+    }
+    final srcs = await Future.wait(bvids.map((x) async {
+      final meta = await CacheManager.getMeta(x);
+      return AudioSource.uri(Uri.parse('asset:///assets/silent.m4a'),
+          tag: MediaItem(
+              id: x,
+              title: meta?.title ?? '',
+              artUri: Uri.parse(meta?.artUri ?? ''),
+              artist: meta?.artist ?? '',
+              extras: {'dummy': true}));
+    }).toList());
+    await doAndSave(() async {
+      insertIndex ??= player.currentIndex ?? playlist.length;
+      await playlist.insertAll(insertIndex!, srcs);
+    });
   }
 
   Future<void> appendPlaylist(String bvid,
@@ -782,6 +834,113 @@ class API {
         }
       }
       return tracks;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List<Meta>?> getDailyRecommendations({bool force = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastUpdateStr = prefs.getString('last_recommendations_update');
+    final recommendations = prefs.getString('daily_recommendations');
+
+    // Check if we need to update recommendations (daily)
+    final lastUpdate =
+        lastUpdateStr != null ? DateTime.parse(lastUpdateStr) : null;
+    final now = DateTime.now();
+    if (lastUpdate == null ||
+        !DateUtils.isSameDay(now, lastUpdate) ||
+        recommendations == null ||
+        force == true) {
+      // Time to update recommendations
+      final defaultFavFolder = await getDefaultFavFolder();
+      if (defaultFavFolder == null) return null;
+
+      // Get videos from default fav folder
+      final favVideos = await getFavMetas(defaultFavFolder['id']);
+      if (favVideos == null || favVideos.isEmpty) return null;
+
+      // Randomly select 30 videos
+      favVideos.shuffle();
+      final selectedVideos = favVideos.take(30).toList();
+
+      final recommendedVideos = await getRecommendations(selectedVideos) ?? [];
+
+      // Save to preferences
+      await prefs.setString(
+          'last_recommendations_update', now.toIso8601String());
+      await prefs.setString('daily_recommendations',
+          jsonEncode(recommendedVideos.map((v) => v.toJson()).toList()));
+
+      return recommendedVideos;
+    }
+
+    // Return cached recommendations
+    final List<dynamic> decoded = jsonDecode(recommendations);
+    return decoded.map((v) => Meta.fromJson(v)).toList();
+  }
+
+  Future<List<Meta>?> getRecommendations(List<Meta> tracks) async {
+    if (tracks.isEmpty) return null;
+
+    final prefs = await SharedPreferences.getInstance();
+    final recommendHistory = prefs.getString('recommend_history');
+    Set<String> history = recommendHistory != null
+        ? Set<String>.from(jsonDecode(recommendHistory))
+        : {};
+
+    const tidWhitelist = [130, 193, 267, 28, 59];
+    const durationConstraint = null;
+
+    // Get recommendations for each video
+    List<Meta> recommendedVideos = [];
+    for (var track in tracks) {
+      final relatedVideos = await getRelatedVideos(track.aid,
+          tidWhitelist: tidWhitelist, durationConstraint: durationConstraint);
+      if (relatedVideos != null && relatedVideos.isNotEmpty) {
+        recommendedVideos.add(relatedVideos.firstWhere(
+            (video) => !history.contains(video.bvid) && video.duration >= 60));
+        history.add(relatedVideos.first.bvid);
+      }
+    }
+    await prefs.setString('recommend_history', jsonEncode(history.toList()));
+    await CacheManager.cacheMetas(recommendedVideos);
+    return recommendedVideos;
+  }
+
+  Future<List<Meta>?> getRelatedVideos(int aid,
+      {List<int>? tidWhitelist, int? durationConstraint}) async {
+    try {
+      final response = await dio.get(
+        'https://api.bilibili.com/x/web-interface/archive/related',
+        queryParameters: {'aid': aid},
+      );
+      if (response.data['code'] != 0) return null;
+
+      var videos = response.data['data'] as List;
+      if (tidWhitelist != null) {
+        videos = videos
+            .where((video) => tidWhitelist.contains(video['tid']))
+            .toList();
+      }
+      if (durationConstraint != null) {
+        videos = videos
+            .where((video) => video['duration'] <= durationConstraint)
+            .toList();
+      }
+
+      return videos
+          .map((video) => Meta(
+                bvid: video['bvid'],
+                title: video['title'],
+                artist: video['owner']['name'],
+                mid: video['owner']['mid'],
+                aid: video['aid'],
+                duration: video['duration'],
+                artUri: video['pic'],
+                parts: video['videos'],
+              ))
+          .toList();
     } catch (e) {
       return null;
     }
