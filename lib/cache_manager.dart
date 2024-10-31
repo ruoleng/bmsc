@@ -197,6 +197,7 @@ class CacheManager {
       entityTable,
       where: 'bvid = ?',
       whereArgs: [bvid],
+      orderBy: 'part ASC',
     );
     return results.map((e) => Entity.fromJson(e)).toList();
   }
