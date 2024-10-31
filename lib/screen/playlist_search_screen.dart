@@ -106,7 +106,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     _context = context;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('歌单搜索'),
+        title: const Text('歌单导入'),
       ),
       body: Column(
         children: [
@@ -414,7 +414,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                           children: [
                             Text('result: ${result['title'] ?? '未找到'}', style: TextStyle(fontSize: 12)),
                             if (result['bvid'] != null) 
-                              Text('dt: ${result['durationDiff']}s score: ${result['score']} type: {${result['typeid']}: ${result['typename']}}', style: TextStyle(fontSize: 12)),
+                              Text('(∑: ${result['score']}) (|Δ|: ${result['durationDiff']}s) (ε: ${result['play']}) (§: ${result['typename']})', style: TextStyle(fontSize: 12)),
                             if (result['favAddStatus'] != null)
                               Text(
                                 result['favAddStatus']! ? '已添加到收藏夹' : '添加失败',
@@ -434,26 +434,64 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                 children: [
                                   IconButton(
                                     icon: const Icon(Icons.refresh),
-                                    onPressed: isSearching ? null : () async {
+                                    onPressed: isSearching && !isSearchPaused ? null : () async {
+                                      FocusManager.instance.primaryFocus?.unfocus();
                                       setState(() => isSearching = true);
                                       final track = result['track'];
                                       final artist = result['artist'];
                                       final duration = result['duration'];
-                                      final newResult = await _searchTrack(
+                                      final trackResults = await _searchTracks(
                                         track, 
                                         artist, 
                                         duration
                                       );
-                                      if (newResult != null) {
-                                        setState(() {
-                                          results[index] = newResult;
-                                        });
-                                      } else {
+                                      if (trackResults.isEmpty) {
                                         showErrorSnackBar("搜索失败");
                                       }
-                                      
                                       setState(() {
                                         isSearching = false;
+                                      });
+
+                                      if (!context.mounted) return;
+                                      
+                                      final selectedVideo = await showDialog<int?>(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text('选择视频'),
+                                            content: SizedBox(
+                                              width: double.maxFinite,
+                                              height: 400,
+                                              child: ListView.builder(
+                                                shrinkWrap: true,
+                                                itemCount: trackResults.length,
+                                                itemBuilder: (context, i) {
+                                                  final video = trackResults[i];
+                                                  
+                                                  return ListTile(
+                                                    title: Text(stripHtmlIfNeeded(video['title']), style: TextStyle(fontSize: 12)),
+                                                    subtitle: Text('(∑: ${video['score']}) (|Δ|: ${video['durationDiff']}s) (ε: ${video['play']}) (§: ${video['typename']})', style: TextStyle(fontSize: 12)),
+                                                    onTap: () {
+                                                      Navigator.pop(context, i);
+                                                    },
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                },
+                                                child: Text('取消'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                      if (selectedVideo == null) return;
+                                      setState(() {
+                                        results[index] = trackResults[selectedVideo];
                                       });
                                     },
                                   ),
@@ -701,17 +739,13 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
 
   final RegExp wordRegex = RegExp(r'([^a-zA-Z0-9_\u4e00-\u9fa5]+)');
 
-  Future<Map<String, dynamic>?> _searchTrack(String track, String artist, int duration) async {
-     Map<String, dynamic> bestMatch = {
-      'track': track,
-      'artist': artist,
-      'duration': duration,
-      'score': -INF,
-    };
+  Future<List<Map<String, dynamic>>> _searchTracks(String track, String artist, int duration) async {
+    
     final searchString = '$track - $artist';
     final searchResult = await globals.api.search(searchString, 1);
-    if (searchResult == null) return null;
+    if (searchResult == null) return [];
    
+    List<Map<String, dynamic>> ret = [];
 
     final trackWords = track.toLowerCase().split(wordRegex).where((e) => e.isNotEmpty).toList();
     final artistWords = artist.toLowerCase().split(wordRegex).where((e) => e.isNotEmpty).toList();
@@ -789,12 +823,11 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       };
 
       int score = _rankScore(video);
-      if (score == -INF) continue;
+      // if (score == -INF) continue;
       int durationDiff = (_parseDuration(video.duration) - duration).abs();
-      int videoPlayCount = video.play > 0 ? (log(video.play) / log(10)).toInt() : 0;
-      score += priority * 1000 - durationDiff + videoPlayCount * 5;
-      if (score > bestMatch['score']) {
-        bestMatch = {
+      final videoPlayCountLog = video.play > 0 ? (log(video.play) / log(10)) : 0;
+      score += priority * 1000 - durationDiff + (videoPlayCountLog * 5).round();
+      ret.add({
           'track': track,
           'artist': artist,
           'duration': duration,
@@ -804,11 +837,17 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
           'typeid': video.typeid,
           'title': stripHtmlIfNeeded(video.title),
           'durationDiff': durationDiff,
+          'play': videoPlayCountLog.round(),
           'score': score,
-        };
-      }
+      });
     }
-    return bestMatch;
+    return ret;
+  }
+
+  Future<Map<String, dynamic>?> _searchTrack(String track, String artist, int duration) async {
+    final tracks = await _searchTracks(track, artist, duration);
+    if (tracks.isEmpty) return null;
+    return tracks.reduce((a, b) => a['score'] > b['score'] ? a : b);
   }
 
   @override
