@@ -19,7 +19,8 @@ import 'package:flutter/foundation.dart';
 import 'util/error_handler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
-import 'package:bmsc/utils/logger.dart';
+import 'screen/about_screen.dart';
+import 'util/logger.dart';
 
 final logger = LoggerUtils.logger;
 
@@ -115,7 +116,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    logger.info("checkNewVersion");
     checkNewVersion().then((x) async {
       if (x == null) {
         return;
@@ -165,17 +165,20 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text("BiliMusic"),
+        title: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<Widget>(builder: (_) => const AboutScreen()),
+          ),
+          child: Row(
+            children: [
+              const Text("BiliMusic"),
+              if (hasNewVersion && officialVersions != null && curVersion != null)
+                Icon(Icons.arrow_circle_up_outlined, color: Colors.red),
+            ],
+          ),
+        ),
         actions: [
-          if (hasNewVersion && officialVersions != null && curVersion != null)
-            IconButton(
-                onPressed: () {
-                  showUpdateDialog(context, officialVersions!, curVersion!);
-                },
-                icon: const Icon(
-                  Icons.arrow_circle_up_outlined,
-                  color: Colors.red,
-                )),
           IconButton(
             onPressed: () => Navigator.push(
               context,

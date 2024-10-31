@@ -2,7 +2,7 @@ import 'package:bmsc/model/release.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:bmsc/utils/logger.dart';
+import 'package:bmsc/util/logger.dart';
 
 final logger = LoggerUtils.logger;
 
