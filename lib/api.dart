@@ -78,7 +78,7 @@ class API {
       }
     });
     player.currentIndexStream.listen((index) async {
-      if (index != null) {
+      if (index != null && restored) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('currentIndex', index);
         if (player.playing) {
@@ -612,8 +612,12 @@ class API {
     final prefs = await SharedPreferences.getInstance();
     final playlistData = playlist.children
         .map((source) {
-          if (source is UriAudioSource && source.tag is MediaItem) {
-            final tag = source.tag as MediaItem;
+          if ((source is UriAudioSource || source is LazyAudioSource)) {
+            final uri = source is UriAudioSource
+                ? source.uri
+                : (source as LazyAudioSource).uri;
+            final tag = (source as IndexedAudioSource).tag as MediaItem;
+
             final dummy = tag.extras?['dummy'] ?? false;
             return PlaylistData(
               id: tag.id,
@@ -621,7 +625,7 @@ class API {
               artist: tag.artist ?? '',
               artUri: tag.artUri?.toString() ?? '',
               audioUri:
-                  dummy ? 'asset:///assets/silent.m4a' : source.uri.toString(),
+                  dummy ? 'asset:///assets/silent.m4a' : uri.toString(),
               bvid: tag.extras?['bvid'] ?? '',
               aid: tag.extras?['aid'] ?? 0,
               cid: tag.extras?['cid'] ?? 0,
