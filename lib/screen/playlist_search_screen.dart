@@ -609,6 +609,15 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     _logger.info('Starting playlist processing');
     await _initializeNotifications();
 
+    final text = textController.text;
+    final neteaseRegex = RegExp(r'playlist\?.*?id=(\d+)');
+    final match = neteaseRegex.firstMatch(text);
+
+    if (match != null) {
+      final playlistId = match.group(1)!;
+      textController.text = 'netease:$playlistId';
+    }
+
     // Show initial notification
     const androidDetails = AndroidNotificationDetails(
       'playlist_search',
@@ -695,6 +704,11 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
         });
       }
       tracks.addAll(appendTracks);
+    }
+
+    if (tracks.isEmpty) {
+      showErrorSnackBar("输入错误");
+      return;
     }
 
     _logger.info('Total tracks to process: ${tracks.length}');
