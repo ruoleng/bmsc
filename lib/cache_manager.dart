@@ -11,6 +11,9 @@ import '../model/fav.dart';
 import '../model/fav_detail.dart';
 import '../model/meta.dart';
 import 'dart:math' show min;
+import 'package:bmsc/util/logger.dart';
+
+final logger = LoggerUtils.getLogger('CacheManager');
 
 const String _dbName = 'AudioCache.db';
 
@@ -30,82 +33,92 @@ class CacheManager {
   }
 
   static Future<Database> initDB() async {
+    logger.info('Initializing database...');
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, _dbName);
-    return await openDatabase(path, version: 1, onCreate: (db, version) async {
-      await db.execute('''
-        CREATE TABLE $tableName (
-          bvid TEXT,
-          cid INTEGER,
-          filePath TEXT,
-          createdAt INTEGER,
-          PRIMARY KEY (bvid, cid)
-        )
-      ''');
+    try {
+      final db =
+          await openDatabase(path, version: 1, onCreate: (db, version) async {
+        logger.info('Creating new database tables...');
+        await db.execute('''
+          CREATE TABLE $tableName (
+            bvid TEXT,
+            cid INTEGER,
+            filePath TEXT,
+            createdAt INTEGER,
+            PRIMARY KEY (bvid, cid)
+          )
+        ''');
 
-      await db.execute('''
-        CREATE TABLE $entityTable (
-          aid INTEGER,
-          cid INTEGER,
-          bvid TEXT,
-          artist TEXT,
-          part INTEGER,
-          duration INTEGER,
-          excluded INTEGER,
-          part_title TEXT,
-          bvid_title TEXT,
-          art_uri TEXT,
-          PRIMARY KEY (bvid, cid)
-        )
-      ''');
+        await db.execute('''
+          CREATE TABLE $entityTable (
+            aid INTEGER,
+            cid INTEGER,
+            bvid TEXT,
+            artist TEXT,
+            part INTEGER,
+            duration INTEGER,
+            excluded INTEGER,
+            part_title TEXT,
+            bvid_title TEXT,
+            art_uri TEXT,
+            PRIMARY KEY (bvid, cid)
+          )
+        ''');
 
-      await db.execute('''
-        CREATE TABLE $metaTable (
-          bvid TEXT PRIMARY KEY,
-          aid INTEGER,
-          title TEXT,
-          artist TEXT,
-          artUri TEXT,
-          mid INTEGER,
-          duration INTEGER,
-          parts INTEGER,
-          list_order INTEGER
-        )
-      ''');
+        await db.execute('''
+          CREATE TABLE $metaTable (
+            bvid TEXT PRIMARY KEY,
+            aid INTEGER,
+            title TEXT,
+            artist TEXT,
+            artUri TEXT,
+            mid INTEGER,
+            duration INTEGER,
+            parts INTEGER,
+            list_order INTEGER
+          )
+        ''');
 
-      await db.execute('''
-        CREATE TABLE $favListVideoTable (
-          bvid TEXT,
-          mid INTEGER,
-          PRIMARY KEY (bvid, mid)
-        )
-      ''');
+        await db.execute('''
+          CREATE TABLE $favListVideoTable (
+            bvid TEXT,
+            mid INTEGER,
+            PRIMARY KEY (bvid, mid)
+          )
+        ''');
 
-      await db.execute('''
-        CREATE TABLE $favListTable (
-          id INTEGER PRIMARY KEY,
-          title TEXT,
-          mediaCount INTEGER,
-          list_order INTEGER
-        )
-      ''');
+        await db.execute('''
+          CREATE TABLE $favListTable (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            mediaCount INTEGER,
+            list_order INTEGER
+          )
+        ''');
 
-      await db.execute('''
-        CREATE TABLE $favDetailTable (
-          id INTEGER,
-          title TEXT,
-          cover TEXT,
-          page INTEGER,
-          duration INTEGER,
-          upper_name TEXT,
-          play_count INTEGER,
-          bvid TEXT,
-          fav_id INTEGER,
-          list_order INTEGER,
-          PRIMARY KEY (id, fav_id)
-        )
-      ''');
-    });
+        await db.execute('''
+          CREATE TABLE $favDetailTable (
+            id INTEGER,
+            title TEXT,
+            cover TEXT,
+            page INTEGER,
+            duration INTEGER,
+            upper_name TEXT,
+            play_count INTEGER,
+            bvid TEXT,
+            fav_id INTEGER,
+            list_order INTEGER,
+            PRIMARY KEY (id, fav_id)
+          )
+        ''');
+      });
+      logger.info('Database initialized');
+      return db;
+    } catch (e, stackTrace) {
+      logger.severe('Failed to initialize database', e, stackTrace);
+      rethrow;
+    }
   }
 
   static Future<void> addExcludedPart(String bvid, int cid) async {
@@ -119,15 +132,22 @@ class CacheManager {
   }
 
   static Future<void> cacheMetas(List<Meta> metas) async {
-    final db = await database;
-    final batch = db.batch();
-    for (int i = 0; i < metas.length; i++) {
-      var json = metas[i].toJson();
-      json['list_order'] = i;
-      batch.insert(metaTable, json,
-          conflictAlgorithm: ConflictAlgorithm.replace);
+    logger.info('Caching ${metas.length} metas');
+    try {
+      final db = await database;
+      final batch = db.batch();
+      for (int i = 0; i < metas.length; i++) {
+        var json = metas[i].toJson();
+        json['list_order'] = i;
+        batch.insert(metaTable, json,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      await batch.commit();
+      logger.info('cached ${metas.length} metas');
+    } catch (e, stackTrace) {
+      logger.severe('Failed to cache metas', e, stackTrace);
+      rethrow;
     }
-    await batch.commit();
   }
 
   static Future<Meta?> getMeta(String bvid) async {
@@ -142,26 +162,37 @@ class CacheManager {
   }
 
   static Future<List<Meta>> getMetas(List<String> bvids) async {
-    final db = await database;
-    const int chunkSize = 500; // Safe size for most SQLite configurations
-    final List<Meta> allResults = [];
-
-    // Process in chunks
-    for (var i = 0; i < bvids.length; i += chunkSize) {
-      final chunk = bvids.sublist(i, min(i + chunkSize, bvids.length));
-      final placeholders = List.filled(chunk.length, '?').join(',');
-      final orderString = ',${chunk.join(',')},';
-
-      final results = await db.rawQuery('''
-        SELECT * FROM $metaTable 
-        WHERE bvid IN ($placeholders)
-        ORDER BY INSTR(?, ',' || bvid || ',')
-      ''', [...chunk, orderString]);
-
-      allResults.addAll(results.map((e) => Meta.fromJson(e)));
+    if (bvids.isEmpty) {
+      logger.info('No bvids to fetch');
+      return [];
     }
+    logger.info('Fetching ${bvids.length} metas from cache');
+    try {
+      final db = await database;
+      const int chunkSize = 500; // Safe size for most SQLite configurations
+      final List<Meta> allResults = [];
 
-    return allResults;
+      // Process in chunks
+      for (var i = 0; i < bvids.length; i += chunkSize) {
+        final chunk = bvids.sublist(i, min(i + chunkSize, bvids.length));
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        final orderString = ',${chunk.join(',')},';
+
+        final results = await db.rawQuery('''
+          SELECT * FROM $metaTable 
+          WHERE bvid IN ($placeholders)
+          ORDER BY INSTR(?, ',' || bvid || ',')
+        ''', [...chunk, orderString]);
+
+        allResults.addAll(results.map((e) => Meta.fromJson(e)));
+      }
+
+      logger.info('Retrieved ${allResults.length} metas from cache');
+      return allResults;
+    } catch (e, stackTrace) {
+      logger.severe('Failed to get metas from cache', e, stackTrace);
+      rethrow;
+    }
   }
 
   static Future<void> removeExcludedPart(String bvid, int cid) async {
@@ -192,6 +223,7 @@ class CacheManager {
           conflictAlgorithm: ConflictAlgorithm.ignore);
     }
     await batch.commit();
+    logger.info('cached ${data.length} entities');
   }
 
   static Future<List<Entity>> getEntities(String bvid) async {
@@ -266,38 +298,48 @@ class CacheManager {
   }
 
   static Future<LazyAudioSource?> getCachedAudio(String bvid, int cid) async {
-    final meta = await getMeta(bvid);
-    if (meta == null) {
-      return null;
-    }
-    final db = await database;
-    final results = await db.query(
-      tableName,
-      where: "bvid = ? AND cid = ?",
-      whereArgs: [bvid, cid],
-    );
+    logger.info('Fetching cached audio for bvid: $bvid, cid: $cid');
+    try {
+      final meta = await getMeta(bvid);
+      if (meta == null) {
+        return null;
+      }
+      final db = await database;
+      final results = await db.query(
+        tableName,
+        where: "bvid = ? AND cid = ?",
+        whereArgs: [bvid, cid],
+      );
 
-    if (results.isNotEmpty) {
-      final filePath = results.first['filePath'] as String;
-      final entities = await getEntities(bvid);
-      final entity = entities.firstWhere((e) => e.bvid == bvid && e.cid == cid);
-      final tag = MediaItem(
-          id: '${bvid}_$cid',
-          title: entity.partTitle,
-          artist: entity.artist,
-          artUri: Uri.parse(entity.artUri),
-          extras: {
-            'bvid': bvid,
-            'aid': entity.aid,
-            'cid': cid,
-            'mid': meta.mid,
-            'multi': entity.part > 0,
-            'raw_title': entity.bvidTitle,
-            'cached': true
-          });
-      return LazyAudioSource.create(bvid, cid, Uri.parse(filePath), tag);
+      if (results.isNotEmpty) {
+        logger.info('Found cached audio for bvid: $bvid, cid: $cid');
+        final filePath = results.first['filePath'] as String;
+        final entities = await getEntities(bvid);
+        final entity =
+            entities.firstWhere((e) => e.bvid == bvid && e.cid == cid);
+        final tag = MediaItem(
+            id: '${bvid}_$cid',
+            title: entity.partTitle,
+            artist: entity.artist,
+            artUri: Uri.parse(entity.artUri),
+            extras: {
+              'bvid': bvid,
+              'aid': entity.aid,
+              'cid': cid,
+              'mid': meta.mid,
+              'multi': entity.part > 0,
+              'raw_title': entity.bvidTitle,
+              'cached': true
+            });
+        return LazyAudioSource.create(bvid, cid, Uri.parse(filePath), tag);
+      } else {
+        logger.info('No cached audio found for bvid: $bvid, cid: $cid');
+      }
+      return null;
+    } catch (e, stackTrace) {
+      logger.severe('Failed to get cached audio', e, stackTrace);
+      rethrow;
     }
-    return null;
   }
 
   static Future<File> prepareFileForCaching(String bvid, int cid) async {
@@ -309,21 +351,23 @@ class CacheManager {
 
   static Future<void> saveCacheMetadata(
       String bvid, int cid, String filePath) async {
-    final db = await database;
-    await db.insert(
-        tableName,
-        {
-          'bvid': bvid,
-          'cid': cid,
-          'filePath': filePath,
-          'createdAt': DateTime.now().millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.ignore);
-  }
-
-  static Future<void> resetCache() async {
-    final db = await database;
-    await db.delete(tableName);
+    logger.info('Saving cache metadata for bvid: $bvid, cid: $cid');
+    try {
+      final db = await database;
+      await db.insert(
+          tableName,
+          {
+            'bvid': bvid,
+            'cid': cid,
+            'filePath': filePath,
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.ignore);
+      logger.info('saved audio cache metadata for bvid: $bvid, cid: $cid');
+    } catch (e, stackTrace) {
+      logger.severe('Failed to save audio cache metadata', e, stackTrace);
+      rethrow;
+    }
   }
 
   static Future<void> cacheFavList(List<Fav> favs) async {
@@ -348,6 +392,7 @@ class CacheManager {
     }
 
     await batch.commit();
+    logger.info('cached ${favs.length} fav lists');
   }
 
   static Future<void> cacheFavDetail(int favId, List<Medias> medias) async {
@@ -383,6 +428,7 @@ class CacheManager {
     }
 
     await batch.commit();
+    logger.info('cached ${medias.length} fav details');
   }
 
   static Future<void> appendCacheFavDetail(
@@ -418,6 +464,7 @@ class CacheManager {
     }
 
     await batch.commit();
+    logger.info('appended ${medias.length} fav details');
   }
 
   static Future<List<Fav>> getCachedFavList() async {
@@ -441,6 +488,7 @@ class CacheManager {
       batch.insert(favListVideoTable, {'bvid': bvid, 'mid': mid});
     }
     await batch.commit();
+    logger.info('cached ${bvids.length} fav list videos');
   }
 
   static Future<List<String>> getCachedFavListVideo(int mid) async {

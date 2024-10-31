@@ -22,7 +22,7 @@ import 'dart:io';
 import 'screen/about_screen.dart';
 import 'util/logger.dart';
 
-final logger = LoggerUtils.logger;
+final logger = LoggerUtils.getLogger('Main');
 
 Future<void> main() async {
   await JustAudioBackground.init(
@@ -49,7 +49,7 @@ Future<void> main() async {
     await Permission.notification.request();
   }
 
-  LoggerUtils.init();
+  await LoggerUtils.init();
 
   runApp(const MyApp());
 }
@@ -135,6 +135,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         setState(() {
           signedin = false;
         });
+        logger.info('User not logged in');
         controller = WebViewController()
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
           ..setNavigationDelegate(
@@ -142,6 +143,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               onNavigationRequest: (NavigationRequest request) async {
                 if (!request.url.startsWith('https://passport.bilibili.com/')) {
                   onSuccessLogin();
+                  logger.info('User logged in');
                   return NavigationDecision.prevent;
                 }
                 return NavigationDecision.navigate;
@@ -173,7 +175,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           child: Row(
             children: [
               const Text("BiliMusic"),
-              if (hasNewVersion && officialVersions != null && curVersion != null)
+              if (hasNewVersion &&
+                  officialVersions != null &&
+                  curVersion != null)
                 Icon(Icons.arrow_circle_up_outlined, color: Colors.red),
             ],
           ),

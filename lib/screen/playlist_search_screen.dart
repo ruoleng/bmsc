@@ -6,6 +6,7 @@ import '../util/string.dart';
 import 'dart:math';
 import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../util/logger.dart';
 
 class PlaylistSearchScreen extends StatefulWidget {
   const PlaylistSearchScreen({super.key});
@@ -39,6 +40,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
   bool _notificationsInitialized = false;
+
+  final _logger = LoggerUtils.getLogger('PlaylistSearchScreen');
 
   Future<void> _initializeNotifications() async {
     if (_notificationsInitialized) return;
@@ -583,6 +586,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   }
 
   void showErrorSnackBar(String message) {
+    _logger.warning('Error: $message');
     if (_context.mounted) {
       ScaffoldMessenger.of(_context).showSnackBar(
         SnackBar(
@@ -602,6 +606,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   }
 
   Future<void> _processPlaylist() async {
+    _logger.info('Starting playlist processing');
     await _initializeNotifications();
 
     // Show initial notification
@@ -640,19 +645,23 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     List<Map<String, dynamic>> tracks = [];
 
     final lines = textController.text.split('\n');
+    _logger.info('Processing ${lines.length} input lines');
 
     for (final line in lines) {
       List<Map<String, dynamic>> appendTracks = [];
       if (line.startsWith('netease:')) {
         final playlistId = line.split(':')[1].trim();
+        _logger.info('Fetching Netease playlist: $playlistId');
         final tracks = await globals.api.fetchNeteasePlaylistTracks(playlistId);
         if (tracks == null) {
+          _logger.warning('Failed to fetch Netease playlist: $playlistId');
           showErrorSnackBar("获取歌单 netease:$playlistId 失败");
           continue;
         } else if (tracks.isEmpty) {
           showErrorSnackBar("查无歌单 netease:$playlistId");
           continue;
         }
+        _logger.info('Found ${tracks.length} tracks in Netease playlist');
         appendTracks.addAll(tracks);
       } else if (line.startsWith('tencent:')) {
         final playlistId = line.split(':')[1].trim();
@@ -687,6 +696,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       }
       tracks.addAll(appendTracks);
     }
+
+    _logger.info('Total tracks to process: ${tracks.length}');
 
     if (isReverse) {
       tracks = tracks.reversed.toList();
@@ -732,14 +743,22 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       await _waitForSearchPause();
       await Future.delayed(const Duration(milliseconds: 1200));
       final track = tracks[i];
+      _logger.info(
+          'Searching track ${i + 1}/${tracks.length}: ${track['name']} - ${track['artist']}');
+
       final result =
           await _searchTrack(track['name'], track['artist'], track['duration']);
       if (result == null) {
+        _logger.warning('Search failed for track: ${track['name']}');
         showErrorSnackBar("搜索失败，已暂停");
         --i;
         _toggleSearchPause();
         continue;
       }
+
+      _logger.info(
+          'Found match for "${track['name']}": ${result['title']} (score: ${result['score']})');
+
       setState(() {
         results[i] = result;
         processedTracks = i + 1;
@@ -793,6 +812,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     setState(() {
       isSearching = false;
     });
+
+    _logger.info('Playlist processing completed');
   }
 
   int _parseDuration(String duration) {
@@ -811,8 +832,15 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   Future<List<Map<String, dynamic>>> _searchTracks(
       String track, String artist, int duration) async {
     final searchString = '$track - $artist';
+    _logger.info('Searching for: $searchString (duration: ${duration}s)');
+
     final searchResult = await globals.api.search(searchString, 1);
-    if (searchResult == null) return [];
+    if (searchResult == null) {
+      _logger.warning('Search API returned null for: $searchString');
+      return [];
+    }
+
+    _logger.info('Found ${searchResult.result.length} initial results');
 
     List<Map<String, dynamic>> ret = [];
 
@@ -927,6 +955,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
         'score': score,
       });
     }
+
+    _logger.info('Filtered to ${ret.length} relevant results');
     return ret;
   }
 

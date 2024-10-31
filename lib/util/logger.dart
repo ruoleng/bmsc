@@ -1,16 +1,27 @@
 import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoggerUtils {
-  static Logger? _logger;
+  static const String _loggingEnabledKey = 'logging_enabled';
+  static final List<LogRecord> _logs = [];
+  static final _logStream = StreamController<LogRecord>.broadcast();
+  static bool _isLoggingEnabled = kDebugMode;
 
-  static void init() {
-    if (!kDebugMode) {
-      return;
-    }
+  static Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _isLoggingEnabled = prefs.getBool(_loggingEnabledKey) ?? kDebugMode;
+
     Logger.root.level = Level.ALL;
-
     Logger.root.onRecord.listen((record) {
+      if (!_isLoggingEnabled) return;
+      _logs.add(record);
+      _logStream.add(record);
+
+      if (!kDebugMode) {
+        return;
+      }
       debugPrint(
           '${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
       if (record.error != null) {
@@ -22,8 +33,26 @@ class LoggerUtils {
     });
   }
 
-  static Logger get logger {
-    _logger ??= Logger('BMSC');
-    return _logger!;
+  static Logger getLogger(String module) {
+    return Logger(module);
+  }
+
+  static List<LogRecord> get logs => _logs;
+  static Stream<LogRecord> get logStream => _logStream.stream;
+
+  static void clear() {
+    _logs.clear();
+  }
+
+  static bool get isLoggingEnabled => _isLoggingEnabled;
+
+  static Future<void> setLoggingEnabled(bool value) async {
+    _isLoggingEnabled = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_loggingEnabledKey, value);
+  }
+
+  static Future<void> dispose() async {
+    _logStream.close();
   }
 }

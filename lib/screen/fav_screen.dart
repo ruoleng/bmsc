@@ -5,6 +5,9 @@ import 'fav_detail_screen.dart';
 import 'package:bmsc/cache_manager.dart' as cache_manager;
 import 'recommendation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bmsc/util/logger.dart';
+
+final logger = LoggerUtils.getLogger('FavScreen');
 
 class FavScreen extends StatefulWidget {
   const FavScreen({super.key});
@@ -50,6 +53,8 @@ class _FavScreenState extends State<FavScreen> {
         });
       }
 
+      logger.info('got ${cachedFavs.length} cached favs');
+
       // Then try to fetch from network
       try {
         final ret = (await globals.api.getFavs(uid))?.list ?? [];
@@ -58,16 +63,17 @@ class _FavScreenState extends State<FavScreen> {
           setState(() {
             favList = ret;
           });
-          // Cache the new data
-          await cache_manager.CacheManager.cacheFavList(ret);
+          logger.info('got ${ret.length} new favs from network');
         }
       } catch (e) {
         // If network fetch fails, we'll still have the cached data
+        logger.severe('loadFavorites error: $e');
       } finally {
         if (mounted) {
           setState(() => isLoading = false);
         }
       }
+      logger.info('loadFavorites done');
     });
   }
 

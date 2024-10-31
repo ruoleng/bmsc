@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../util/update.dart';
 import 'package:flutter/services.dart';
+import 'package:bmsc/screen/log_screen.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -117,7 +118,7 @@ class _AboutScreenState extends State<AboutScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '本软件仅供学习交流使用\n请勿用于任何商业用途',
+                          '本软件仅供学习交流使用\n请勿用于任何商业用途\n资源版权仍归原网站或其作者所有',
                           textAlign: TextAlign.center,
                           style: Theme.of(context)
                               .textTheme
@@ -127,8 +128,10 @@ class _AboutScreenState extends State<AboutScreen> {
                               ),
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 8.0,
+                          runSpacing: 8.0,
                           children: [
                             TextButton.icon(
                               icon: const Icon(Icons.code),
@@ -147,6 +150,16 @@ class _AboutScreenState extends State<AboutScreen> {
                                 mode: LaunchMode.externalApplication,
                               ),
                             ),
+                            TextButton.icon(
+                              icon: const Icon(Icons.article_outlined),
+                              label: const Text('日志'),
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (context) => const LogScreen(),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 32),
@@ -157,7 +170,6 @@ class _AboutScreenState extends State<AboutScreen> {
               ],
             ),
           ),
-
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Text(

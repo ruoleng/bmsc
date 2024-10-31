@@ -9,6 +9,7 @@ import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/user_card.dart';
 import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
+import 'package:bmsc/util/logger.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -34,6 +35,8 @@ class DurationState {
 }
 
 class API {
+  static final _logger = LoggerUtils.getLogger('API');
+
   int? uid;
   late String cookies;
   late Map<String, String> headers;
@@ -89,18 +92,24 @@ class API {
   }
 
   Future<void> _hijackDummySource({int? index}) async {
+    _logger.info('Hijacking dummy source for index: $index');
     index ??= player.currentIndex;
     if (index == null) {
+      _logger.warning('No current index available for hijacking');
       return;
     }
+
     final currentSource = playlist.children[index];
     if (currentSource is IndexedAudioSource &&
         currentSource.tag.extras['dummy'] == true) {
+      _logger
+          .info('Found dummy source, attempting to replace with real source');
       await player.pause();
       List<IndexedAudioSource>? srcs;
       try {
         srcs = await getAudioSources(currentSource.tag.id);
       } catch (e) {
+        _logger.warning('Failed to get audio sources: $e');
         srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
       }
       final excludedCids =
@@ -297,14 +306,16 @@ class API {
   }
 
   Future<void> playByBvid(String bvid) async {
+    _logger.info('Playing by BVID: $bvid');
     await player.pause();
     final srcs = await getAudioSources(bvid);
+    if (srcs == null) {
+      _logger.warning('No audio sources found for BVID: $bvid');
+      return;
+    }
     final excludedCids = await CacheManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
-      srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
-    }
-    if (srcs == null) {
-      return;
+      srcs.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
 
     final idx = await _addUniqueSourcesToPlaylist(srcs,
@@ -486,8 +497,10 @@ class API {
   }
 
   Future<List<LazyAudioSource>?> getAudioSources(String bvid) async {
+    _logger.info('Fetching audio sources for BVID: $bvid');
     final vid = await getVidDetail(bvid);
     if (vid == null) {
+      _logger.warning('Failed to get video details for BVID: $bvid');
       return null;
     }
     return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
@@ -624,8 +637,7 @@ class API {
               title: tag.title,
               artist: tag.artist ?? '',
               artUri: tag.artUri?.toString() ?? '',
-              audioUri:
-                  dummy ? 'asset:///assets/silent.m4a' : uri.toString(),
+              audioUri: dummy ? 'asset:///assets/silent.m4a' : uri.toString(),
               bvid: tag.extras?['bvid'] ?? '',
               aid: tag.extras?['aid'] ?? 0,
               cid: tag.extras?['cid'] ?? 0,
@@ -645,11 +657,15 @@ class API {
   }
 
   Future<void> restorePlaylist() async {
+    _logger.info('Restoring playlist from preferences');
     final prefs = await SharedPreferences.getInstance();
     final playlistJson = prefs.getString('playlist');
     final currentIndex = prefs.getInt('currentIndex') ?? 0;
 
-    if (playlistJson == null) return;
+    if (playlistJson == null) {
+      _logger.info('No saved playlist found');
+      return;
+    }
 
     final List<dynamic> playlistData = jsonDecode(playlistJson);
     final sources = await Future.wait(playlistData.map((item) async {
@@ -699,18 +715,24 @@ class API {
 
   Future<bool?> favoriteVideo(
       int avid, List<int> addMediaIds, List<int> delMediaIds) async {
+    _logger.info(
+        'Favoriting video - AVID: $avid, Adding: $addMediaIds, Removing: $delMediaIds');
     try {
       final response = await dio.post(
           'https://api.bilibili.com/x/v3/fav/resource/deal',
           queryParameters: {
             'rid': avid,
-            'type': 2, // 2 represents video type
+            'type': 2,
             'add_media_ids': addMediaIds.join(','),
             'del_media_ids': delMediaIds.join(','),
             'csrf': _extractCSRF(cookies),
           });
+      if (response.data['code'] != 0) {
+        _logger.warning('Failed to favorite video: ${response.data}');
+      }
       return response.data['code'] == 0;
     } catch (e) {
+      _logger.severe('Error favoriting video: $e');
       return null;
     }
   }
@@ -844,10 +866,14 @@ class API {
   }
 
   Future<List<Meta>?> getDailyRecommendations({bool force = false}) async {
+    _logger.info('Getting daily recommendations (force: $force)');
     final prefs = await SharedPreferences.getInstance();
     final lastUpdateStr = prefs.getString('last_recommendations_update');
     final recommendations = prefs.getString('daily_recommendations');
 
+    if (lastUpdateStr != null) {
+      _logger.info('Last recommendations update: $lastUpdateStr');
+    }
     // Check if we need to update recommendations (daily)
     final lastUpdate =
         lastUpdateStr != null ? DateTime.parse(lastUpdateStr) : null;
@@ -885,7 +911,11 @@ class API {
   }
 
   Future<List<Meta>?> getRecommendations(List<Meta> tracks) async {
-    if (tracks.isEmpty) return null;
+    _logger.info('Getting recommendations for ${tracks.length} tracks');
+    if (tracks.isEmpty) {
+      _logger.warning('No tracks provided for recommendations');
+      return null;
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final recommendHistory = prefs.getString('recommend_history');

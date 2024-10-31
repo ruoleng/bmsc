@@ -8,6 +8,7 @@ import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../model/meta.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bmsc/util/logger.dart';
 
 class RecommendationScreen extends StatefulWidget {
   const RecommendationScreen({super.key});
@@ -17,6 +18,7 @@ class RecommendationScreen extends StatefulWidget {
 }
 
 class _RecommendationScreenState extends State<RecommendationScreen> {
+  final _logger = LoggerUtils.getLogger('RecommendationScreen');
   List<Meta> recommendations = [];
   bool isLoading = true;
   String? defaultFolderName;
@@ -80,6 +82,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   }
 
   Future<void> _loadRecommendations({bool force = false}) async {
+    _logger.info('Loading recommendations (force: $force)');
     setState(() => isLoading = true);
 
     final defaultFolder = await globals.api.getDefaultFavFolder();
@@ -95,6 +98,11 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
 
     final recs = await globals.api.getDailyRecommendations(force: force);
     if (mounted) {
+      if (recs != null) {
+        _logger.info('Loaded ${recs.length} recommendations');
+      } else {
+        _logger.warning('Failed to load recommendations');
+      }
       setState(() {
         recommendations = recs ?? [];
         isLoading = false;
@@ -103,6 +111,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   }
 
   Future<void> _regenerateRecommendation(int index) async {
+    _logger.info('Regenerating recommendation at index $index');
     final defaultFolder = await globals.api.getDefaultFavFolder();
     if (defaultFolder == null) {
       if (mounted) {
@@ -126,6 +135,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
 
     // 随机选择一个视频
     final selectedVideo = favVideos[Random().nextInt(favVideos.length)];
+    _logger.info('Selected video for recommendation: ${selectedVideo.bvid}');
 
     // 获取相关推荐
     final relatedVideos = await globals.api.getRecommendations([selectedVideo]);

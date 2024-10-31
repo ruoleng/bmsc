@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bmsc/util/logger.dart';
 
-final logger = LoggerUtils.logger;
+final logger = LoggerUtils.getLogger('Update');
 
 Future<List<ReleaseResult>?> checkNewVersion() async {
   List<ReleaseResult>? ret;

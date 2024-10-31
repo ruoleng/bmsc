@@ -7,6 +7,7 @@ import 'package:bmsc/component/excluded_parts_dialog.dart';
 import '../component/playing_card.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:bmsc/model/meta.dart';
+import 'package:bmsc/util/logger.dart';
 
 class FavDetailScreen extends StatefulWidget {
   final Fav fav;
@@ -20,6 +21,7 @@ class FavDetailScreen extends StatefulWidget {
 class _FavDetailScreenState extends State<FavDetailScreen> {
   List<Meta> favInfo = [];
   bool isLoading = false;
+  static final _logger = LoggerUtils.getLogger('FavDetailScreen');
 
   @override
   void initState() {
@@ -28,34 +30,47 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    _logger.info('Loading initial data for fav ${widget.fav.id}');
     // First try to load from cache
     final cachedData = await globals.api.getCachedFavListVideo(widget.fav.id);
     if (cachedData.isNotEmpty) {
+      _logger.info('Loaded ${cachedData.length} items from cache');
       setState(() {
         favInfo = cachedData;
       });
     } else {
+      _logger.info('No cached data found, loading from network');
       await loadMetas();
     }
   }
 
   Future<void> loadMetas() async {
-    if (isLoading) return;
+    if (isLoading) {
+      _logger.info('Already loading metas, skipping request');
+      return;
+    }
 
     setState(() {
       isLoading = true;
     });
 
-    final metas = await globals.api.getFavMetas(widget.fav.id);
-    if (metas != null) {
+    try {
+      final metas = await globals.api.getFavMetas(widget.fav.id);
+      if (metas != null) {
+        _logger.info('Loaded ${metas.length} metas from network');
+        setState(() {
+          favInfo = metas;
+        });
+      } else {
+        _logger.warning('Failed to load metas from network');
+      }
+    } catch (e, stackTrace) {
+      _logger.severe('Error loading metas', e, stackTrace);
+    } finally {
       setState(() {
-        favInfo = metas;
+        isLoading = false;
       });
     }
-
-    setState(() {
-      isLoading = false;
-    });
   }
 
   Future<void> _refreshData() async {
@@ -148,15 +163,25 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
               len: duration,
               cachedCount: cachedCount,
               onTap: () async {
-                await globals.api.playFavList(widget.fav.id, index: index);
+                try {
+                  _logger.info(
+                      'Playing fav list ${widget.fav.id} from index $index');
+                  await globals.api.playFavList(widget.fav.id, index: index);
+                } catch (e, stackTrace) {
+                  _logger.severe('Error playing fav list', e, stackTrace);
+                }
               },
               onAddToPlaylistButtonPressed: () async {
                 try {
+                  _logger.info('Adding ${favInfo[index].bvid} to playlist');
                   await globals.api.appendPlaylist(favInfo[index].bvid,
                       insertIndex: globals.api.playlist.length == 0
                           ? 0
                           : globals.api.player.currentIndex! + 1);
                 } catch (e) {
+                  _logger.warning(
+                      'Failed to append to playlist, trying cached playlist',
+                      e);
                   await globals.api.appendCachedPlaylist(favInfo[index].bvid);
                 }
               },

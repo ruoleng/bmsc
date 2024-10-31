@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:bmsc/util/logger.dart';
+
+final logger = LoggerUtils.getLogger('ErrorHandler');
 
 class ErrorHandler {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -27,6 +30,7 @@ class ErrorHandler {
   }
 
   static void handleException(dynamic error) {
+    logger.severe(error.toString());
     showError(error.toString());
   }
 }
