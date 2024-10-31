@@ -1,6 +1,6 @@
+import 'package:bmsc/model/entity.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/cache_manager.dart';
-import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/globals.dart' as globals;
 
 class ExcludedPartsDialog extends StatefulWidget {
@@ -18,10 +18,10 @@ class ExcludedPartsDialog extends StatefulWidget {
 }
 
 class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
-  Set<int> excludedCids = {};
-  Set<int> pendingExcludedCids = {};
   bool isLoading = true;
-  List<Pages> pages = [];
+  List<Entity> entities = [];
+  List<bool> modified = [];
+  int skipped = 0;
 
   @override
   void initState() {
@@ -30,59 +30,51 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
   }
 
   Future<void> _loadExcludedParts() async {
-    final entities = await CacheManager.getEntities(widget.bvid);
-    if (entities.isNotEmpty) {
+    var es = await CacheManager.getEntities(widget.bvid);
+    if (es.isEmpty) {
+      logger.info('entities not in cache, fetching from API');
+      await globals.api.getVidDetail(widget.bvid);
+      es = await CacheManager.getEntities(widget.bvid);
+    }
+    if (es.isNotEmpty) {
       setState(() {
-        excludedCids =
-            entities.where((e) => e.excluded == 1).map((e) => e.cid).toSet();
-        pendingExcludedCids = {...excludedCids};
         isLoading = false;
-        pages = entities
-            .map((e) => Pages(
-                cid: e.cid,
-                page: e.part,
-                duration: e.duration,
-                from: e.artist,
-                part: e.partTitle))
-            .toList();
+        modified = List.filled(es.length, false);
+        entities = es;
+        skipped = es.where((e) => e.excluded == 1).length;
       });
-    } else {
-      try {
-        final vid = await globals.api.getVidDetail(widget.bvid);
-        if (vid == null) return;
-        final excluded = await CacheManager.getExcludedParts(widget.bvid);
-        setState(() {
-          excludedCids = excluded.toSet();
-          pendingExcludedCids = {...excludedCids};
-          pages = vid.pages;
-        });
-      } finally {
-        setState(() {
-          isLoading = false;
-        });
-      }
     }
   }
 
   void _toggleAll(bool include) {
-    setState(() {
-      if (include) {
-        pendingExcludedCids.clear();
-      } else {
-        pendingExcludedCids = pages.map((p) => p.cid).toSet();
+    final modifiedCopy = List<bool>.from(modified);
+    int s = 0;
+    if (include) {
+      for (var i = 0; i < modified.length; i++) {
+        modifiedCopy[i] = entities[i].excluded == 1;
+        skipped += entities[i].excluded == 0 ? 1 : 0;
       }
+      s = 0;
+    } else {
+      for (var i = 0; i < modified.length; i++) {
+        modifiedCopy[i] = !modified[i];
+      }
+      s = entities.length - skipped;
+    }
+    setState(() {
+      modified = modifiedCopy;
+      skipped = s;
     });
   }
 
   Future<void> _saveChanges() async {
-    final toExclude = pendingExcludedCids.difference(excludedCids);
-    final toInclude = excludedCids.difference(pendingExcludedCids);
-
-    for (var cid in toExclude) {
-      await CacheManager.addExcludedPart(widget.bvid, cid);
-    }
-    for (var cid in toInclude) {
-      await CacheManager.removeExcludedPart(widget.bvid, cid);
+    for (var i = 0; i < modified.length; i++) {
+      if (!modified[i]) continue;
+      if (entities[i].excluded == 1) {
+        await CacheManager.removeExcludedPart(widget.bvid, entities[i].cid);
+      } else {
+        await CacheManager.addExcludedPart(widget.bvid, entities[i].cid);
+      }
     }
   }
 
@@ -105,7 +97,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${pages.length} 个分集，已跳过 ${pendingExcludedCids.length} 个',
+            '${entities.length} 个分集，已跳过 $skipped 个',
             style: TextStyle(
               fontSize: 14,
               color: Theme.of(context).colorScheme.secondary,
@@ -137,19 +129,16 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
               width: double.maxFinite,
               child: ListView.builder(
                 shrinkWrap: true,
-                itemCount: pages.length,
+                itemCount: entities.length,
                 itemBuilder: (context, index) {
-                  final page = pages[index];
-                  final isIncluded = !pendingExcludedCids.contains(page.cid);
+                  final e = entities[index];
+                  final isIncluded = (e.excluded == 0) ^ modified[index];
 
                   return InkWell(
                     onTap: () {
                       setState(() {
-                        if (isIncluded) {
-                          pendingExcludedCids.add(page.cid);
-                        } else {
-                          pendingExcludedCids.remove(page.cid);
-                        }
+                        modified[index] = !modified[index];
+                        skipped += isIncluded ? 1 : -1;
                       });
                     },
                     child: Container(
@@ -185,7 +174,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  page.part,
+                                  e.partTitle,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -196,7 +185,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
                                   ),
                                 ),
                                 Text(
-                                  _formatDuration(page.duration),
+                                  _formatDuration(e.duration),
                                   style: TextStyle(
                                     color:
                                         Theme.of(context).colorScheme.secondary,
