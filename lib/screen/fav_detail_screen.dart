@@ -146,14 +146,9 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
             title: favInfo[index].title,
             author: favInfo[index].artist,
             len: duration,
-            // view: unit(favInfo[index].stat.view),
             cachedCount: cachedCount,
             onTap: () async {
-              try {
-                await globals.api.playFavList(widget.fav.id, index: index);
-              } catch (e) {
-                await globals.api.playCachedBvid(favInfo[index].bvid);
-              }
+              await globals.api.playFavList(widget.fav.id, index: index);
             },
             onAddToPlaylistButtonPressed: () async {
               try {

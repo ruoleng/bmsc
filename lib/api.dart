@@ -92,10 +92,9 @@ class API {
             return;
           }
           await doAndSave(() async {
+            await playlist.insertAll(index + 1, srcs!);
             await playlist.removeAt(index);
-            await playlist.insertAll(index, srcs!);
           });
-          await player.seek(Duration.zero, index: index);
           await player.play();
         }
       }
@@ -537,42 +536,25 @@ class API {
   Future<void> savePlaylist() async {
     final prefs = await SharedPreferences.getInstance();
     final playlistData = playlist.children.map((source) {
-      if (source is LazyAudioSource && source.tag is MediaItem) {
+      if (source is UriAudioSource && source.tag is MediaItem) {
         final tag = source.tag as MediaItem;
+        final dummy = tag.extras?['dummy'] ?? false;
         return PlaylistData(
           id: tag.id,
           title: tag.title,
           artist: tag.artist ?? '',
           artUri: tag.artUri?.toString() ?? '',
-          audioUri: source.uri.toString(),  // Added this
+          audioUri: dummy ? 'asset:///assets/silent.m4a' : source.uri.toString(),
           bvid: tag.extras?['bvid'] ?? '',
           aid: tag.extras?['aid'] ?? 0,
           cid: tag.extras?['cid'] ?? 0,
           multi: tag.extras?['multi'] ?? false,
           rawTitle: tag.extras?['raw_title'] ?? '',
           mid: tag.extras?['mid'] ?? 0,
-          cached: false,
-          dummy: false,
-        ).toJson();
-      } else if (source is UriAudioSource && source.tag is MediaItem) {
-        final tag = source.tag as MediaItem;
-        return PlaylistData(
-          id: tag.id,
-          title: tag.title,
-          artist: tag.artist ?? '',
-          artUri: tag.artUri?.toString() ?? '',
-          audioUri: 'asset:///assets/silent.m4a',
-          bvid: tag.extras?['bvid'] ?? '',
-          aid: tag.extras?['aid'] ?? 0,
-          cid: 0,
-          multi: false,
-          rawTitle: '',
-          mid: 0,
-          cached: false,
-          dummy: true,
+          cached: tag.extras?['cached'] ?? false,
+          dummy: dummy,
         ).toJson();
       }
-      return null;
     }).whereType<Map<String, dynamic>>().toList();
 
     await prefs.setString('playlist', jsonEncode(playlistData));
