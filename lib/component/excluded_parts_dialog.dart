@@ -122,7 +122,9 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
         ],
       ),
       content: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Column(mainAxisSize: MainAxisSize.min, children: [
+              CircularProgressIndicator(),
+            ])
           : SizedBox(
               width: double.maxFinite,
               child: ListView.builder(

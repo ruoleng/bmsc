@@ -172,7 +172,7 @@ class API {
     }
     final srcs = await Future.wait(bvids.map((x) async {
       final meta = await CacheManager.getMeta(x);
-      return AudioSource.uri(Uri.parse('asset:///assets/silent.mp3'),
+      return AudioSource.uri(Uri.parse('asset:///assets/silent.m4a'),
           tag: MediaItem(id: x, title: meta?.title ?? '', artUri: Uri.parse(meta?.artUri ?? ''), artist: meta?.artist ?? '', extras: {'dummy': true}));
     }).toList());
     await player.stop();
@@ -561,7 +561,7 @@ class API {
           title: tag.title,
           artist: tag.artist ?? '',
           artUri: tag.artUri?.toString() ?? '',
-          audioUri: 'asset:///assets/silent.mp3',
+          audioUri: 'asset:///assets/silent.m4a',
           bvid: tag.extras?['bvid'] ?? '',
           aid: tag.extras?['aid'] ?? 0,
           cid: 0,

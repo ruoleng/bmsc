@@ -52,5 +52,5 @@ dev_dependencies:
 
 flutter:
   assets:
-    - assets/silent.mp3
+    - assets/silent.m4a
   uses-material-design: true
