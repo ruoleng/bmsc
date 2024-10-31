@@ -58,7 +58,7 @@ jobs:
           VERSION_V="${{ steps.tagName.outputs.tag }}"
           VERSION=$(echo $VERSION_V | sed 's/^v//')
           echo "Extracting changelog for version $VERSION"
-          awk "/^# $VERSION\$/{p=1;next} /^# /{p=0} p" CHANGELOG.md > changelog_content.txt
+          awk "/^# $VERSION\$/{p=1;next} /^# /{p=0} p" changelog.md > changelog_content.txt
           echo "got changelog content"
           cat changelog_content.txt
           echo "changelog<<EOF" >> $GITHUB_ENV
