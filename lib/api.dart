@@ -78,7 +78,12 @@ class API {
         final currentSource = playlist.children[index];
         if (currentSource is IndexedAudioSource && currentSource.tag.extras['dummy'] == true) {
           await player.pause();
-          var srcs = await getAudioSources(currentSource.tag.id);
+          List<IndexedAudioSource>? srcs;
+          try {
+            srcs = await getAudioSources(currentSource.tag.id);
+          } catch (e) {
+            srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
+          }
           final excludedCids = await CacheManager.getExcludedParts(currentSource.tag.id);
           for (var cid in excludedCids) {
             srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
@@ -88,7 +93,7 @@ class API {
           }
           await doAndSave(() async {
             await playlist.removeAt(index);
-            await playlist.insertAll(index, srcs);
+            await playlist.insertAll(index, srcs!);
           });
           await player.seek(Duration.zero, index: index);
           await player.play();
