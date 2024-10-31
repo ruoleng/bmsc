@@ -335,7 +335,7 @@ class API {
   }
 
   Future<int?> getStoredUID() async {
-    if (uid != null) {
+    if (uid != null && uid != 0) {
       return uid;
     }
     uid = await getUID();
