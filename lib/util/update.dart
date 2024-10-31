@@ -31,7 +31,7 @@ showUpdateDialog(
       if (newVersion.assets.isNotEmpty) {
         await launchUrl(
             Uri.parse(
-                'https://ghp.ci/' + newVersion.assets.first.browserDownloadUrl),
+                'https://ghp.ci/${newVersion.assets.first.browserDownloadUrl}'),
             mode: LaunchMode.externalApplication);
       }
     },

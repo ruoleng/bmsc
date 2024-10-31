@@ -25,8 +25,9 @@ class PlayingCard extends StatelessWidget {
             stream: globals.api.player.sequenceStateStream,
             builder: (context, snapshot) {
               final state = snapshot.data;
-              if (state?.sequence.isEmpty ?? true)
+              if (state?.sequence.isEmpty ?? true) {
                 return const SizedBox.shrink();
+              }
               final artUri = state?.currentSource?.tag.artUri.toString() ?? "";
 
               return Column(

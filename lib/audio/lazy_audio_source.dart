@@ -7,8 +7,6 @@ import 'package:bmsc/globals.dart' as globals;
 class LazyAudioSource extends LockCachingAudioSource {
   final String bvid;
   final int cid;
-  final Uri uri;
-  final dynamic tag;
 
   static Future<LazyAudioSource> create(
       String bvid, int cid, Uri uri, dynamic tag) async {
@@ -22,7 +20,7 @@ class LazyAudioSource extends LockCachingAudioSource {
     return ret;
   }
 
-  LazyAudioSource._(this.bvid, this.cid, this.uri, File cacheFile, this.tag)
+  LazyAudioSource._(this.bvid, this.cid, Uri uri, File cacheFile, dynamic tag)
       : super(uri,
             headers: globals.api.headers, cacheFile: cacheFile, tag: tag);
 }

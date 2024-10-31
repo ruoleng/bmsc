@@ -804,7 +804,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   static const _minCommonSubstringLength = 4;
 
   Set<String> allTypeNames = {};
-  static const int INF = 999;
+  static const int inf = 999;
 
   final RegExp wordRegex = RegExp(r'([^a-zA-Z0-9_\u4e00-\u9fa5]+)');
 
@@ -838,13 +838,13 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
         .map((m) => m.group(0)!)
         .join();
 
-    int _rankScore(Result video) {
+    int rankScore(Result video) {
       // 音Mad, 音乐现场, 翻唱, 科学科普, 运动综合
       const list = [26, 29, 31, 201, 238];
-      if (list.contains(int.parse(video.typeid))) return -INF;
+      if (list.contains(int.parse(video.typeid))) return -inf;
 
       final durationDiff = (_parseDuration(video.duration) - duration).abs();
-      if (durationDiff > 3 * 60) return -INF;
+      if (durationDiff > 3 * 60) return -inf;
 
       final result = stripHtmlIfNeeded(video.title);
       final resultWords = result
@@ -855,9 +855,9 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
 
       bool hasTrack = containsSubarrayKMP(resultWords, trackWords);
       bool hasArtist = containsSubarrayKMP(resultWords, artistWords);
-      if (hasTrack && hasArtist) return INF;
+      if (hasTrack && hasArtist) return inf;
 
-      if (durationDiff > 20) return -INF;
+      if (durationDiff > 20) return -inf;
 
       if (hasTrack || hasArtist) return 10;
 
@@ -907,8 +907,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
         _ => 0,
       };
 
-      int score = _rankScore(video);
-      // if (score == -INF) continue;
+      int score = rankScore(video);
+      // if (score == -inf) continue;
       int durationDiff = (_parseDuration(video.duration) - duration).abs();
       final videoPlayCountLog =
           video.play > 0 ? (log(video.play) / log(10)) : 0;

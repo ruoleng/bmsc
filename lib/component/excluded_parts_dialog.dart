@@ -214,14 +214,16 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
             ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (context.mounted) Navigator.pop(context);
+          },
           child: const Text('取消'),
         ),
         FilledButton(
           onPressed: () async {
             setState(() => isLoading = true);
             await _saveChanges();
-            if (mounted) Navigator.pop(context);
+            if (context.mounted) Navigator.pop(context);
           },
           child: const Text('确定'),
         ),

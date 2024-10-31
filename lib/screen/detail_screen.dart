@@ -18,7 +18,7 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   bool? _isFavorite;
   int? _currentAid;
-  Map<int, bool> _pendingFavStates = {};
+  final Map<int, bool> _pendingFavStates = {};
 
   @override
   void initState() {
@@ -276,6 +276,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                         setState(() => _isFavorite = success));
                                   }
                                 } else {
+                                  if (!context.mounted) return;
                                   showDialog(
                                     context: context,
                                     builder: (BuildContext context) {
@@ -442,26 +443,30 @@ class _DetailScreenState extends State<DetailScreen> {
                                                       src.tag.extras['aid']);
                                                 }
 
-                                                ScaffoldMessenger.of(
-                                                        scaffoldContext)
-                                                    .showSnackBar(
-                                                  const SnackBar(
+                                                if (scaffoldContext.mounted) {
+                                                  ScaffoldMessenger.of(
+                                                          scaffoldContext)
+                                                      .showSnackBar(
+                                                    const SnackBar(
                                                     content: Text('收藏夹已更新'),
                                                     duration:
                                                         Duration(seconds: 2),
-                                                  ),
-                                                );
+                                                    ),
+                                                  );
+                                                }
                                               } else {
                                                 _checkFavoriteStatus(
                                                     src.tag.extras['aid']);
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text('操作失败'),
-                                                    duration:
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('操作失败'),
+                                                      duration:
                                                         Duration(seconds: 2),
-                                                  ),
-                                                );
+                                                    ),
+                                                  );
+                                                }
                                               }
 
                                               _pendingFavStates

@@ -20,9 +20,9 @@ class TagResult {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    data['code'] = this.code;
-    data['message'] = this.message;
-    data['ttl'] = this.ttl;
+    data['code'] = code;
+    data['message'] = message;
+    data['ttl'] = ttl;
     if (this.data != null) {
       data['data'] = this.data!.map((v) => v.toJson()).toList();
     }
@@ -58,12 +58,12 @@ class Data {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    data['tag_id'] = this.tagId;
-    data['tag_name'] = this.tagName;
-    data['cover'] = this.cover;
-    data['head_cover'] = this.headCover;
-    data['content'] = this.content;
-    data['short_content'] = this.shortContent;
+    data['tag_id'] = tagId;
+    data['tag_name'] = tagName;
+    data['cover'] = cover;
+    data['head_cover'] = headCover;
+    data['content'] = content;
+    data['short_content'] = shortContent;
     return data;
   }
 }
