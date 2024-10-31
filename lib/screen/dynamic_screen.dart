@@ -24,17 +24,17 @@ class _DynamicScreenState extends State<DynamicScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text('动态')),
-        body: dynListView(),
-        bottomNavigationBar: StreamBuilder<SequenceState?>(
-          stream: globals.api.player.sequenceStateStream,
-          builder: (_, snapshot) {
-            final src = snapshot.data?.sequence;
-            return (src == null || src.isEmpty)
-                ? const SizedBox()
-                : const PlayingCard();
-          },
-        ),
+      appBar: AppBar(title: const Text('动态')),
+      body: dynListView(),
+      bottomNavigationBar: StreamBuilder<SequenceState?>(
+        stream: globals.api.player.sequenceStateStream,
+        builder: (_, snapshot) {
+          final src = snapshot.data?.sequence;
+          return (src == null || src.isEmpty)
+              ? const SizedBox()
+              : const PlayingCard();
+        },
+      ),
     );
   }
 
@@ -77,9 +77,13 @@ class _DynamicScreenState extends State<DynamicScreen> {
       len: dynList[index].moduleDynamic.major.archive.durationText,
       view: dynList[index].moduleDynamic.major.archive.stat.play,
       time: dynList[index].moduleAuthor.pubTime,
-      onTap: () =>
-          globals.api.playByBvid(dynList[index].moduleDynamic.major.archive.bvid),
-      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(dynList[index].moduleDynamic.major.archive.bvid, insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1),
+      onTap: () => globals.api
+          .playByBvid(dynList[index].moduleDynamic.major.archive.bvid),
+      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(
+          dynList[index].moduleDynamic.major.archive.bvid,
+          insertIndex: globals.api.playlist.length == 0
+              ? 0
+              : globals.api.player.currentIndex! + 1),
     );
   }
 }

@@ -26,7 +26,7 @@ Future<void> main() async {
     androidNotificationChannelName: 'Audio Playback',
     androidNotificationOngoing: true,
   );
-  
+
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     ErrorHandler.handleException(details.exception);
@@ -61,22 +61,20 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: ErrorHandler.navigatorKey,
       theme: theme,
-      home: Builder(
-        builder: (context) {
-          return Scaffold(
-            body: MyHomePage(title: 'BiliMusic'),
-            bottomNavigationBar: StreamBuilder<SequenceState?>(
-              stream: globals.api.player.sequenceStateStream,
-              builder: (_, snapshot) {
-                final src = snapshot.data?.sequence;
-                return (src == null || src.isEmpty)
-                    ? const SizedBox()
-                    : PlayingCard();
-              },
-            ),
-          );
-        }
-      ),
+      home: Builder(builder: (context) {
+        return Scaffold(
+          body: MyHomePage(title: 'BiliMusic'),
+          bottomNavigationBar: StreamBuilder<SequenceState?>(
+            stream: globals.api.player.sequenceStateStream,
+            builder: (_, snapshot) {
+              final src = snapshot.data?.sequence;
+              return (src == null || src.isEmpty)
+                  ? const SizedBox()
+                  : PlayingCard();
+            },
+          ),
+        );
+      }),
     );
   }
 }
@@ -165,21 +163,21 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         actions: [
           if (hasNewVersion && officialVersion != null && curVersion != null)
             IconButton(
-              onPressed: () {
-                showUpdateDialog(context, officialVersion!, curVersion!);
-              },
-              icon: const Icon(
-                Icons.arrow_circle_up_outlined,
-                color: Colors.red,
-              )
+                onPressed: () {
+                  showUpdateDialog(context, officialVersion!, curVersion!);
+                },
+                icon: const Icon(
+                  Icons.arrow_circle_up_outlined,
+                  color: Colors.red,
+                )),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<Widget>(
+                  builder: (_) => const PlaylistSearchScreen()),
             ),
-            IconButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute<Widget>(builder: (_) => const PlaylistSearchScreen()),
-              ),
-              icon: const Icon(Icons.input),
-            ),
+            icon: const Icon(Icons.input),
+          ),
           IconButton(
             onPressed: () => Navigator.push(
               context,
@@ -210,9 +208,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body: !signedin
-        ? WebViewWidget(controller: controller)
-        : const FavScreen(),
+      body:
+          !signedin ? WebViewWidget(controller: controller) : const FavScreen(),
     );
   }
 }

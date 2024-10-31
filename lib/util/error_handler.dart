@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class ErrorHandler {
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   static void showError(String message) {
     if (navigatorKey.currentContext == null) return;
@@ -17,7 +18,8 @@ class ErrorHandler {
           label: '关闭',
           textColor: Colors.white,
           onPressed: () {
-            ScaffoldMessenger.of(navigatorKey.currentContext!).hideCurrentSnackBar();
+            ScaffoldMessenger.of(navigatorKey.currentContext!)
+                .hideCurrentSnackBar();
           },
         ),
       ),

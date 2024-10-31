@@ -40,12 +40,12 @@ class Data {
 
   Data({
     this.tagId,
-      this.tagName,
-      this.cover,
-      this.headCover,
-      this.content,
-      this.shortContent,
-});
+    this.tagName,
+    this.cover,
+    this.headCover,
+    this.content,
+    this.shortContent,
+  });
 
   Data.fromJson(Map<String, dynamic> json) {
     tagId = json['tag_id'];

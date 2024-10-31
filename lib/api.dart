@@ -76,7 +76,8 @@ class API {
           return;
         }
         final currentSource = playlist.children[index];
-        if (currentSource is IndexedAudioSource && currentSource.tag.extras['dummy'] == true) {
+        if (currentSource is IndexedAudioSource &&
+            currentSource.tag.extras['dummy'] == true) {
           await player.pause();
           List<IndexedAudioSource>? srcs;
           try {
@@ -84,7 +85,8 @@ class API {
           } catch (e) {
             srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
           }
-          final excludedCids = await CacheManager.getExcludedParts(currentSource.tag.id);
+          final excludedCids =
+              await CacheManager.getExcludedParts(currentSource.tag.id);
           for (var cid in excludedCids) {
             srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
           }
@@ -156,12 +158,14 @@ class API {
     ));
   }
 
-  Future<void> appendPlaylistSingle(String bvid, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
+  Future<void> appendPlaylistSingle(String bvid,
+      {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     final srcs = await getAudioSources(bvid);
     if (srcs == null) {
       return;
     }
-    await _addUniqueSourcesToPlaylist([srcs[0]], insertIndex: insertIndex, extraExtras: extraExtras);
+    await _addUniqueSourcesToPlaylist([srcs[0]],
+        insertIndex: insertIndex, extraExtras: extraExtras);
   }
 
   Future<void> playFavList(int mid, {int index = 0}) async {
@@ -172,7 +176,12 @@ class API {
     final srcs = await Future.wait(bvids.map((x) async {
       final meta = await CacheManager.getMeta(x);
       return AudioSource.uri(Uri.parse('asset:///assets/silent.m4a'),
-          tag: MediaItem(id: x, title: meta?.title ?? '', artUri: Uri.parse(meta?.artUri ?? ''), artist: meta?.artist ?? '', extras: {'dummy': true}));
+          tag: MediaItem(
+              id: x,
+              title: meta?.title ?? '',
+              artUri: Uri.parse(meta?.artUri ?? ''),
+              artist: meta?.artist ?? '',
+              extras: {'dummy': true}));
     }).toList());
     await player.stop();
     await doAndSave(() async {
@@ -183,7 +192,8 @@ class API {
     await player.play();
   }
 
-  Future<void> appendPlaylist(String bvid, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
+  Future<void> appendPlaylist(String bvid,
+      {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     final srcs = await getAudioSources(bvid);
     final excludedCids = await CacheManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
@@ -192,10 +202,12 @@ class API {
     if (srcs == null) {
       return;
     }
-    await _addUniqueSourcesToPlaylist(srcs, insertIndex: insertIndex, extraExtras: extraExtras);
+    await _addUniqueSourcesToPlaylist(srcs,
+        insertIndex: insertIndex, extraExtras: extraExtras);
   }
 
-  Future<void> appendCachedPlaylist(String bvid, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
+  Future<void> appendCachedPlaylist(String bvid,
+      {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     final srcs = await CacheManager.getCachedAudioList(bvid);
     final excludedCids = await CacheManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
@@ -204,7 +216,8 @@ class API {
     if (srcs == null) {
       return;
     }
-    await _addUniqueSourcesToPlaylist(srcs, insertIndex: insertIndex, extraExtras: extraExtras);
+    await _addUniqueSourcesToPlaylist(srcs,
+        insertIndex: insertIndex, extraExtras: extraExtras);
   }
 
   Future<void> addToPlaylistCachedAudio(String bvid, int cid) async {
@@ -212,7 +225,8 @@ class API {
     if (cachedSource == null) {
       return;
     }
-    await _addUniqueSourcesToPlaylist([cachedSource], insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
+    await _addUniqueSourcesToPlaylist([cachedSource],
+        insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
   }
 
   Future<void> playCachedAudio(String bvid, int cid) async {
@@ -221,7 +235,8 @@ class API {
     if (cachedSource == null) {
       return;
     }
-    final idx = await _addUniqueSourcesToPlaylist([cachedSource], insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
+    final idx = await _addUniqueSourcesToPlaylist([cachedSource],
+        insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
 
     if (idx != null) {
       await player.seek(Duration.zero, index: idx);
@@ -240,7 +255,8 @@ class API {
       return;
     }
 
-    final idx = await _addUniqueSourcesToPlaylist(srcs, insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
+    final idx = await _addUniqueSourcesToPlaylist(srcs,
+        insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
     if (idx != null) {
       await player.seek(Duration.zero, index: idx);
     }
@@ -258,7 +274,8 @@ class API {
       throw Exception('无网络');
     }
 
-    final idx = await _addUniqueSourcesToPlaylist(srcs, insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
+    final idx = await _addUniqueSourcesToPlaylist(srcs,
+        insertIndex: playlist.length == 0 ? 0 : player.currentIndex! + 1);
     if (idx != null) {
       await player.seek(Duration.zero, index: idx);
     }
@@ -328,21 +345,23 @@ class API {
     List<Meta> ret = [];
     while (hasMore) {
       final response = await dio.get(
-        'https://api.bilibili.com/x/v3/fav/resource/list',
-        queryParameters: {'media_id': mid, 'ps': 40, 'pn': pn});
+          'https://api.bilibili.com/x/v3/fav/resource/list',
+          queryParameters: {'media_id': mid, 'ps': 40, 'pn': pn});
       if (response.data['code'] != 0) {
         return null;
       }
-      ret.addAll((response.data['data']['medias'] as List).map((x) => Meta(
-        bvid: x['bvid'],
-        title: x['title'],
-        artist: x['upper']['name'],
-        mid: x['upper']['mid'],
-        aid: x['id'],
-        duration: x['duration'],
-        artUri: x['cover'],
-        parts: x['page'],
-      )).toList());
+      ret.addAll((response.data['data']['medias'] as List)
+          .map((x) => Meta(
+                bvid: x['bvid'],
+                title: x['title'],
+                artist: x['upper']['name'],
+                mid: x['upper']['mid'],
+                aid: x['id'],
+                duration: x['duration'],
+                artUri: x['cover'],
+                parts: x['page'],
+              ))
+          .toList());
       hasMore = response.data['data']['has_more'] as bool;
       pn++;
     }
@@ -430,22 +449,21 @@ class API {
       }
       final firstAudio = audios[0];
       final tag = MediaItem(
-        id: '${bvid}_${x.cid}',
-        title:
-            vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
-        artUri: Uri.parse(vid.pic),
-        artist: vid.owner.name,
-        extras: {
-          'mid': vid.owner.mid,
-          'bvid': bvid,
-          'aid': vid.aid,
-          'cid': x.cid,
-          'cached': false,
-          'raw_title': vid.title,
-          'multi': vid.pages.length > 1,
-        }
-      );
-      return LazyAudioSource.create(bvid, x.cid, Uri.parse(firstAudio.baseUrl), tag);
+          id: '${bvid}_${x.cid}',
+          title: vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
+          artUri: Uri.parse(vid.pic),
+          artist: vid.owner.name,
+          extras: {
+            'mid': vid.owner.mid,
+            'bvid': bvid,
+            'aid': vid.aid,
+            'cid': x.cid,
+            'cached': false,
+            'raw_title': vid.title,
+            'multi': vid.pages.length > 1,
+          });
+      return LazyAudioSource.create(
+          bvid, x.cid, Uri.parse(firstAudio.baseUrl), tag);
     })))
         .whereType<LazyAudioSource>()
         .toList();
@@ -460,29 +478,33 @@ class API {
       return null;
     }
 
-    await CacheManager.cacheMetas([Meta(  
-      bvid: bvid,
-      title: response.data['data']['title'],
-      artist: response.data['data']['owner']['name'],
-      mid: response.data['data']['owner']['mid'],
-      aid: response.data['data']['aid'],
-      duration: response.data['data']['duration'],
-      parts: response.data['data']['videos'],
-      artUri: response.data['data']['pic'],
-    )]);
+    await CacheManager.cacheMetas([
+      Meta(
+        bvid: bvid,
+        title: response.data['data']['title'],
+        artist: response.data['data']['owner']['name'],
+        mid: response.data['data']['owner']['mid'],
+        aid: response.data['data']['aid'],
+        duration: response.data['data']['duration'],
+        parts: response.data['data']['videos'],
+        artUri: response.data['data']['pic'],
+      )
+    ]);
     final ret = VidResult.fromJson(response.data['data']);
-    await CacheManager.cacheEntities(ret.pages.map((x) => Entity(
-      bvid: bvid,
-      aid: ret.aid,
-      cid: x.cid,
-      duration: x.duration,
-      part: x.page,
-      artist: ret.owner.name,
-      artUri: ret.pic,
-      partTitle: x.part,
-      bvidTitle: ret.title,
-      excluded: 0,
-    )).toList());
+    await CacheManager.cacheEntities(ret.pages
+        .map((x) => Entity(
+              bvid: bvid,
+              aid: ret.aid,
+              cid: x.cid,
+              duration: x.duration,
+              part: x.page,
+              artist: ret.owner.name,
+              artUri: ret.pic,
+              partTitle: x.part,
+              bvidTitle: ret.title,
+              excluded: 0,
+            ))
+        .toList());
     return ret;
   }
 
@@ -497,7 +519,8 @@ class API {
     return TagResult.fromJson(response.data);
   }
 
-  Future<int?> _addUniqueSourcesToPlaylist(List<IndexedAudioSource> sources, {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
+  Future<int?> _addUniqueSourcesToPlaylist(List<IndexedAudioSource> sources,
+      {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     int? ret;
     for (var source in sources) {
       if (source.tag is MediaItem) {
@@ -535,27 +558,31 @@ class API {
 
   Future<void> savePlaylist() async {
     final prefs = await SharedPreferences.getInstance();
-    final playlistData = playlist.children.map((source) {
-      if (source is UriAudioSource && source.tag is MediaItem) {
-        final tag = source.tag as MediaItem;
-        final dummy = tag.extras?['dummy'] ?? false;
-        return PlaylistData(
-          id: tag.id,
-          title: tag.title,
-          artist: tag.artist ?? '',
-          artUri: tag.artUri?.toString() ?? '',
-          audioUri: dummy ? 'asset:///assets/silent.m4a' : source.uri.toString(),
-          bvid: tag.extras?['bvid'] ?? '',
-          aid: tag.extras?['aid'] ?? 0,
-          cid: tag.extras?['cid'] ?? 0,
-          multi: tag.extras?['multi'] ?? false,
-          rawTitle: tag.extras?['raw_title'] ?? '',
-          mid: tag.extras?['mid'] ?? 0,
-          cached: tag.extras?['cached'] ?? false,
-          dummy: dummy,
-        ).toJson();
-      }
-    }).whereType<Map<String, dynamic>>().toList();
+    final playlistData = playlist.children
+        .map((source) {
+          if (source is UriAudioSource && source.tag is MediaItem) {
+            final tag = source.tag as MediaItem;
+            final dummy = tag.extras?['dummy'] ?? false;
+            return PlaylistData(
+              id: tag.id,
+              title: tag.title,
+              artist: tag.artist ?? '',
+              artUri: tag.artUri?.toString() ?? '',
+              audioUri:
+                  dummy ? 'asset:///assets/silent.m4a' : source.uri.toString(),
+              bvid: tag.extras?['bvid'] ?? '',
+              aid: tag.extras?['aid'] ?? 0,
+              cid: tag.extras?['cid'] ?? 0,
+              multi: tag.extras?['multi'] ?? false,
+              rawTitle: tag.extras?['raw_title'] ?? '',
+              mid: tag.extras?['mid'] ?? 0,
+              cached: tag.extras?['cached'] ?? false,
+              dummy: dummy,
+            ).toJson();
+          }
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
 
     await prefs.setString('playlist', jsonEncode(playlistData));
     await prefs.setInt('currentIndex', player.currentIndex ?? 0);
@@ -572,17 +599,22 @@ class API {
     final sources = await Future.wait(playlistData.map((item) async {
       final data = PlaylistData.fromJson(item);
       if (data.dummy) {
-        return AudioSource.uri(Uri.parse(data.audioUri), tag: MediaItem(
-          id: data.id,
-          title: data.title,
-          artist: data.artist,
-          artUri: Uri.parse(data.artUri),
-          extras: {
-            'dummy': true,
-          },
-        ));
+        return AudioSource.uri(Uri.parse(data.audioUri),
+            tag: MediaItem(
+              id: data.id,
+              title: data.title,
+              artist: data.artist,
+              artUri: Uri.parse(data.artUri),
+              extras: {
+                'dummy': true,
+              },
+            ));
       } else {
-        return LazyAudioSource.create(data.bvid, data.cid, Uri.parse(data.audioUri), MediaItem(
+        return LazyAudioSource.create(
+          data.bvid,
+          data.cid,
+          Uri.parse(data.audioUri),
+          MediaItem(
             id: data.id,
             title: data.title,
             artist: data.artist,
@@ -609,18 +641,18 @@ class API {
     }
   }
 
-  Future<bool?> favoriteVideo(int avid, List<int> addMediaIds, List<int> delMediaIds) async {
+  Future<bool?> favoriteVideo(
+      int avid, List<int> addMediaIds, List<int> delMediaIds) async {
     try {
       final response = await dio.post(
           'https://api.bilibili.com/x/v3/fav/resource/deal',
-        queryParameters: {
-          'rid': avid,
-          'type': 2,  // 2 represents video type
-          'add_media_ids': addMediaIds.join(','),
-          'del_media_ids': delMediaIds.join(','),
-          'csrf': _extractCSRF(cookies),
-        }
-      );
+          queryParameters: {
+            'rid': avid,
+            'type': 2, // 2 represents video type
+            'add_media_ids': addMediaIds.join(','),
+            'del_media_ids': delMediaIds.join(','),
+            'csrf': _extractCSRF(cookies),
+          });
       return response.data['code'] == 0;
     } catch (e) {
       return null;
@@ -631,10 +663,12 @@ class API {
     final csrfMatch = RegExp(r'bili_jct=([^;]+)').firstMatch(cookies);
     return csrfMatch?.group(1) ?? '';
   }
+
   Future<bool?> isFavorited(int aid) async {
     try {
-      final response = await dio.get("https://api.bilibili.com/x/v2/fav/video/favoured",
-        queryParameters: {'aid': aid});
+      final response = await dio.get(
+          "https://api.bilibili.com/x/v2/fav/video/favoured",
+          queryParameters: {'aid': aid});
       if (response.data['code'] != 0) {
         return null;
       }
@@ -661,11 +695,11 @@ class API {
     await prefs.setString('default_fav_folder_name', folderName);
   }
 
-  Future<List<Map<String, dynamic>>?> fetchNeteasePlaylistTracks(String playlistId) async {
+  Future<List<Map<String, dynamic>>?> fetchNeteasePlaylistTracks(
+      String playlistId) async {
     try {
-      final response = await dio.get(
-        'https://rp.u2x1.work/playlist/track/all',
-        queryParameters: {'id': playlistId});
+      final response = await dio.get('https://rp.u2x1.work/playlist/track/all',
+          queryParameters: {'id': playlistId});
       final List<Map<String, dynamic>> tracks = [];
       for (final song in response.data['songs']) {
         tracks.add({
@@ -685,11 +719,12 @@ class API {
     }
   }
 
-  Future<List<Map<String, dynamic>>?> fetchTencentPlaylistTracks(String playlistId) async {
+  Future<List<Map<String, dynamic>>?> fetchTencentPlaylistTracks(
+      String playlistId) async {
     try {
       final response = await dio.get(
-        'https://api.timelessq.com/music/tencent/songList',
-        queryParameters: {'disstid': playlistId});
+          'https://api.timelessq.com/music/tencent/songList',
+          queryParameters: {'disstid': playlistId});
       if (response.data['errno'] != 0) {
         return [];
       }
@@ -707,10 +742,11 @@ class API {
     }
   }
 
-  Future<List<Map<String, dynamic>>?> fetchKuGouPlaylistTracks(String playlistId) async {
+  Future<List<Map<String, dynamic>>?> fetchKuGouPlaylistTracks(
+      String playlistId) async {
     try {
       final response = await dio.get(
-        'https://kg.u2x1.work/playlist/track/all?id=$playlistId&pagesize=300');
+          'https://kg.u2x1.work/playlist/track/all?id=$playlistId&pagesize=300');
       if (response.data['status'] == 0) {
         return [];
       }
@@ -731,7 +767,7 @@ class API {
         final pageSize = (total / 300).ceil();
         for (int i = 2; i <= pageSize; i++) {
           final response = await dio.get(
-            'https://kg.u2x1.work/playlist/track/all?id=$playlistId&pagesize=300&page=$i');
+              'https://kg.u2x1.work/playlist/track/all?id=$playlistId&pagesize=300&page=$i');
           for (final song in response.data['data']['info']) {
             final fullname = song['name'];
             final pos = fullname.indexOf('-');

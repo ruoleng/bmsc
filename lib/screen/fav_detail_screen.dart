@@ -103,7 +103,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
           ),
         ],
       ),
-      body:  RefreshIndicator(
+      body: RefreshIndicator(
         onRefresh: _refreshData,
         child: ListView.builder(
           itemCount: favInfo.length,
@@ -126,101 +126,101 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
     int min = favInfo[index].duration ~/ 60;
     int sec = favInfo[index].duration % 60;
     final duration = "$min:${sec.toString().padLeft(2, '0')}";
-    
+
     return FutureBuilder<(List<int>, int)>(
-      future: Future.wait([
-        CacheManager.getExcludedParts(favInfo[index].bvid),
-        CacheManager.cachedCount(favInfo[index].bvid),
-      ]).then((results) => (results[0] as List<int>, results[1] as int)),
-      builder: (context, snapshot) {
-        final excludedCount = snapshot.data?.$1.length ?? 0;
-        final cachedCount = snapshot.data?.$2 ?? 0;
-        
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: TrackTile(
-            key: Key(favInfo[index].bvid),
-            pic: favInfo[index].artUri,
-            parts: favInfo[index].parts,
-            excludedParts: excludedCount,
-            title: favInfo[index].title,
-            author: favInfo[index].artist,
-            len: duration,
-            cachedCount: cachedCount,
-            onTap: () async {
-              await globals.api.playFavList(widget.fav.id, index: index);
-            },
-            onAddToPlaylistButtonPressed: () async {
-              try {
-                await globals.api.appendPlaylist(
-                  favInfo[index].bvid,
-                  insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1
-                );
-              } catch (e) {
-                await globals.api.appendCachedPlaylist(favInfo[index].bvid);
-              }
-            },
-            onLongPress: () async {
-              if (!context.mounted) return;
-              showDialog(
-                context: context,
-                builder: (dialogContext) => AlertDialog(
-                  title: const Text('选择操作'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (favInfo[index].parts > 1)
+        future: Future.wait([
+          CacheManager.getExcludedParts(favInfo[index].bvid),
+          CacheManager.cachedCount(favInfo[index].bvid),
+        ]).then((results) => (results[0] as List<int>, results[1] as int)),
+        builder: (context, snapshot) {
+          final excludedCount = snapshot.data?.$1.length ?? 0;
+          final cachedCount = snapshot.data?.$2 ?? 0;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: TrackTile(
+              key: Key(favInfo[index].bvid),
+              pic: favInfo[index].artUri,
+              parts: favInfo[index].parts,
+              excludedParts: excludedCount,
+              title: favInfo[index].title,
+              author: favInfo[index].artist,
+              len: duration,
+              cachedCount: cachedCount,
+              onTap: () async {
+                await globals.api.playFavList(widget.fav.id, index: index);
+              },
+              onAddToPlaylistButtonPressed: () async {
+                try {
+                  await globals.api.appendPlaylist(favInfo[index].bvid,
+                      insertIndex: globals.api.playlist.length == 0
+                          ? 0
+                          : globals.api.player.currentIndex! + 1);
+                } catch (e) {
+                  await globals.api.appendCachedPlaylist(favInfo[index].bvid);
+                }
+              },
+              onLongPress: () async {
+                if (!context.mounted) return;
+                showDialog(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('选择操作'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (favInfo[index].parts > 1)
+                          ListTile(
+                            leading: const Icon(Icons.playlist_remove),
+                            title: const Text('管理分P'),
+                            onTap: () {
+                              Navigator.pop(dialogContext);
+                              showDialog(
+                                context: context,
+                                builder: (context) => ExcludedPartsDialog(
+                                  bvid: favInfo[index].bvid,
+                                  title: favInfo[index].title,
+                                ),
+                              ).then((_) {
+                                setState(() {});
+                              });
+                            },
+                          ),
                         ListTile(
-                          leading: const Icon(Icons.playlist_remove),
-                          title: const Text('管理分P'),
-                          onTap: () {
+                          leading: const Icon(Icons.delete),
+                          title: const Text('取消收藏'),
+                          onTap: () async {
                             Navigator.pop(dialogContext);
-                            showDialog(
-                              context: context,
-                              builder: (context) => ExcludedPartsDialog(
-                                bvid: favInfo[index].bvid,
-                                title: favInfo[index].title,
+                            final success = await globals.api.favoriteVideo(
+                                  favInfo[index].aid,
+                                  [],
+                                  [widget.fav.id],
+                                ) ??
+                                false;
+
+                            if (!context.mounted) return;
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success ? '已取消收藏' : '操作失败'),
+                                duration: const Duration(seconds: 2),
                               ),
-                            ).then((_) {
-                              setState(() {});
-                            });
+                            );
+
+                            if (success) {
+                              setState(() {
+                                favInfo.removeAt(index);
+                              });
+                            }
                           },
                         ),
-                      ListTile(
-                        leading: const Icon(Icons.delete),
-                        title: const Text('取消收藏'),
-                        onTap: () async {
-                          Navigator.pop(dialogContext);
-                          final success = await globals.api.favoriteVideo(
-                            favInfo[index].aid,
-                            [],
-                            [widget.fav.id],
-                          ) ?? false;
-                          
-                          if (!context.mounted) return;
-                          
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(success ? '已取消收藏' : '操作失败'),
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                          
-                          if (success) {
-                            setState(() {
-                              favInfo.removeAt(index);
-                            });
-                          }
-                        },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        );
-      }
-    );
+                );
+              },
+            ),
+          );
+        });
   }
 }

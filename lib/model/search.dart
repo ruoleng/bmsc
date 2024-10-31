@@ -32,8 +32,8 @@ class SearchResult {
     rqtType = json['rqt_type'];
     eggHit = json['egg_hit'];
     result = (json['result'] as List<dynamic>?)
-        ?.map((e) => Result.fromJson(e as Map<String, dynamic>))
-        .toList() ??
+            ?.map((e) => Result.fromJson(e as Map<String, dynamic>))
+            .toList() ??
         [];
     showColumn = json['show_column'];
   }
@@ -121,8 +121,9 @@ class Result {
     duration = json['duration'];
     badgepay = json['badgepay'];
     hitColumns = (json['hit_columns'] as List<dynamic>?)
-        ?.map((e) => e.toString())
-        .toList() ?? [];
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
 
     viewType = json['view_type'];
     isPay = json['is_pay'];

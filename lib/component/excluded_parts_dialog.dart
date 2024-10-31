@@ -33,10 +33,18 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
     final entities = await CacheManager.getEntities(widget.bvid);
     if (entities.isNotEmpty) {
       setState(() {
-        excludedCids = entities.where((e) => e.excluded == 1).map((e) => e.cid).toSet();
+        excludedCids =
+            entities.where((e) => e.excluded == 1).map((e) => e.cid).toSet();
         pendingExcludedCids = {...excludedCids};
         isLoading = false;
-        pages = entities.map((e) => Pages(cid: e.cid, page: e.part, duration: e.duration, from: e.artist, part: e.partTitle)).toList();
+        pages = entities
+            .map((e) => Pages(
+                cid: e.cid,
+                page: e.part,
+                duration: e.duration,
+                from: e.artist,
+                part: e.partTitle))
+            .toList();
       });
     } else {
       try {
@@ -133,7 +141,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
                 itemBuilder: (context, index) {
                   final page = pages[index];
                   final isIncluded = !pendingExcludedCids.contains(page.cid);
-                  
+
                   return InkWell(
                     onTap: () {
                       setState(() {
@@ -146,9 +154,15 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isIncluded 
-                          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
-                          : Theme.of(context).colorScheme.errorContainer.withOpacity(0.3),
+                        color: isIncluded
+                            ? Theme.of(context)
+                                .colorScheme
+                                .primaryContainer
+                                .withOpacity(0.3)
+                            : Theme.of(context)
+                                .colorScheme
+                                .errorContainer
+                                .withOpacity(0.3),
                         border: Border(
                           bottom: BorderSide(
                             color: Theme.of(context).dividerColor,
@@ -156,11 +170,13 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
                           ),
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       child: Row(
                         children: [
                           CircleAvatar(
-                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primaryContainer,
                             child: Text('P${index + 1}'),
                           ),
                           const SizedBox(width: 16),
@@ -174,13 +190,16 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isIncluded ? null : Theme.of(context).colorScheme.error,
+                                    color: isIncluded
+                                        ? null
+                                        : Theme.of(context).colorScheme.error,
                                   ),
                                 ),
                                 Text(
                                   _formatDuration(page.duration),
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.secondary,
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
                                   ),
                                 ),
                               ],

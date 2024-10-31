@@ -69,15 +69,14 @@ class Dash {
       duration = json['duration'];
       minBufferTime = json['min_buffer_time'];
       video = (json['video'] as List<dynamic>?)
-          ?.map((e) => Video.fromJson(e as Map<String, dynamic>))
-          .toList() ??
-        [];
+              ?.map((e) => Video.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [];
       audio = (json['audio'] as List<dynamic>?)
-          ?.map((e) => Audio.fromJson(e as Map<String, dynamic>))
-          .toList() ??
-        [];
-    } catch (e) {
-    }
+              ?.map((e) => Audio.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [];
+    } catch (e) {}
   }
 }
 

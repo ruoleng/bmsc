@@ -80,7 +80,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       len: duration,
       view: time(hisList[index].viewAt * 1000000),
       onTap: () => globals.api.playByBvid(hisList[index].history.bvid),
-      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(hisList[index].history.bvid, insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1),
+      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(
+          hisList[index].history.bvid,
+          insertIndex: globals.api.playlist.length == 0
+              ? 0
+              : globals.api.player.currentIndex! + 1),
     );
   }
 }

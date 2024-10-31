@@ -5,6 +5,7 @@ import '../globals.dart' as globals;
 import '../screen/detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'playlist_bottom_sheet.dart';
+
 class PlayingCard extends StatelessWidget {
   const PlayingCard({super.key});
 
@@ -24,9 +25,10 @@ class PlayingCard extends StatelessWidget {
             stream: globals.api.player.sequenceStateStream,
             builder: (context, snapshot) {
               final state = snapshot.data;
-              if (state?.sequence.isEmpty ?? true) return const SizedBox.shrink();
+              if (state?.sequence.isEmpty ?? true)
+                return const SizedBox.shrink();
               final artUri = state?.currentSource?.tag.artUri.toString() ?? "";
-              
+
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -51,10 +53,12 @@ class PlayingCard extends StatelessWidget {
                   InkWell(
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const DetailScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const DetailScreen()),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       child: Row(
                         children: [
                           // Album art
@@ -63,29 +67,44 @@ class PlayingCard extends StatelessWidget {
                             child: SizedBox(
                               width: 48,
                               height: 48,
-                              child: artUri == "" ? Container(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                child: Icon(Icons.music_note,
-                                    color: Theme.of(context).colorScheme.primary),
-                              ) :  CachedNetworkImage(
-                                imageUrl: artUri,
-                                placeholder: (context, url) => Container(
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  child: Icon(Icons.music_note,
-                                      color: Theme.of(context).colorScheme.primary),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  child: Icon(Icons.music_note,
-                                      color: Theme.of(context).colorScheme.primary),
-                                ),
-                                fit: BoxFit.cover,
-                              ),
+                              child: artUri == ""
+                                  ? Container(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                      child: Icon(Icons.music_note,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary),
+                                    )
+                                  : CachedNetworkImage(
+                                      imageUrl: artUri,
+                                      placeholder: (context, url) => Container(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        child: Icon(Icons.music_note,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary),
+                                      ),
+                                      errorWidget: (context, url, error) =>
+                                          Container(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        child: Icon(Icons.music_note,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary),
+                                      ),
+                                      fit: BoxFit.cover,
+                                    ),
                             ),
                           ),
-                          
+
                           const SizedBox(width: 12),
-                          
+
                           // Title and artist
                           Expanded(
                             child: Column(
@@ -108,39 +127,51 @@ class PlayingCard extends StatelessWidget {
                               ],
                             ),
                           ),
-                          
+
                           // Controls
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.skip_previous),
-                                onPressed: globals.api.player.hasPrevious ? globals.api.player.seekToPrevious : null,
+                                onPressed: globals.api.player.hasPrevious
+                                    ? globals.api.player.seekToPrevious
+                                    : null,
                               ),
                               StreamBuilder<PlayerState>(
                                 stream: globals.api.player.playerStateStream,
                                 builder: (context, snapshot) {
                                   final playing = globals.api.player.playing;
-                                  final processingState = snapshot.data?.processingState;
-                                  
-                                  if (processingState == ProcessingState.loading ||
-                                      processingState == ProcessingState.buffering) {
+                                  final processingState =
+                                      snapshot.data?.processingState;
+
+                                  if (processingState ==
+                                          ProcessingState.loading ||
+                                      processingState ==
+                                          ProcessingState.buffering) {
                                     return const SizedBox(
                                       width: 24,
                                       height: 24,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
                                     );
                                   }
-                                  
+
                                   return IconButton(
-                                    icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                                    onPressed: playing ? globals.api.player.pause : globals.api.player.play,
+                                    icon: Icon(playing
+                                        ? Icons.pause
+                                        : Icons.play_arrow),
+                                    onPressed: playing
+                                        ? globals.api.player.pause
+                                        : globals.api.player.play,
                                   );
                                 },
                               ),
                               IconButton(
                                 icon: const Icon(Icons.skip_next),
-                                onPressed: globals.api.player.hasNext ? globals.api.player.seekToNext : null,
+                                onPressed: globals.api.player.hasNext
+                                    ? globals.api.player.seekToNext
+                                    : null,
                               ),
                               // Add playlist button
                               IconButton(
@@ -148,11 +179,15 @@ class PlayingCard extends StatelessWidget {
                                 onPressed: () {
                                   showModalBottomSheet(
                                     context: context,
-                                    builder: (context) => const PlaylistBottomSheet(),
-                                    backgroundColor: Theme.of(context).colorScheme.surface,
+                                    builder: (context) =>
+                                        const PlaylistBottomSheet(),
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.surface,
                                     isScrollControlled: true,
                                     constraints: BoxConstraints(
-                                      maxHeight: MediaQuery.of(context).size.height * 0.7,
+                                      maxHeight:
+                                          MediaQuery.of(context).size.height *
+                                              0.7,
                                     ),
                                   );
                                 },

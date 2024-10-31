@@ -43,7 +43,9 @@ class _CacheScreenState extends State<CacheScreen> {
           final title = file['title'].toString().toLowerCase();
           final artist = file['artist'].toString().toLowerCase();
           final bvidTitle = file['bvid_title'].toString().toLowerCase();
-          return title.contains(query) || artist.contains(query) || bvidTitle.contains(query);
+          return title.contains(query) ||
+              artist.contains(query) ||
+              bvidTitle.contains(query);
         }).toList();
       }
     });
@@ -61,7 +63,8 @@ class _CacheScreenState extends State<CacheScreen> {
         CacheManager.entityTable,
         where: 'bvid = ? AND cid = ?',
         whereArgs: [x['bvid'], x['cid']],
-      )).firstOrNull;
+      ))
+          .firstOrNull;
 
       if (entity == null) {
         return null;
@@ -78,8 +81,9 @@ class _CacheScreenState extends State<CacheScreen> {
         'bvid_title': entity['bvid_title'],
         'artUri': entity['art_uri'],
       };
-    }))).whereType<Map<String, dynamic>>().toList();
-
+    })))
+        .whereType<Map<String, dynamic>>()
+        .toList();
 
     setState(() {
       cachedFiles = results;
@@ -106,7 +110,7 @@ class _CacheScreenState extends State<CacheScreen> {
     if (await file.exists()) {
       await file.delete();
     }
-    
+
     final db = await CacheManager.database;
     await db.delete(
       CacheManager.tableName,
@@ -115,7 +119,8 @@ class _CacheScreenState extends State<CacheScreen> {
     );
 
     setState(() {
-      cachedFiles.removeWhere((item) => item['bvid'] == bvid && item['cid'] == cid);
+      cachedFiles
+          .removeWhere((item) => item['bvid'] == bvid && item['cid'] == cid);
     });
   }
 
@@ -163,7 +168,8 @@ class _CacheScreenState extends State<CacheScreen> {
       }
 
       final fileName = '${file['title']} - ${file['artist']}.mp3';
-      final sanitizedFileName = fileName.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+      final sanitizedFileName =
+          fileName.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
       final targetPath = '${downloadDir.path}/$sanitizedFileName';
 
       await sourceFile.copy(targetPath);
@@ -185,8 +191,8 @@ class _CacheScreenState extends State<CacheScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: isSearching
+      appBar: AppBar(
+        title: isSearching
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
@@ -196,112 +202,118 @@ class _CacheScreenState extends State<CacheScreen> {
                 ),
               )
             : const Text('缓存管理'),
-          actions: [
-            IconButton(
-              icon: Icon(isSearching ? Icons.close : Icons.search),
-              onPressed: _toggleSearch,
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_sweep),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: const Text('清空缓存'),
-                      content: const Text('确定要清空所有缓存吗？'),
-                      actions: [
-                        TextButton(
-                          child: const Text('取消'),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        TextButton(
-                          child: const Text('确定'),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            clearAllCache();
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        ),
-        body: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: loadCachedFiles,
-                child: filteredFiles.isEmpty
-                    ? ListView( // Wrap Center in ListView for RefreshIndicator to work
-                        children: [
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.8, // Push content to center
-                            child: Center(
-                              child: Text(
-                                _searchController.text.isEmpty
-                                    ? '没有缓存文件'
-                                    : '没有找到匹配的文件',
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        itemCount: filteredFiles.length,
-                        itemBuilder: (context, index) {
-                          final file = filteredFiles[index];
-                          final fileSize = getFileSize(file['filePath']);
-                          final id = '${file['bvid']}_${file['cid']}';
-
-                          return TrackTile(
-                              key: Key(id),
-                              title: file['title'],
-                              author: file['artist'],
-                              len: fileSize,
-                              pic: file['artUri'],
-                              album: file['part'] == 0 ? null : file['bvid_title'],
-                              view: DateTime.fromMillisecondsSinceEpoch(
-                                file['createdAt'],
-                              ).toString().substring(0, 19),
-                              onTap: () => globals.api.playCachedAudio(file['bvid'], file['cid']),
-                              onAddToPlaylistButtonPressed: () => globals.api.addToPlaylistCachedAudio(file['bvid'], file['cid']),
-                              onLongPress: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('选择操作'),
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ListTile(
-                                          leading: const Icon(Icons.delete),
-                                          title: const Text('删除缓存'),
-                                          onTap: () {
-                                            Navigator.pop(context);
-                                            _showDeleteCacheDialog(context, file);
-                                          },
-                                        ),
-                                        ListTile(
-                                          leading: const Icon(Icons.download),
-                                          title: const Text('保存到下载'),
-                                          onTap: () {
-                                            Navigator.pop(context);
-                                            _showSaveToDownloadsDialog(context, file);
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
+        actions: [
+          IconButton(
+            icon: Icon(isSearching ? Icons.close : Icons.search),
+            onPressed: _toggleSearch,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('清空缓存'),
+                    content: const Text('确定要清空所有缓存吗？'),
+                    actions: [
+                      TextButton(
+                        child: const Text('取消'),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      TextButton(
+                        child: const Text('确定'),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          clearAllCache();
                         },
                       ),
-              ),
-              bottomNavigationBar: StreamBuilder<SequenceState?>(
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: loadCachedFiles,
+              child: filteredFiles.isEmpty
+                  ? ListView(
+                      // Wrap Center in ListView for RefreshIndicator to work
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height *
+                              0.8, // Push content to center
+                          child: Center(
+                            child: Text(
+                              _searchController.text.isEmpty
+                                  ? '没有缓存文件'
+                                  : '没有找到匹配的文件',
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      itemCount: filteredFiles.length,
+                      itemBuilder: (context, index) {
+                        final file = filteredFiles[index];
+                        final fileSize = getFileSize(file['filePath']);
+                        final id = '${file['bvid']}_${file['cid']}';
+
+                        return TrackTile(
+                          key: Key(id),
+                          title: file['title'],
+                          author: file['artist'],
+                          len: fileSize,
+                          pic: file['artUri'],
+                          album: file['part'] == 0 ? null : file['bvid_title'],
+                          view: DateTime.fromMillisecondsSinceEpoch(
+                            file['createdAt'],
+                          ).toString().substring(0, 19),
+                          onTap: () => globals.api
+                              .playCachedAudio(file['bvid'], file['cid']),
+                          onAddToPlaylistButtonPressed: () => globals.api
+                              .addToPlaylistCachedAudio(
+                                  file['bvid'], file['cid']),
+                          onLongPress: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('选择操作'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      leading: const Icon(Icons.delete),
+                                      title: const Text('删除缓存'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _showDeleteCacheDialog(context, file);
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(Icons.download),
+                                      title: const Text('保存到下载'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _showSaveToDownloadsDialog(
+                                            context, file);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+      bottomNavigationBar: StreamBuilder<SequenceState?>(
         stream: globals.api.player.sequenceStateStream,
         builder: (_, snapshot) {
           final src = snapshot.data?.sequence;
@@ -336,7 +348,8 @@ class _CacheScreenState extends State<CacheScreen> {
     );
   }
 
-  void _showSaveToDownloadsDialog(BuildContext context, Map<String, dynamic> file) {
+  void _showSaveToDownloadsDialog(
+      BuildContext context, Map<String, dynamic> file) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -359,4 +372,3 @@ class _CacheScreenState extends State<CacheScreen> {
     );
   }
 }
-

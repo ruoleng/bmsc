@@ -36,19 +36,21 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   int totalFavorites = 0;
   int processedFavorites = 0;
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   bool _notificationsInitialized = false;
 
   Future<void> _initializeNotifications() async {
     if (_notificationsInitialized) return;
-    
-    const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const initializationSettingsIOS = DarwinInitializationSettings();
     const initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
-    
+
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
     _notificationsInitialized = true;
   }
@@ -116,7 +118,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
               controller: textController,
               maxLines: 7,
               decoration: const InputDecoration(
-                hintText: '[示例1] 歌名 \$ 作者 \$ 时长(秒)\nTRUE \$ Yoari \$ 192\n夏日已所剩无几 \$ 泠鸢yousa \$ 271\n[示例2] 平台:歌单ID\nnetease:1234567890\ntencent:1207922987\nkugou:collection_3_1323003327_2_0',
+                hintText:
+                    '[示例1] 歌名 \$ 作者 \$ 时长(秒)\nTRUE \$ Yoari \$ 192\n夏日已所剩无几 \$ 泠鸢yousa \$ 271\n[示例2] 平台:歌单ID\nnetease:1234567890\ntencent:1207922987\nkugou:collection_3_1323003327_2_0',
                 border: OutlineInputBorder(),
                 isDense: true,
                 contentPadding: EdgeInsets.all(8),
@@ -133,10 +136,12 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: (isSearching && !isSearchPaused) || (isSaving && !isSavingPaused) ? null : _processPlaylist,
+                onPressed: (isSearching && !isSearchPaused) ||
+                        (isSaving && !isSavingPaused)
+                    ? null
+                    : _processPlaylist,
                 child: Text('搜索'),
               ),
-            
               Row(
                 children: [
                   Checkbox(
@@ -155,7 +160,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
           Expanded(
             child: Column(
               children: [
-                if (results.isNotEmpty) 
+                if (results.isNotEmpty)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -165,195 +170,239 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: isSaving || (isSearching && !isSearchPaused) ? null : () async {
-                          final uid = await globals.api.getStoredUID();
-                          if (uid == null) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('请先登录')),
-                              );
-                            }
-                            return;
-                          }
-                          
-                          final favs = await globals.api.getFavs(uid);
-                          if (favs == null || favs.list.isEmpty) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('未找到收藏夹')),
-                              );
-                            }
-                            return;
-                          }
+                        onPressed: isSaving || (isSearching && !isSearchPaused)
+                            ? null
+                            : () async {
+                                final uid = await globals.api.getStoredUID();
+                                if (uid == null) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('请先登录')),
+                                    );
+                                  }
+                                  return;
+                                }
 
-                          if (!context.mounted) return;
-                          
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('选择收藏夹'),
-                                content: SizedBox(
-                                  width: double.maxFinite,
-                                  height: 300,
-                                  child: ListView.builder(
-                                    shrinkWrap: true,
-                                    itemCount: favs.list.length,
-                                    itemBuilder: (context, index) {
-                                      final folder = favs.list[index];
-                                      return ListTile(
-                                        title: Text(folder.title),
-                                        subtitle: Text('${folder.mediaCount} 首曲目'),
-                                        onTap: () async {
-                                          Navigator.pop(context);
+                                final favs = await globals.api.getFavs(uid);
+                                if (favs == null || favs.list.isEmpty) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('未找到收藏夹')),
+                                    );
+                                  }
+                                  return;
+                                }
 
-                                          var foundTracks = [];
+                                if (!context.mounted) return;
 
-                                          for (var i = 0; i < results.length; i++) {
-                                            final result = results[i];
-                                            if (result['aid'] != null) {
-                                              foundTracks.add({...result, 'index': i});
-                                            }
-                                          }
-                                          
-                                          final confirmed = await showDialog<bool>(
-                                            context: context,
-                                            builder: (BuildContext context) {
-                                              return AlertDialog(
-                                                title: const Text('确认'),
-                                                content: Text('确定要添加 ${foundTracks.length} 首曲目到 ${folder.title} 吗？'),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () => Navigator.pop(context, false),
-                                                    child: const Text('取消'),
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('选择收藏夹'),
+                                      content: SizedBox(
+                                        width: double.maxFinite,
+                                        height: 300,
+                                        child: ListView.builder(
+                                          shrinkWrap: true,
+                                          itemCount: favs.list.length,
+                                          itemBuilder: (context, index) {
+                                            final folder = favs.list[index];
+                                            return ListTile(
+                                              title: Text(folder.title),
+                                              subtitle: Text(
+                                                  '${folder.mediaCount} 首曲目'),
+                                              onTap: () async {
+                                                Navigator.pop(context);
+
+                                                var foundTracks = [];
+
+                                                for (var i = 0;
+                                                    i < results.length;
+                                                    i++) {
+                                                  final result = results[i];
+                                                  if (result['aid'] != null) {
+                                                    foundTracks.add({
+                                                      ...result,
+                                                      'index': i
+                                                    });
+                                                  }
+                                                }
+
+                                                final confirmed =
+                                                    await showDialog<bool>(
+                                                  context: context,
+                                                  builder:
+                                                      (BuildContext context) {
+                                                    return AlertDialog(
+                                                      title: const Text('确认'),
+                                                      content: Text(
+                                                          '确定要添加 ${foundTracks.length} 首曲目到 ${folder.title} 吗？'),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                  context,
+                                                                  false),
+                                                          child:
+                                                              const Text('取消'),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                  context,
+                                                                  true),
+                                                          child:
+                                                              const Text('确定'),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+
+                                                if (confirmed != true) return;
+
+                                                var successCount = 0;
+
+                                                setState(() {
+                                                  isSaving = true;
+                                                  isSavingPaused = false;
+                                                  processedFavorites = 0;
+                                                  totalFavorites =
+                                                      foundTracks.length;
+                                                });
+
+                                                // Show initial favorite notification
+                                                await flutterLocalNotificationsPlugin
+                                                    .show(
+                                                  1, // Use a different notification ID for favorites
+                                                  '添加收藏',
+                                                  '准备添加到收藏夹...',
+                                                  const NotificationDetails(
+                                                    android:
+                                                        AndroidNotificationDetails(
+                                                      'favorite_progress',
+                                                      'Favorite Progress',
+                                                      channelDescription:
+                                                          'Notifications for favorite progress',
+                                                      importance:
+                                                          Importance.high,
+                                                      priority: Priority.high,
+                                                      ongoing: true,
+                                                      showProgress: true,
+                                                      onlyAlertOnce: true,
+                                                      playSound: false,
+                                                    ),
                                                   ),
-                                                  TextButton(
-                                                    onPressed: () => Navigator.pop(context, true),
-                                                    child: const Text('确定'),
+                                                );
+
+                                                for (var i = 0;
+                                                    i < foundTracks.length;
+                                                    i++) {
+                                                  await _waitForSavingPause();
+                                                  final track = foundTracks[i];
+                                                  final success = await globals
+                                                      .api
+                                                      .favoriteVideo(
+                                                    track['aid'],
+                                                    [folder.id],
+                                                    [],
+                                                  );
+                                                  if (success == null) {
+                                                    showErrorSnackBar(
+                                                        "收藏失败，已暂停");
+                                                    --i;
+                                                    _toggleSavingPause();
+                                                    continue;
+                                                  }
+
+                                                  setState(() {
+                                                    results[track['index']]
+                                                            ['favAddStatus'] =
+                                                        success;
+                                                    processedFavorites = i + 1;
+                                                  });
+
+                                                  // Update favorite progress notification
+                                                  await flutterLocalNotificationsPlugin
+                                                      .show(
+                                                    1,
+                                                    '添加收藏',
+                                                    '处理中: ${i + 1}/${foundTracks.length}',
+                                                    NotificationDetails(
+                                                      android:
+                                                          AndroidNotificationDetails(
+                                                        'favorite_progress',
+                                                        'Favorite Progress',
+                                                        channelDescription:
+                                                            'Notifications for favorite progress',
+                                                        importance:
+                                                            Importance.high,
+                                                        priority: Priority.high,
+                                                        ongoing: true,
+                                                        showProgress: true,
+                                                        maxProgress:
+                                                            foundTracks.length,
+                                                        progress: i + 1,
+                                                        onlyAlertOnce: true,
+                                                        playSound: false,
+                                                      ),
+                                                    ),
+                                                  );
+
+                                                  if (autoscroll) {
+                                                    scrollTo(track['index']);
+                                                  }
+                                                  if (success) successCount++;
+
+                                                  await Future.delayed(
+                                                      const Duration(
+                                                          milliseconds: 1200));
+                                                }
+
+                                                // Show completion notification
+                                                await flutterLocalNotificationsPlugin
+                                                    .show(
+                                                  1,
+                                                  '添加收藏',
+                                                  '完成: 已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}',
+                                                  const NotificationDetails(
+                                                    android:
+                                                        AndroidNotificationDetails(
+                                                      'favorite_progress',
+                                                      'Favorite Progress',
+                                                      channelDescription:
+                                                          'Notifications for favorite progress',
+                                                      importance:
+                                                          Importance.high,
+                                                      priority: Priority.high,
+                                                      onlyAlertOnce: true,
+                                                      playSound: false,
+                                                    ),
                                                   ),
-                                                ],
-                                              );
-                                            },
-                                          );
+                                                );
 
-                                          if (confirmed != true) return;
-                                          
-                                          var successCount = 0;
-
-                                          setState(() {
-                                            isSaving = true;
-                                            isSavingPaused = false;
-                                            processedFavorites = 0;
-                                            totalFavorites = foundTracks.length;
-                                          });
-                                          
-                                          // Show initial favorite notification
-                                          await flutterLocalNotificationsPlugin.show(
-                                            1, // Use a different notification ID for favorites
-                                            '添加收藏',
-                                            '准备添加到收藏夹...',
-                                            const NotificationDetails(
-                                              android: AndroidNotificationDetails(
-                                                'favorite_progress',
-                                                'Favorite Progress',
-                                                channelDescription: 'Notifications for favorite progress',
-                                                importance: Importance.high,
-                                                priority: Priority.high,
-                                                ongoing: true,
-                                                showProgress: true,
-                                                onlyAlertOnce: true,
-                                                playSound: false,
-                                              ),
-                                            ),
-                                          );
-                                          
-                                          for (var i = 0; i < foundTracks.length; i++) {
-                                            await _waitForSavingPause();
-                                            final track = foundTracks[i];
-                                            final success = await globals.api.favoriteVideo(
-                                              track['aid'],
-                                              [folder.id],
-                                              [],
+                                                setState(() {
+                                                  isSaving = false;
+                                                });
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                          '已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}'),
+                                                    ),
+                                                  );
+                                                }
+                                              },
                                             );
-                                            if (success == null) {
-                                              showErrorSnackBar("收藏失败，已暂停");
-                                              --i;
-                                              _toggleSavingPause();
-                                              continue;
-                                            }
-
-                                            setState(() {
-                                              results[track['index']]['favAddStatus'] = success;
-                                              processedFavorites = i + 1;
-                                            });
-
-                                            // Update favorite progress notification
-                                            await flutterLocalNotificationsPlugin.show(
-                                              1,
-                                              '添加收藏',
-                                              '处理中: ${i + 1}/${foundTracks.length}',
-                                              NotificationDetails(
-                                                android: AndroidNotificationDetails(
-                                                  'favorite_progress',
-                                                  'Favorite Progress',
-                                                  channelDescription: 'Notifications for favorite progress',
-                                                  importance: Importance.high,
-                                                  priority: Priority.high,
-                                                  ongoing: true,
-                                                  showProgress: true,
-                                                  maxProgress: foundTracks.length,
-                                                  progress: i + 1,
-                                                  onlyAlertOnce: true,
-                                                  playSound: false,
-                                                ),
-                                              ),
-                                            );
-
-                                            if (autoscroll) {
-                                              scrollTo(track['index']);
-                                            }
-                                            if (success) successCount++;
-                                            
-                                            await Future.delayed(const Duration(milliseconds: 1200));
-                                          }
-
-                                          // Show completion notification
-                                          await flutterLocalNotificationsPlugin.show(
-                                            1,
-                                            '添加收藏',
-                                            '完成: 已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}',
-                                            const NotificationDetails(
-                                              android: AndroidNotificationDetails(
-                                                'favorite_progress',
-                                                'Favorite Progress',
-                                                channelDescription: 'Notifications for favorite progress',
-                                                importance: Importance.high,
-                                                priority: Priority.high,
-                                                onlyAlertOnce: true,
-                                                playSound: false,
-                                              ),
-                                            ),
-                                          );
-
-                                          setState(() {
-                                            isSaving = false;
-                                          });
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text('已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}'),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
                         child: const Text('收藏'),
                       ),
                       const SizedBox(width: 8),
@@ -388,15 +437,15 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                       ),
                     ],
                   ),
-                    if (isSearching || isSavingPaused)
-    LinearProgressIndicator(
-      value: totalTracks > 0 ? processedTracks / totalTracks : 0,
-    ),
-  if (totalFavorites > 0)
-    LinearProgressIndicator(
-      value: processedFavorites / totalFavorites,
-      color: Colors.green,
-    ),
+                if (isSearching || isSavingPaused)
+                  LinearProgressIndicator(
+                    value: totalTracks > 0 ? processedTracks / totalTracks : 0,
+                  ),
+                if (totalFavorites > 0)
+                  LinearProgressIndicator(
+                    value: processedFavorites / totalFavorites,
+                    color: Colors.green,
+                  ),
                 Expanded(
                   child: ListView.builder(
                     controller: scrollController,
@@ -404,23 +453,29 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                     itemBuilder: (context, index) {
                       // Create a key if it doesn't exist
                       itemKeys[index] ??= GlobalKey();
-                      
+
                       final result = results[index];
                       return ListTile(
                         key: itemKeys[index],
-                        title: Text("${result['artist']} - ${result['track']}", style: TextStyle(fontSize: 14)),
+                        title: Text("${result['artist']} - ${result['track']}",
+                            style: TextStyle(fontSize: 14)),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('result: ${result['title'] ?? '未找到'}', style: TextStyle(fontSize: 12)),
-                            if (result['bvid'] != null) 
-                              Text('(∑: ${result['score']}) (|Δ|: ${result['durationDiff']}s) (ε: ${result['play']}) (§: ${result['typename']})', style: TextStyle(fontSize: 12)),
+                            Text('result: ${result['title'] ?? '未找到'}',
+                                style: TextStyle(fontSize: 12)),
+                            if (result['bvid'] != null)
+                              Text(
+                                  '(∑: ${result['score']}) (|Δ|: ${result['durationDiff']}s) (ε: ${result['play']}) (§: ${result['typename']})',
+                                  style: TextStyle(fontSize: 12)),
                             if (result['favAddStatus'] != null)
                               Text(
                                 result['favAddStatus']! ? '已添加到收藏夹' : '添加失败',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: result['favAddStatus']! ? Colors.green : Colors.red,
+                                  color: result['favAddStatus']!
+                                      ? Colors.green
+                                      : Colors.red,
                                 ),
                               ),
                           ],
@@ -428,79 +483,91 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.refresh),
-                                    onPressed: isSearching && !isSearchPaused ? null : () async {
-                                      FocusManager.instance.primaryFocus?.unfocus();
-                                      setState(() => isSearching = true);
-                                      final track = result['track'];
-                                      final artist = result['artist'];
-                                      final duration = result['duration'];
-                                      final trackResults = await _searchTracks(
-                                        track, 
-                                        artist, 
-                                        duration
-                                      );
-                                      if (trackResults.isEmpty) {
-                                        showErrorSnackBar("搜索失败");
-                                      }
-                                      setState(() {
-                                        isSearching = false;
-                                      });
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.refresh),
+                                  onPressed: isSearching && !isSearchPaused
+                                      ? null
+                                      : () async {
+                                          FocusManager.instance.primaryFocus
+                                              ?.unfocus();
+                                          setState(() => isSearching = true);
+                                          final track = result['track'];
+                                          final artist = result['artist'];
+                                          final duration = result['duration'];
+                                          final trackResults =
+                                              await _searchTracks(
+                                                  track, artist, duration);
+                                          if (trackResults.isEmpty) {
+                                            showErrorSnackBar("搜索失败");
+                                          }
+                                          setState(() {
+                                            isSearching = false;
+                                          });
 
-                                      if (!context.mounted) return;
-                                      
-                                      final selectedVideo = await showDialog<int?>(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            title: Text('选择视频'),
-                                            content: SizedBox(
-                                              width: double.maxFinite,
-                                              height: 400,
-                                              child: ListView.builder(
-                                                shrinkWrap: true,
-                                                itemCount: trackResults.length,
-                                                itemBuilder: (context, i) {
-                                                  final video = trackResults[i];
-                                                  
-                                                  return ListTile(
-                                                    title: Text(stripHtmlIfNeeded(video['title']), style: TextStyle(fontSize: 12)),
-                                                    subtitle: Text('(∑: ${video['score']}) (|Δ|: ${video['durationDiff']}s) (ε: ${video['play']}) (§: ${video['typename']})', style: TextStyle(fontSize: 12)),
-                                                    onTap: () {
-                                                      Navigator.pop(context, i);
+                                          if (!context.mounted) return;
+
+                                          final selectedVideo =
+                                              await showDialog<int?>(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text('选择视频'),
+                                                content: SizedBox(
+                                                  width: double.maxFinite,
+                                                  height: 400,
+                                                  child: ListView.builder(
+                                                    shrinkWrap: true,
+                                                    itemCount:
+                                                        trackResults.length,
+                                                    itemBuilder: (context, i) {
+                                                      final video =
+                                                          trackResults[i];
+
+                                                      return ListTile(
+                                                        title: Text(
+                                                            stripHtmlIfNeeded(
+                                                                video['title']),
+                                                            style: TextStyle(
+                                                                fontSize: 12)),
+                                                        subtitle: Text(
+                                                            '(∑: ${video['score']}) (|Δ|: ${video['durationDiff']}s) (ε: ${video['play']}) (§: ${video['typename']})',
+                                                            style: TextStyle(
+                                                                fontSize: 12)),
+                                                        onTap: () {
+                                                          Navigator.pop(
+                                                              context, i);
+                                                        },
+                                                      );
                                                     },
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context);
-                                                },
-                                                child: Text('取消'),
-                                              ),
-                                            ],
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: Text('取消'),
+                                                  ),
+                                                ],
+                                              );
+                                            },
                                           );
+                                          if (selectedVideo == null) return;
+                                          setState(() {
+                                            results[index] =
+                                                trackResults[selectedVideo];
+                                          });
                                         },
-                                      );
-                                      if (selectedVideo == null) return;
-                                      setState(() {
-                                        results[index] = trackResults[selectedVideo];
-                                      });
-                                    },
-                                  ),
-                                  if (result['bvid'] != null)
-                                    const Icon(Icons.check, color: Colors.green)
-                                  else
-                                    const Icon(Icons.close, color: Colors.red),
-                                ],
-                              ),
+                                ),
+                                if (result['bvid'] != null)
+                                  const Icon(Icons.check, color: Colors.green)
+                                else
+                                  const Icon(Icons.close, color: Colors.red),
+                              ],
+                            ),
                           ],
                         ),
                       );
@@ -536,7 +603,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
 
   Future<void> _processPlaylist() async {
     await _initializeNotifications();
-    
+
     // Show initial notification
     const androidDetails = AndroidNotificationDetails(
       'playlist_search',
@@ -551,7 +618,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       autoCancel: false,
     );
     const notificationDetails = NotificationDetails(android: androidDetails);
-    
+
     await flutterLocalNotificationsPlugin.show(
       0,
       '歌单搜索',
@@ -627,12 +694,14 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
 
     // Show all tracks first
     setState(() {
-      results = tracks.map((track) => {
-        'track': track['name'],
-        'artist': track['artist'],
-        'duration': track['duration'],
-        'title': '等待搜索...',  // "Waiting for search..."
-      }).toList();
+      results = tracks
+          .map((track) => {
+                'track': track['name'],
+                'artist': track['artist'],
+                'duration': track['duration'],
+                'title': '等待搜索...', // "Waiting for search..."
+              })
+          .toList();
       totalTracks = tracks.length;
     });
 
@@ -663,7 +732,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       await _waitForSearchPause();
       await Future.delayed(const Duration(milliseconds: 1200));
       final track = tracks[i];
-      final result = await _searchTrack(track['name'], track['artist'], track['duration']);
+      final result =
+          await _searchTrack(track['name'], track['artist'], track['duration']);
       if (result == null) {
         showErrorSnackBar("搜索失败，已暂停");
         --i;
@@ -733,30 +803,40 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
 
   static const _minCommonSubstringLength = 4;
 
-  Set<String> allTypeNames = {
-  };
+  Set<String> allTypeNames = {};
   static const int INF = 999;
 
   final RegExp wordRegex = RegExp(r'([^a-zA-Z0-9_\u4e00-\u9fa5]+)');
 
-  Future<List<Map<String, dynamic>>> _searchTracks(String track, String artist, int duration) async {
-    
+  Future<List<Map<String, dynamic>>> _searchTracks(
+      String track, String artist, int duration) async {
     final searchString = '$track - $artist';
     final searchResult = await globals.api.search(searchString, 1);
     if (searchResult == null) return [];
-   
+
     List<Map<String, dynamic>> ret = [];
 
-    final trackWords = track.toLowerCase().split(wordRegex).where((e) => e.isNotEmpty).toList();
-    final artistWords = artist.toLowerCase().split(wordRegex).where((e) => e.isNotEmpty).toList();
+    final trackWords = track
+        .toLowerCase()
+        .split(wordRegex)
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final artistWords = artist
+        .toLowerCase()
+        .split(wordRegex)
+        .where((e) => e.isNotEmpty)
+        .toList();
 
-    final searchWords = searchString.toLowerCase().split(wordRegex).where((e) => e.isNotEmpty).toList();
+    final searchWords = searchString
+        .toLowerCase()
+        .split(wordRegex)
+        .where((e) => e.isNotEmpty)
+        .toList();
     final searchWordsSet = searchWords.toSet();
-    final searchChinese = RegExp(r'[\u4e00-\u9fa5]+').allMatches(searchString)
-          .map((m) => m.group(0)!)
-          .join();
-
-
+    final searchChinese = RegExp(r'[\u4e00-\u9fa5]+')
+        .allMatches(searchString)
+        .map((m) => m.group(0)!)
+        .join();
 
     int _rankScore(Result video) {
       // 音Mad, 音乐现场, 翻唱, 科学科普, 运动综合
@@ -767,7 +847,11 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       if (durationDiff > 3 * 60) return -INF;
 
       final result = stripHtmlIfNeeded(video.title);
-      final resultWords = result.toLowerCase().split(wordRegex).where((e) => e.isNotEmpty).toList();
+      final resultWords = result
+          .toLowerCase()
+          .split(wordRegex)
+          .where((e) => e.isNotEmpty)
+          .toList();
 
       bool hasTrack = containsSubarrayKMP(resultWords, trackWords);
       bool hasArtist = containsSubarrayKMP(resultWords, artistWords);
@@ -777,16 +861,18 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
 
       if (hasTrack || hasArtist) return 10;
 
-      bool hasWordMatch = searchWordsSet.intersection(resultWords.toSet()).isNotEmpty;
+      bool hasWordMatch =
+          searchWordsSet.intersection(resultWords.toSet()).isNotEmpty;
       if (hasWordMatch) return 5;
 
       bool hasLongChineseCommonSubstring = false;
-      final resultChinese = RegExp(r'[\u4e00-\u9fa5]+').allMatches(result)
-        .map((m) => m.group(0)!)
-        .join();
+      final resultChinese = RegExp(r'[\u4e00-\u9fa5]+')
+          .allMatches(result)
+          .map((m) => m.group(0)!)
+          .join();
 
       int maxLen = 0;
-      
+
       final List<List<int>> dp = List.generate(
         searchChinese.length + 1,
         (_) => List.filled(resultChinese.length + 1, 0),
@@ -812,7 +898,6 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     }
 
     for (final video in searchResult.result) {
-
       if (video.typeid == '') continue;
 
       int priority = switch (video.typeid) {
@@ -825,26 +910,28 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       int score = _rankScore(video);
       // if (score == -INF) continue;
       int durationDiff = (_parseDuration(video.duration) - duration).abs();
-      final videoPlayCountLog = video.play > 0 ? (log(video.play) / log(10)) : 0;
+      final videoPlayCountLog =
+          video.play > 0 ? (log(video.play) / log(10)) : 0;
       score += priority * 1000 - durationDiff + (videoPlayCountLog * 5).round();
       ret.add({
-          'track': track,
-          'artist': artist,
-          'duration': duration,
-          'bvid': video.bvid,
-          'aid': video.aid,
-          'typename': video.typename,
-          'typeid': video.typeid,
-          'title': stripHtmlIfNeeded(video.title),
-          'durationDiff': durationDiff,
-          'play': videoPlayCountLog.round(),
-          'score': score,
+        'track': track,
+        'artist': artist,
+        'duration': duration,
+        'bvid': video.bvid,
+        'aid': video.aid,
+        'typename': video.typename,
+        'typeid': video.typeid,
+        'title': stripHtmlIfNeeded(video.title),
+        'durationDiff': durationDiff,
+        'play': videoPlayCountLog.round(),
+        'score': score,
       });
     }
     return ret;
   }
 
-  Future<Map<String, dynamic>?> _searchTrack(String track, String artist, int duration) async {
+  Future<Map<String, dynamic>?> _searchTrack(
+      String track, String artist, int duration) async {
     final tracks = await _searchTracks(track, artist, duration);
     if (tracks.isEmpty) return null;
     return tracks.reduce((a, b) => a['score'] > b['score'] ? a : b);

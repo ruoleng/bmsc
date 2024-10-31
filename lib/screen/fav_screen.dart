@@ -29,7 +29,7 @@ class _FavScreenState extends State<FavScreen> {
   Future<void> loadFavorites() async {
     if (!mounted) return;
     setState(() => isLoading = true);
-    
+
     globals.api.getStoredUID().then((uid) async {
       if (!mounted) return;
       if (uid == null) {
@@ -73,9 +73,8 @@ class _FavScreenState extends State<FavScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('云收藏夹', 
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)
-        ),
+        title: const Text('云收藏夹',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -85,65 +84,73 @@ class _FavScreenState extends State<FavScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: loadFavorites,
-        child: isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : favList.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.folder_outlined, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(
-                        '暂无收藏夹',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: favList.length,
-                  itemBuilder: (context, index) => Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    elevation: 2,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      leading: CircleAvatar(
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                        child: Text(
-                          favList[index].title.characters.first,
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : favList.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.folder_outlined,
+                            size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(
+                          '暂无收藏夹',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            fontSize: 16,
+                            color: Theme.of(context).colorScheme.secondary,
                           ),
                         ),
-                      ),
-                      title: Text(
-                        favList[index].title,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          "${favList[index].mediaCount} 首曲目",
-                          style: TextStyle(color: Theme.of(context).colorScheme.secondary),
-                        ),
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => FavDetailScreen(fav: favList[index]),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: favList.length,
+                    itemBuilder: (context, index) => Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      elevation: 2,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primaryContainer,
+                          child: Text(
+                            favList[index].title.characters.first,
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                            ),
                           ),
-                        );
-                      },
+                        ),
+                        title: Text(
+                          favList[index].title,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            "${favList[index].mediaCount} 首曲目",
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.secondary),
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  FavDetailScreen(fav: favList[index]),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
       ),
     );
   }

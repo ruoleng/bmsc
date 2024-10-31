@@ -71,7 +71,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _listItemView(Result vid) {
-    final duration = vid.duration.split(':').map((x) => x.padLeft(2, '0')).join(':');
+    final duration =
+        vid.duration.split(':').map((x) => x.padLeft(2, '0')).join(':');
     return TrackTile(
       key: Key(vid.bvid),
       pic: 'https:${vid.pic}',
@@ -80,7 +81,10 @@ class _SearchScreenState extends State<SearchScreen> {
       len: duration,
       view: unit(vid.play),
       onTap: () => globals.api.playByBvid(vid.bvid),
-      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(vid.bvid, insertIndex: globals.api.playlist.length == 0 ? 0 : globals.api.player.currentIndex! + 1),
+      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(vid.bvid,
+          insertIndex: globals.api.playlist.length == 0
+              ? 0
+              : globals.api.player.currentIndex! + 1),
     );
   }
 

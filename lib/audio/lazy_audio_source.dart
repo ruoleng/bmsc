@@ -10,7 +10,8 @@ class LazyAudioSource extends LockCachingAudioSource {
   final Uri uri;
   final dynamic tag;
 
-  static Future<LazyAudioSource> create(String bvid, int cid, Uri uri, dynamic tag) async {
+  static Future<LazyAudioSource> create(
+      String bvid, int cid, Uri uri, dynamic tag) async {
     final cacheFile = await CacheManager.prepareFileForCaching(bvid, cid);
     final ret = LazyAudioSource._(bvid, cid, uri, cacheFile, tag);
     ret.downloadProgressStream.listen((progress) {
@@ -22,5 +23,6 @@ class LazyAudioSource extends LockCachingAudioSource {
   }
 
   LazyAudioSource._(this.bvid, this.cid, this.uri, File cacheFile, this.tag)
-      : super(uri, headers: globals.api.headers, cacheFile: cacheFile, tag: tag);
+      : super(uri,
+            headers: globals.api.headers, cacheFile: cacheFile, tag: tag);
 }

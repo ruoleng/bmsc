@@ -39,7 +39,11 @@ class TrackTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       elevation: 2,
       shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-      color: cachedCount == parts ? Colors.green.withOpacity(0.1) : cachedCount > 0 ? Colors.blue.withOpacity(0.1) : null,
+      color: cachedCount == parts
+          ? Colors.green.withOpacity(0.1)
+          : cachedCount > 0
+              ? Colors.blue.withOpacity(0.1)
+              : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
@@ -60,7 +64,9 @@ class TrackTile extends StatelessWidget {
                       height: 48,
                       child: pic == null || pic == ""
                           ? Container(
-                              color: Theme.of(context).colorScheme.primaryContainer,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer,
                               child: Icon(
                                 Icons.music_note,
                                 color: Theme.of(context).colorScheme.primary,
@@ -71,7 +77,9 @@ class TrackTile extends StatelessWidget {
                               imageUrl: pic!,
                               fit: BoxFit.cover,
                               placeholder: (_, __) => Container(
-                                color: Theme.of(context).colorScheme.primaryContainer,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
                                 child: Icon(
                                   Icons.music_note,
                                   color: Theme.of(context).colorScheme.primary,
@@ -79,7 +87,9 @@ class TrackTile extends StatelessWidget {
                                 ),
                               ),
                               errorWidget: (_, __, ___) => Container(
-                                color: Theme.of(context).colorScheme.primaryContainer,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
                                 child: Icon(
                                   Icons.music_note,
                                   color: Theme.of(context).colorScheme.primary,
@@ -123,44 +133,48 @@ class TrackTile extends StatelessWidget {
                           margin: const EdgeInsets.only(right: 40),
                           child: Row(
                             children: [
-                            if (album != null) ...[
+                              if (album != null) ...[
+                                Icon(
+                                  Icons.album,
+                                  size: 12,
+                                  color:
+                                      Theme.of(context).colorScheme.secondary,
+                                ),
+                                const SizedBox(width: 2),
+                                Flexible(
+                                  child: Text(
+                                    album!,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
                               Icon(
-                                Icons.album,
+                                Icons.person_outline,
                                 size: 12,
                                 color: Theme.of(context).colorScheme.secondary,
                               ),
                               const SizedBox(width: 2),
                               Flexible(
                                 child: Text(
-                                  album!,
+                                  author,
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    color: Theme.of(context).colorScheme.secondary,
+                                    fontSize: 12,
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              // const SizedBox(width: 24),
                             ],
-                            Icon(
-                              Icons.person_outline,
-                              size: 12,
-                              color: Theme.of(context).colorScheme.secondary,
-                            ),
-                            const SizedBox(width: 2),
-                            Flexible(
-                              child: Text(
-                                author,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).colorScheme.secondary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            // const SizedBox(width: 24),
-                          ],
-                        ),
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Row(
@@ -176,7 +190,8 @@ class TrackTile extends StatelessWidget {
                                 '$parts',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context).colorScheme.secondary,
+                                  color:
+                                      Theme.of(context).colorScheme.secondary,
                                 ),
                               ),
                               if (excludedParts > 0) ...[
@@ -215,7 +230,8 @@ class TrackTile extends StatelessWidget {
                                 view!,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context).colorScheme.secondary,
+                                  color:
+                                      Theme.of(context).colorScheme.secondary,
                                 ),
                               ),
                             ],
@@ -231,7 +247,8 @@ class TrackTile extends StatelessWidget {
                                 time!,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context).colorScheme.secondary,
+                                  color:
+                                      Theme.of(context).colorScheme.secondary,
                                 ),
                               ),
                             ],

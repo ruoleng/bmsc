@@ -80,7 +80,7 @@ class CacheManager {
           PRIMARY KEY (bvid, mid)
         )
       ''');
-      
+
       await db.execute('''
         CREATE TABLE $favListTable (
           id INTEGER PRIMARY KEY,
@@ -124,14 +124,16 @@ class CacheManager {
     for (int i = 0; i < metas.length; i++) {
       var json = metas[i].toJson();
       json['list_order'] = i;
-      batch.insert(metaTable, json, conflictAlgorithm: ConflictAlgorithm.replace);
+      batch.insert(metaTable, json,
+          conflictAlgorithm: ConflictAlgorithm.replace);
     }
     await batch.commit();
   }
 
   static Future<Meta?> getMeta(String bvid) async {
     final db = await database;
-    final results = await db.query(metaTable, where: 'bvid = ?', whereArgs: [bvid]);
+    final results =
+        await db.query(metaTable, where: 'bvid = ?', whereArgs: [bvid]);
     final ret = results.firstOrNull;
     if (ret == null) {
       return null;
@@ -143,28 +145,28 @@ class CacheManager {
     final db = await database;
     const int chunkSize = 500; // Safe size for most SQLite configurations
     final List<Meta> allResults = [];
-    
+
     // Process in chunks
     for (var i = 0; i < bvids.length; i += chunkSize) {
       final chunk = bvids.sublist(i, min(i + chunkSize, bvids.length));
       final placeholders = List.filled(chunk.length, '?').join(',');
       final orderString = ',${chunk.join(',')},';
-      
+
       final results = await db.rawQuery('''
         SELECT * FROM $metaTable 
         WHERE bvid IN ($placeholders)
         ORDER BY INSTR(?, ',' || bvid || ',')
       ''', [...chunk, orderString]);
-      
+
       allResults.addAll(results.map((e) => Meta.fromJson(e)));
     }
-    
+
     return allResults;
   }
 
   static Future<void> removeExcludedPart(String bvid, int cid) async {
     final db = await database;
-     await db.update(
+    await db.update(
       entityTable,
       {'excluded': 0},
       where: 'bvid = ? AND cid = ?',
@@ -186,7 +188,8 @@ class CacheManager {
     final db = await database;
     final batch = db.batch();
     for (var item in data) {
-      batch.insert(entityTable, item.toJson(), conflictAlgorithm: ConflictAlgorithm.ignore);
+      batch.insert(entityTable, item.toJson(),
+          conflictAlgorithm: ConflictAlgorithm.ignore);
     }
     await batch.commit();
   }
@@ -227,7 +230,7 @@ class CacheManager {
     if (meta == null) {
       return null;
     }
-    
+
     final db = await database;
     final results = await db.query(
       tableName,
@@ -239,27 +242,28 @@ class CacheManager {
       final entities = await getEntities(bvid);
       return results.map((result) {
         final filePath = result['filePath'] as String;
-        final entity = entities.firstWhere((e) => e.bvid == bvid && e.cid == result['cid']);
-        return AudioSource.file(filePath, tag: MediaItem(
-          id: '${bvid}_${result['cid']}',
-          title: entity.partTitle,
-          artist: entity.artist,
-          artUri: Uri.parse(entity.artUri),
-          extras: {
-            'bvid': bvid,
-            'aid': entity.aid,
-            'cid': entity.cid,
-            'mid': meta.mid,
-            'multi': entity.part > 0,
-            'raw_title': entity.bvidTitle,
-            'cached': true
-            },
-          ));
+        final entity = entities
+            .firstWhere((e) => e.bvid == bvid && e.cid == result['cid']);
+        return AudioSource.file(filePath,
+            tag: MediaItem(
+              id: '${bvid}_${result['cid']}',
+              title: entity.partTitle,
+              artist: entity.artist,
+              artUri: Uri.parse(entity.artUri),
+              extras: {
+                'bvid': bvid,
+                'aid': entity.aid,
+                'cid': entity.cid,
+                'mid': meta.mid,
+                'multi': entity.part > 0,
+                'raw_title': entity.bvidTitle,
+                'cached': true
+              },
+            ));
       }).toList();
     }
     return null;
   }
-
 
   static Future<LazyAudioSource?> getCachedAudio(String bvid, int cid) async {
     final meta = await getMeta(bvid);
@@ -277,19 +281,20 @@ class CacheManager {
       final filePath = results.first['filePath'] as String;
       final entities = await getEntities(bvid);
       final entity = entities.firstWhere((e) => e.bvid == bvid && e.cid == cid);
-      final tag = MediaItem(id: '${bvid}_$cid',
-        title: entity.partTitle,
-        artist: entity.artist,
-        artUri: Uri.parse(entity.artUri),
-        extras: {
-          'bvid': bvid,
-          'aid': entity.aid,
-          'cid': cid,
-          'mid': meta.mid,
-          'multi': entity.part > 0,
-          'raw_title': entity.bvidTitle,
-          'cached': true
-        });
+      final tag = MediaItem(
+          id: '${bvid}_$cid',
+          title: entity.partTitle,
+          artist: entity.artist,
+          artUri: Uri.parse(entity.artUri),
+          extras: {
+            'bvid': bvid,
+            'aid': entity.aid,
+            'cid': cid,
+            'mid': meta.mid,
+            'multi': entity.part > 0,
+            'raw_title': entity.bvidTitle,
+            'cached': true
+          });
       return LazyAudioSource.create(bvid, cid, Uri.parse(filePath), tag);
     }
     return null;
@@ -302,14 +307,18 @@ class CacheManager {
     return File(filePath);
   }
 
-  static Future<void> saveCacheMetadata(String bvid, int cid, String filePath) async {
+  static Future<void> saveCacheMetadata(
+      String bvid, int cid, String filePath) async {
     final db = await database;
-    await db.insert(tableName, {
-      'bvid': bvid,
-      'cid': cid,
-      'filePath': filePath,
-      'createdAt': DateTime.now().millisecondsSinceEpoch,
-    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+    await db.insert(
+        tableName,
+        {
+          'bvid': bvid,
+          'cid': cid,
+          'filePath': filePath,
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   static Future<void> resetCache() async {
@@ -319,12 +328,12 @@ class CacheManager {
 
   static Future<void> cacheFavList(List<Fav> favs) async {
     final db = await database;
-    
+
     // Clear existing table first
     await db.delete(favListTable);
-    
+
     final batch = db.batch();
-    
+
     for (int i = 0; i < favs.length; i++) {
       batch.insert(
         favListTable,
@@ -337,21 +346,21 @@ class CacheManager {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
-    
+
     await batch.commit();
   }
 
   static Future<void> cacheFavDetail(int favId, List<Medias> medias) async {
     final db = await database;
     final batch = db.batch();
-    
+
     // First clear existing entries for this fav_id to avoid order conflicts
     await db.delete(
       favDetailTable,
       where: 'fav_id = ?',
       whereArgs: [favId],
     );
-    
+
     // Insert with order information
     for (int i = 0; i < medias.length; i++) {
       final media = medias[i];
@@ -367,24 +376,24 @@ class CacheManager {
           'play_count': media.cntInfo.play,
           'bvid': media.bvid,
           'fav_id': favId,
-          'list_order': i,  // Add order field
+          'list_order': i, // Add order field
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
-    
+
     await batch.commit();
   }
 
-  static Future<void> appendCacheFavDetail(int favId, List<Medias> medias) async {
+  static Future<void> appendCacheFavDetail(
+      int favId, List<Medias> medias) async {
     final db = await database;
     final batch = db.batch();
-    
+
     // Get current max order
     final maxOrderResult = await db.rawQuery(
-      'SELECT MAX(list_order) as max_order FROM $favDetailTable WHERE fav_id = ?',
-      [favId]
-    );
+        'SELECT MAX(list_order) as max_order FROM $favDetailTable WHERE fav_id = ?',
+        [favId]);
     final int startOrder = (maxOrderResult.first['max_order'] as int?) ?? -1;
 
     // Insert new items with incremented order
@@ -407,22 +416,21 @@ class CacheManager {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
-    
+
     await batch.commit();
   }
 
   static Future<List<Fav>> getCachedFavList() async {
     final db = await database;
-    final results = await db.query(
-      favListTable,
-      orderBy: 'list_order ASC'
-    );
-    
-    return results.map((row) => Fav(
-      id: row['id'] as int,
-      title: row['title'] as String,
-      mediaCount: row['mediaCount'] as int,
-    )).toList();
+    final results = await db.query(favListTable, orderBy: 'list_order ASC');
+
+    return results
+        .map((row) => Fav(
+              id: row['id'] as int,
+              title: row['title'] as String,
+              mediaCount: row['mediaCount'] as int,
+            ))
+        .toList();
   }
 
   static Future<void> cacheFavListVideo(List<String> bvids, int mid) async {
@@ -437,7 +445,8 @@ class CacheManager {
 
   static Future<List<String>> getCachedFavListVideo(int mid) async {
     final db = await database;
-    final results = await db.query(favListVideoTable, where: 'mid = ?', whereArgs: [mid]);
+    final results =
+        await db.query(favListVideoTable, where: 'mid = ?', whereArgs: [mid]);
     return results.map((row) => row['bvid'] as String).toList();
   }
 }

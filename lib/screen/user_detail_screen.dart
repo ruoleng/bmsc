@@ -7,7 +7,6 @@ import 'package:bmsc/globals.dart' as globals;
 import '../component/track_tile.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
 class UserDetailScreen extends StatefulWidget {
   const UserDetailScreen({super.key, required this.mid});
 
@@ -85,8 +84,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                               : CachedNetworkImage(
                                   imageUrl: info!.card.face,
                                   fit: BoxFit.cover,
-                                  placeholder: (context, url) => const Icon(Icons.question_mark),
-                                  errorWidget: (context, url, error) => const Icon(Icons.question_mark),
+                                  placeholder: (context, url) =>
+                                      const Icon(Icons.question_mark),
+                                  errorWidget: (context, url, error) =>
+                                      const Icon(Icons.question_mark),
                                 )),
                     ),
                   ],
