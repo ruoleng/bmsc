@@ -448,9 +448,9 @@ class _DetailScreenState extends State<DetailScreen> {
                                                           scaffoldContext)
                                                       .showSnackBar(
                                                     const SnackBar(
-                                                    content: Text('收藏夹已更新'),
-                                                    duration:
-                                                        Duration(seconds: 2),
+                                                      content: Text('收藏夹已更新'),
+                                                      duration:
+                                                          Duration(seconds: 2),
                                                     ),
                                                   );
                                                 }
@@ -463,7 +463,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                                     const SnackBar(
                                                       content: Text('操作失败'),
                                                       duration:
-                                                        Duration(seconds: 2),
+                                                          Duration(seconds: 2),
                                                     ),
                                                   );
                                                 }

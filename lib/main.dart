@@ -19,6 +19,9 @@ import 'package:flutter/foundation.dart';
 import 'util/error_handler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import 'package:bmsc/utils/logger.dart';
+
+final logger = LoggerUtils.logger;
 
 Future<void> main() async {
   await JustAudioBackground.init(
@@ -44,6 +47,8 @@ Future<void> main() async {
   if (Platform.isAndroid) {
     await Permission.notification.request();
   }
+
+  LoggerUtils.init();
 
   runApp(const MyApp());
 }
@@ -90,7 +95,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   var signedin = true;
-  ReleaseResult? officialVersion;
+  List<ReleaseResult>? officialVersions;
   String? curVersion;
   bool hasNewVersion = false;
   late WebViewController controller;
@@ -110,6 +115,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    logger.info("checkNewVersion");
     checkNewVersion().then((x) async {
       if (x == null) {
         return;
@@ -117,8 +123,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       final packageInfo = await PackageInfo.fromPlatform();
       setState(() {
         curVersion = "v${packageInfo.version}";
-        officialVersion = x;
-        hasNewVersion = x.tagName != curVersion;
+        officialVersions = x;
+        hasNewVersion = x.first.tagName != curVersion;
       });
     });
     (WebviewCookieManager().getCookies('https://www.bilibili.com'))
@@ -161,10 +167,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text("BiliMusic"),
         actions: [
-          if (hasNewVersion && officialVersion != null && curVersion != null)
+          if (hasNewVersion && officialVersions != null && curVersion != null)
             IconButton(
                 onPressed: () {
-                  showUpdateDialog(context, officialVersion!, curVersion!);
+                  showUpdateDialog(context, officialVersions!, curVersion!);
                 },
                 icon: const Icon(
                   Icons.arrow_circle_up_outlined,

@@ -2,21 +2,34 @@ import 'package:bmsc/model/release.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:bmsc/utils/logger.dart';
 
-Future<ReleaseResult?> checkNewVersion() async {
-  ReleaseResult? ret;
+final logger = LoggerUtils.logger;
+
+Future<List<ReleaseResult>?> checkNewVersion() async {
+  List<ReleaseResult>? ret;
   try {
-    final resp = await Dio()
-        .get('https://api.github.com/repos/u2x1/bmsc/releases/latest');
-    ret = ReleaseResult.fromJson(resp.data);
+    logger.info("requesting latest release");
+    final resp =
+        await Dio().get('https://api.github.com/repos/u2x1/bmsc/releases');
+    ret = List.from(resp.data).map((e) => ReleaseResult.fromJson(e)).toList();
   } catch (e) {
+    logger.severe("error: $e");
     return null;
   }
   return ret;
 }
 
 showUpdateDialog(
-    BuildContext context, ReleaseResult newVersion, String curVersion) {
+    BuildContext context, List<ReleaseResult> newVersions, String curVersion) {
+  var changelog = "";
+  for (var version in newVersions) {
+    changelog += "# ${version.tagName}\n\n${version.body}\n\n";
+    if (version.tagName == curVersion) {
+      break;
+    }
+  }
+  final newVersion = newVersions.first;
   Widget viewButton = TextButton(
     child: const Text("查看"),
     onPressed: () async {
@@ -39,8 +52,13 @@ showUpdateDialog(
 
   AlertDialog alert = AlertDialog(
     title: const Text("有新版本可用"),
-    content: Text(
-        "检测到版本更新 ($curVersion -> ${newVersion.tagName})。\n\n更新日志: \n${newVersion.body}"),
+    content: Column(
+      children: [
+        Text("检测到版本更新 ($curVersion -> ${newVersion.tagName})"),
+        const SizedBox(height: 10),
+        Flexible(child: SingleChildScrollView(child: Text(changelog))),
+      ],
+    ),
     actions: [
       viewButton,
       downloadButton,
