@@ -58,6 +58,52 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     _notificationsInitialized = true;
   }
 
+  Future<bool> _onWillPop() async {
+    // Check if there are unsaved results
+    final hasUnsavedResults = results.any(
+        (result) => result['bvid'] != null && result['favAddStatus'] != true);
+
+    if (!hasUnsavedResults) {
+      return true;
+    }
+
+    // Show confirmation dialog
+    final shouldPop = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认退出'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('还有未收藏的搜索结果，确定要退出吗？'),
+            SizedBox(height: 12), // Add some spacing
+            Text(
+              '提示：搜索和收藏是两个独立的过程，'
+              '你应该在搜索结束后将结果保存到云收藏夹中。',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    return shouldPop ?? false;
+  }
+
   void _toggleSearchPause() {
     setState(() {
       isSearchPaused = !isSearchPaused;
@@ -92,8 +138,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     }
   }
 
-  // Add GlobalKey to the ListTile you want to scroll to
-  final itemKeys = <int, GlobalKey>{}; // Add this with other state variables
+  final itemKeys = <int, GlobalKey>{};
 
   void scrollTo(int index) {
     final context = itemKeys[index]?.currentContext;
@@ -109,230 +154,202 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
   @override
   Widget build(BuildContext context) {
     _context = context;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('歌单导入'),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: textController,
-              maxLines: 7,
-              decoration: const InputDecoration(
-                hintText:
-                    '[示例1] 歌名 \$ 作者 \$ 时长(秒)\nTRUE \$ Yoari \$ 192\n夏日已所剩无几 \$ 泠鸢yousa \$ 271\n[示例2] 平台:歌单ID\nnetease:1234567890\ntencent:1207922987\nkugou:collection_3_1323003327_2_0',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.all(8),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) {
+          return;
+        }
+        final bool shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('歌单导入'),
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: textController,
+                maxLines: 7,
+                decoration: const InputDecoration(
+                  hintText:
+                      '[示例1] 歌名 \$ 作者 \$ 时长(秒)\nTRUE \$ Yoari \$ 192\n夏日已所剩无几 \$ 泠鸢yousa \$ 271\n[示例2] 平台:歌单ID\nnetease:1234567890\ntencent:1207922987\nkugou:collection_3_1323003327_2_0',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.all(8),
+                ),
+                style: TextStyle(fontSize: 12),
               ),
-              style: TextStyle(fontSize: 12),
             ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: isSearching ? _toggleSearchPause : null,
-                child: Text(isSearchPaused ? '继续' : '暂停'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: (isSearching && !isSearchPaused) ||
-                        (isSaving && !isSavingPaused)
-                    ? null
-                    : _processPlaylist,
-                child: Text('搜索'),
-              ),
-              Row(
-                children: [
-                  Checkbox(
-                    value: isReverse,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        isReverse = value ?? false;
-                      });
-                    },
-                  ),
-                  const Text('倒序'),
-                ],
-              ),
-            ],
-          ),
-          Expanded(
-            child: Column(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (results.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton(
-                        onPressed: isSaving ? _toggleSavingPause : null,
-                        child: Text(isSavingPaused ? '继续' : '暂停'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: isSaving || (isSearching && !isSearchPaused)
-                            ? null
-                            : () async {
-                                final uid = await globals.api.getStoredUID();
-                                if (uid == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('请先登录')),
-                                    );
+                ElevatedButton(
+                  onPressed: isSearching ? _toggleSearchPause : null,
+                  child: Text(isSearchPaused ? '继续' : '暂停'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: (isSearching && !isSearchPaused) ||
+                          (isSaving && !isSavingPaused)
+                      ? null
+                      : _processPlaylist,
+                  child: Text('搜索'),
+                ),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isReverse,
+                      onChanged: (bool? value) {
+                        setState(() {
+                          isReverse = value ?? false;
+                        });
+                      },
+                    ),
+                    const Text('倒序'),
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: '此选项仅控制搜索顺序，不影响收藏顺序。\n'
+                          '收藏顺序一定是自上而下的。\n'
+                          '选项默认开启，这样收藏结束时\n收藏夹视频顺序便会与歌单歌曲顺序相同。',
+                      triggerMode: TooltipTriggerMode.tap,
+                      showDuration: Duration(seconds: 10),
+                      child: const Icon(Icons.help_outline, size: 18),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            Expanded(
+              child: Column(
+                children: [
+                  if (results.isNotEmpty)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: isSaving ? _toggleSavingPause : null,
+                          child: Text(isSavingPaused ? '继续' : '暂停'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: isSaving ||
+                                  (isSearching && !isSearchPaused)
+                              ? null
+                              : () async {
+                                  final uid = await globals.api.getStoredUID();
+                                  if (uid == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(content: Text('请先登录')),
+                                      );
+                                    }
+                                    return;
                                   }
-                                  return;
-                                }
 
-                                final favs = await globals.api.getFavs(uid);
-                                if (favs == null || favs.isEmpty) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('未找到收藏夹')),
-                                    );
+                                  final favs = await globals.api.getFavs(uid);
+                                  if (favs == null || favs.isEmpty) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(content: Text('未找到收藏夹')),
+                                      );
+                                    }
+                                    return;
                                   }
-                                  return;
-                                }
 
-                                if (!context.mounted) return;
+                                  if (!context.mounted) return;
 
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: const Text('选择收藏夹'),
-                                      content: SizedBox(
-                                        width: double.maxFinite,
-                                        height: 300,
-                                        child: ListView.builder(
-                                          shrinkWrap: true,
-                                          itemCount: favs.length,
-                                          itemBuilder: (context, index) {
-                                            final folder = favs[index];
-                                            return ListTile(
-                                              title: Text(folder.title),
-                                              subtitle: Text(
-                                                  '${folder.mediaCount} 首曲目'),
-                                              onTap: () async {
-                                                Navigator.pop(context);
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text('选择收藏夹'),
+                                        content: SizedBox(
+                                          width: double.maxFinite,
+                                          height: 300,
+                                          child: ListView.builder(
+                                            shrinkWrap: true,
+                                            itemCount: favs.length,
+                                            itemBuilder: (context, index) {
+                                              final folder = favs[index];
+                                              return ListTile(
+                                                title: Text(folder.title),
+                                                subtitle: Text(
+                                                    '${folder.mediaCount} 首曲目'),
+                                                onTap: () async {
+                                                  Navigator.pop(context);
 
-                                                var foundTracks = [];
+                                                  var foundTracks = [];
 
-                                                for (var i = 0;
-                                                    i < results.length;
-                                                    i++) {
-                                                  final result = results[i];
-                                                  if (result['aid'] != null) {
-                                                    foundTracks.add({
-                                                      ...result,
-                                                      'index': i
-                                                    });
+                                                  for (var i = 0;
+                                                      i < results.length;
+                                                      i++) {
+                                                    final result = results[i];
+                                                    if (result['aid'] != null) {
+                                                      foundTracks.add({
+                                                        ...result,
+                                                        'index': i
+                                                      });
+                                                    }
                                                   }
-                                                }
 
-                                                final confirmed =
-                                                    await showDialog<bool>(
-                                                  context: context,
-                                                  builder:
-                                                      (BuildContext context) {
-                                                    return AlertDialog(
-                                                      title: const Text('确认'),
-                                                      content: Text(
-                                                          '确定要添加 ${foundTracks.length} 首曲目到 ${folder.title} 吗？'),
-                                                      actions: [
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                  context,
-                                                                  false),
-                                                          child:
-                                                              const Text('取消'),
-                                                        ),
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                  context,
-                                                                  true),
-                                                          child:
-                                                              const Text('确定'),
-                                                        ),
-                                                      ],
-                                                    );
-                                                  },
-                                                );
-
-                                                if (confirmed != true) return;
-
-                                                var successCount = 0;
-
-                                                setState(() {
-                                                  isSaving = true;
-                                                  isSavingPaused = false;
-                                                  processedFavorites = 0;
-                                                  totalFavorites =
-                                                      foundTracks.length;
-                                                });
-
-                                                // Show initial favorite notification
-                                                await flutterLocalNotificationsPlugin
-                                                    .show(
-                                                  1, // Use a different notification ID for favorites
-                                                  '添加收藏',
-                                                  '准备添加到收藏夹...',
-                                                  const NotificationDetails(
-                                                    android:
-                                                        AndroidNotificationDetails(
-                                                      'favorite_progress',
-                                                      'Favorite Progress',
-                                                      channelDescription:
-                                                          'Notifications for favorite progress',
-                                                      importance:
-                                                          Importance.high,
-                                                      priority: Priority.high,
-                                                      ongoing: true,
-                                                      showProgress: true,
-                                                      onlyAlertOnce: true,
-                                                      playSound: false,
-                                                    ),
-                                                  ),
-                                                );
-
-                                                for (var i = 0;
-                                                    i < foundTracks.length;
-                                                    i++) {
-                                                  await _waitForSavingPause();
-                                                  final track = foundTracks[i];
-                                                  final success = await globals
-                                                      .api
-                                                      .favoriteVideo(
-                                                    track['aid'],
-                                                    [folder.id],
-                                                    [],
+                                                  final confirmed =
+                                                      await showDialog<bool>(
+                                                    context: context,
+                                                    builder:
+                                                        (BuildContext context) {
+                                                      return AlertDialog(
+                                                        title: const Text('确认'),
+                                                        content: Text(
+                                                            '确定要添加 ${foundTracks.length} 首曲目到 ${folder.title} 吗？'),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    context,
+                                                                    false),
+                                                            child: const Text(
+                                                                '取消'),
+                                                          ),
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    context,
+                                                                    true),
+                                                            child: const Text(
+                                                                '确定'),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
                                                   );
-                                                  if (success == null) {
-                                                    showErrorSnackBar(
-                                                        "收藏失败，已暂停");
-                                                    --i;
-                                                    _toggleSavingPause();
-                                                    continue;
-                                                  }
+
+                                                  if (confirmed != true) return;
+
+                                                  var successCount = 0;
 
                                                   setState(() {
-                                                    results[track['index']]
-                                                            ['favAddStatus'] =
-                                                        success;
-                                                    processedFavorites = i + 1;
+                                                    isSaving = true;
+                                                    isSavingPaused = false;
+                                                    processedFavorites = 0;
+                                                    totalFavorites =
+                                                        foundTracks.length;
                                                   });
 
-                                                  // Update favorite progress notification
+                                                  // Show initial favorite notification
                                                   await flutterLocalNotificationsPlugin
                                                       .show(
-                                                    1,
+                                                    1, // Use a different notification ID for favorites
                                                     '添加收藏',
-                                                    '处理中: ${i + 1}/${foundTracks.length}',
-                                                    NotificationDetails(
+                                                    '准备添加到收藏夹...',
+                                                    const NotificationDetails(
                                                       android:
                                                           AndroidNotificationDetails(
                                                         'favorite_progress',
@@ -344,243 +361,307 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                                         priority: Priority.high,
                                                         ongoing: true,
                                                         showProgress: true,
-                                                        maxProgress:
-                                                            foundTracks.length,
-                                                        progress: i + 1,
                                                         onlyAlertOnce: true,
                                                         playSound: false,
                                                       ),
                                                     ),
                                                   );
 
-                                                  if (autoscroll) {
-                                                    scrollTo(track['index']);
+                                                  for (var i = 0;
+                                                      i < foundTracks.length;
+                                                      i++) {
+                                                    await _waitForSavingPause();
+                                                    final track =
+                                                        foundTracks[i];
+                                                    final success =
+                                                        await globals.api
+                                                            .favoriteVideo(
+                                                      track['aid'],
+                                                      [folder.id],
+                                                      [],
+                                                    );
+                                                    if (success == null) {
+                                                      showErrorSnackBar(
+                                                          "收藏失败，已暂停");
+                                                      --i;
+                                                      _toggleSavingPause();
+                                                      continue;
+                                                    }
+
+                                                    setState(() {
+                                                      results[track['index']]
+                                                              ['favAddStatus'] =
+                                                          success;
+                                                      processedFavorites =
+                                                          i + 1;
+                                                    });
+
+                                                    // Update favorite progress notification
+                                                    await flutterLocalNotificationsPlugin
+                                                        .show(
+                                                      1,
+                                                      '添加收藏',
+                                                      '处理中: ${i + 1}/${foundTracks.length}',
+                                                      NotificationDetails(
+                                                        android:
+                                                            AndroidNotificationDetails(
+                                                          'favorite_progress',
+                                                          'Favorite Progress',
+                                                          channelDescription:
+                                                              'Notifications for favorite progress',
+                                                          importance:
+                                                              Importance.high,
+                                                          priority:
+                                                              Priority.high,
+                                                          ongoing: true,
+                                                          showProgress: true,
+                                                          maxProgress:
+                                                              foundTracks
+                                                                  .length,
+                                                          progress: i + 1,
+                                                          onlyAlertOnce: true,
+                                                          playSound: false,
+                                                        ),
+                                                      ),
+                                                    );
+
+                                                    if (autoscroll) {
+                                                      scrollTo(track['index']);
+                                                    }
+                                                    if (success) successCount++;
+
+                                                    await Future.delayed(
+                                                        const Duration(
+                                                            milliseconds:
+                                                                1200));
                                                   }
-                                                  if (success) successCount++;
 
-                                                  await Future.delayed(
-                                                      const Duration(
-                                                          milliseconds: 1200));
-                                                }
-
-                                                // Show completion notification
-                                                await flutterLocalNotificationsPlugin
-                                                    .show(
-                                                  1,
-                                                  '添加收藏',
-                                                  '完成: 已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}',
-                                                  const NotificationDetails(
-                                                    android:
-                                                        AndroidNotificationDetails(
-                                                      'favorite_progress',
-                                                      'Favorite Progress',
-                                                      channelDescription:
-                                                          'Notifications for favorite progress',
-                                                      importance:
-                                                          Importance.high,
-                                                      priority: Priority.high,
-                                                      onlyAlertOnce: true,
-                                                      playSound: false,
-                                                    ),
-                                                  ),
-                                                );
-
-                                                setState(() {
-                                                  isSaving = false;
-                                                });
-                                                if (context.mounted) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                          '已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}'),
+                                                  // Show completion notification
+                                                  await flutterLocalNotificationsPlugin
+                                                      .show(
+                                                    1,
+                                                    '添加收藏',
+                                                    '完成: 已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}',
+                                                    const NotificationDetails(
+                                                      android:
+                                                          AndroidNotificationDetails(
+                                                        'favorite_progress',
+                                                        'Favorite Progress',
+                                                        channelDescription:
+                                                            'Notifications for favorite progress',
+                                                        importance:
+                                                            Importance.high,
+                                                        priority: Priority.high,
+                                                        onlyAlertOnce: true,
+                                                        playSound: false,
+                                                      ),
                                                     ),
                                                   );
-                                                }
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                        child: const Text('收藏'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () async {
-                          final text = results
-                              .where((r) => r['bvid'] != null)
-                              .map((r) => "${r['track']}\$${r['bvid']}")
-                              .join('\n');
-                          await Clipboard.setData(ClipboardData(text: text));
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('已复制到剪贴板')),
-                            );
-                          }
-                        },
-                        child: const Text('复制'),
-                      ),
-                      const SizedBox(width: 8),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: autoscroll,
-                            onChanged: (bool? value) {
-                              setState(() {
-                                autoscroll = value ?? true;
-                              });
-                            },
-                          ),
-                          const Text('自动滚动'),
-                        ],
-                      ),
-                    ],
-                  ),
-                if (isSearching || isSavingPaused)
-                  LinearProgressIndicator(
-                    value: totalTracks > 0 ? processedTracks / totalTracks : 0,
-                  ),
-                if (totalFavorites > 0)
-                  LinearProgressIndicator(
-                    value: processedFavorites / totalFavorites,
-                    color: Colors.green,
-                  ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    itemCount: results.length,
-                    itemBuilder: (context, index) {
-                      // Create a key if it doesn't exist
-                      itemKeys[index] ??= GlobalKey();
 
-                      final result = results[index];
-                      return ListTile(
-                        key: itemKeys[index],
-                        title: Text("${result['artist']} - ${result['track']}",
-                            style: TextStyle(fontSize: 14)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('result: ${result['title'] ?? '未找到'}',
-                                style: TextStyle(fontSize: 12)),
-                            if (result['bvid'] != null)
-                              Text(
-                                  '(∑: ${result['score']}) (|Δ|: ${result['durationDiff']}s) (ε: ${result['play']}) (§: ${result['typename']})',
-                                  style: TextStyle(fontSize: 12)),
-                            if (result['favAddStatus'] != null)
-                              Text(
-                                result['favAddStatus']! ? '已添加到收藏夹' : '添加失败',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: result['favAddStatus']!
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.refresh),
-                                  onPressed: isSearching && !isSearchPaused
-                                      ? null
-                                      : () async {
-                                          FocusManager.instance.primaryFocus
-                                              ?.unfocus();
-                                          setState(() => isSearching = true);
-                                          final track = result['track'];
-                                          final artist = result['artist'];
-                                          final duration = result['duration'];
-                                          final trackResults =
-                                              await _searchTracks(
-                                                  track, artist, duration);
-                                          if (trackResults.isEmpty) {
-                                            showErrorSnackBar("搜索失败");
-                                          }
-                                          setState(() {
-                                            isSearching = false;
-                                          });
-
-                                          if (!context.mounted) return;
-
-                                          final selectedVideo =
-                                              await showDialog<int?>(
-                                            context: context,
-                                            builder: (BuildContext context) {
-                                              return AlertDialog(
-                                                title: Text('选择视频'),
-                                                content: SizedBox(
-                                                  width: double.maxFinite,
-                                                  height: 400,
-                                                  child: ListView.builder(
-                                                    shrinkWrap: true,
-                                                    itemCount:
-                                                        trackResults.length,
-                                                    itemBuilder: (context, i) {
-                                                      final video =
-                                                          trackResults[i];
-
-                                                      return ListTile(
-                                                        title: Text(
-                                                            stripHtmlIfNeeded(
-                                                                video['title']),
-                                                            style: TextStyle(
-                                                                fontSize: 12)),
-                                                        subtitle: Text(
-                                                            '(∑: ${video['score']}) (|Δ|: ${video['durationDiff']}s) (ε: ${video['play']}) (§: ${video['typename']})',
-                                                            style: TextStyle(
-                                                                fontSize: 12)),
-                                                        onTap: () {
-                                                          Navigator.pop(
-                                                              context, i);
-                                                        },
-                                                      );
-                                                    },
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      Navigator.pop(context);
-                                                    },
-                                                    child: Text('取消'),
-                                                  ),
-                                                ],
+                                                  setState(() {
+                                                    isSaving = false;
+                                                  });
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                            '已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}'),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
                                               );
                                             },
-                                          );
-                                          if (selectedVideo == null) return;
-                                          setState(() {
-                                            results[index] =
-                                                trackResults[selectedVideo];
-                                          });
-                                        },
-                                ),
-                                if (result['bvid'] != null)
-                                  const Icon(Icons.check, color: Colors.green)
-                                else
-                                  const Icon(Icons.close, color: Colors.red),
-                              ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                          child: const Text('收藏'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () async {
+                            final text = results
+                                .where((r) => r['bvid'] != null)
+                                .map((r) => "${r['track']}\$${r['bvid']}")
+                                .join('\n');
+                            await Clipboard.setData(ClipboardData(text: text));
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('已复制到剪贴板')),
+                              );
+                            }
+                          },
+                          child: const Text('复制'),
+                        ),
+                        const SizedBox(width: 8),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: autoscroll,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  autoscroll = value ?? true;
+                                });
+                              },
                             ),
+                            const Text('自动滚动'),
                           ],
                         ),
-                      );
-                    },
+                      ],
+                    ),
+                  if (isSearching || isSavingPaused)
+                    LinearProgressIndicator(
+                      value:
+                          totalTracks > 0 ? processedTracks / totalTracks : 0,
+                    ),
+                  if (totalFavorites > 0)
+                    LinearProgressIndicator(
+                      value: processedFavorites / totalFavorites,
+                      color: Colors.green,
+                    ),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: results.length,
+                      itemBuilder: (context, index) {
+                        // Create a key if it doesn't exist
+                        itemKeys[index] ??= GlobalKey();
+
+                        final result = results[index];
+                        return ListTile(
+                          key: itemKeys[index],
+                          title: Text(
+                              "${result['artist']} - ${result['track']}",
+                              style: TextStyle(fontSize: 14)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('result: ${result['title'] ?? '未找到'}',
+                                  style: TextStyle(fontSize: 12)),
+                              if (result['bvid'] != null)
+                                Text(
+                                    '(∑: ${result['score']}) (|Δ|: ${result['durationDiff']}s) (ε: ${result['play']}) (§: ${result['typename']})',
+                                    style: TextStyle(fontSize: 12)),
+                              if (result['favAddStatus'] != null)
+                                Text(
+                                  result['favAddStatus']! ? '已添加到收藏夹' : '添加失败',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: result['favAddStatus']!
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.refresh),
+                                    onPressed: isSearching && !isSearchPaused
+                                        ? null
+                                        : () async {
+                                            FocusManager.instance.primaryFocus
+                                                ?.unfocus();
+                                            setState(() => isSearching = true);
+                                            final track = result['track'];
+                                            final artist = result['artist'];
+                                            final duration = result['duration'];
+                                            final trackResults =
+                                                await _searchTracks(
+                                                    track, artist, duration);
+                                            if (trackResults.isEmpty) {
+                                              showErrorSnackBar("搜索失败");
+                                            }
+                                            setState(() {
+                                              isSearching = false;
+                                            });
+
+                                            if (!context.mounted) return;
+
+                                            final selectedVideo =
+                                                await showDialog<int?>(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: Text('选择视频'),
+                                                  content: SizedBox(
+                                                    width: double.maxFinite,
+                                                    height: 400,
+                                                    child: ListView.builder(
+                                                      shrinkWrap: true,
+                                                      itemCount:
+                                                          trackResults.length,
+                                                      itemBuilder:
+                                                          (context, i) {
+                                                        final video =
+                                                            trackResults[i];
+
+                                                        return ListTile(
+                                                          title: Text(
+                                                              stripHtmlIfNeeded(
+                                                                  video[
+                                                                      'title']),
+                                                              style: TextStyle(
+                                                                  fontSize:
+                                                                      12)),
+                                                          subtitle: Text(
+                                                              '(∑: ${video['score']}) (|Δ|: ${video['durationDiff']}s) (ε: ${video['play']}) (§: ${video['typename']})',
+                                                              style: TextStyle(
+                                                                  fontSize:
+                                                                      12)),
+                                                          onTap: () {
+                                                            Navigator.pop(
+                                                                context, i);
+                                                          },
+                                                        );
+                                                      },
+                                                    ),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        Navigator.pop(context);
+                                                      },
+                                                      child: Text('取消'),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                            if (selectedVideo == null) return;
+                                            setState(() {
+                                              results[index] =
+                                                  trackResults[selectedVideo];
+                                            });
+                                          },
+                                  ),
+                                  if (result['bvid'] != null)
+                                    const Icon(Icons.check, color: Colors.green)
+                                  else
+                                    const Icon(Icons.close, color: Colors.red),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
