@@ -169,10 +169,9 @@ class CacheManager {
     logger.info('Fetching ${bvids.length} metas from cache');
     try {
       final db = await database;
-      const int chunkSize = 500; // Safe size for most SQLite configurations
+      const int chunkSize = 500;
       final List<Meta> allResults = [];
 
-      // Process in chunks
       for (var i = 0; i < bvids.length; i += chunkSize) {
         final chunk = bvids.sublist(i, min(i + chunkSize, bvids.length));
         final placeholders = List.filled(chunk.length, '?').join(',');
@@ -351,7 +350,7 @@ class CacheManager {
 
   static Future<void> saveCacheMetadata(
       String bvid, int cid, String filePath) async {
-    logger.info('Saving cache metadata for bvid: $bvid, cid: $cid');
+    logger.info('saving audio cache metadata for bvid: $bvid, cid: $cid');
     try {
       final db = await database;
       await db.insert(
@@ -363,7 +362,7 @@ class CacheManager {
             'createdAt': DateTime.now().millisecondsSinceEpoch,
           },
           conflictAlgorithm: ConflictAlgorithm.ignore);
-      logger.info('saved audio cache metadata for bvid: $bvid, cid: $cid');
+      logger.info('audio cache metadata saved');
     } catch (e, stackTrace) {
       logger.severe('Failed to save audio cache metadata', e, stackTrace);
       rethrow;
@@ -373,7 +372,6 @@ class CacheManager {
   static Future<void> cacheFavList(List<Fav> favs) async {
     final db = await database;
 
-    // Clear existing table first
     await db.delete(favListTable);
 
     final batch = db.batch();
@@ -399,14 +397,12 @@ class CacheManager {
     final db = await database;
     final batch = db.batch();
 
-    // First clear existing entries for this fav_id to avoid order conflicts
     await db.delete(
       favDetailTable,
       where: 'fav_id = ?',
       whereArgs: [favId],
     );
 
-    // Insert with order information
     for (int i = 0; i < medias.length; i++) {
       final media = medias[i];
       batch.insert(
@@ -421,7 +417,7 @@ class CacheManager {
           'play_count': media.cntInfo.play,
           'bvid': media.bvid,
           'fav_id': favId,
-          'list_order': i, // Add order field
+          'list_order': i,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -436,13 +432,11 @@ class CacheManager {
     final db = await database;
     final batch = db.batch();
 
-    // Get current max order
     final maxOrderResult = await db.rawQuery(
         'SELECT MAX(list_order) as max_order FROM $favDetailTable WHERE fav_id = ?',
         [favId]);
     final int startOrder = (maxOrderResult.first['max_order'] as int?) ?? -1;
 
-    // Insert new items with incremented order
     for (int i = 0; i < medias.length; i++) {
       final media = medias[i];
       batch.insert(

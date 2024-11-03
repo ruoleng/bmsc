@@ -44,7 +44,6 @@ Future<void> main() async {
   globals.api.initAudioSession();
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Request notification permission
   if (Platform.isAndroid) {
     await Permission.notification.request();
   }

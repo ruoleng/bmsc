@@ -31,7 +31,6 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
 
   Future<void> _loadInitialData() async {
     _logger.info('Loading initial data for fav ${widget.fav.id}');
-    // First try to load from cache
     final cachedData = await globals.api.getCachedFavListVideo(widget.fav.id);
     if (cachedData.isNotEmpty) {
       _logger.info('Loaded ${cachedData.length} items from cache');
