@@ -1,5 +1,6 @@
 import 'package:audio_session/audio_session.dart';
 import 'package:bmsc/audio/lazy_audio_source.dart';
+import 'package:bmsc/model/comment.dart';
 import 'package:bmsc/model/dynamic.dart';
 import 'package:bmsc/model/fav.dart';
 import 'package:bmsc/model/fav_detail.dart';
@@ -92,7 +93,6 @@ class API {
   }
 
   Future<void> _hijackDummySource({int? index}) async {
-    _logger.info('Hijacking dummy source for index: $index');
     index ??= player.currentIndex;
     if (index == null) {
       _logger.warning('No current index available for hijacking');
@@ -102,8 +102,8 @@ class API {
     final currentSource = playlist.children[index];
     if (currentSource is IndexedAudioSource &&
         currentSource.tag.extras['dummy'] == true) {
-      _logger
-          .info('Found dummy source, attempting to replace with real source');
+      _logger.info('Hijacking dummy source for index: $index');
+
       await player.pause();
       List<IndexedAudioSource>? srcs;
       try {
@@ -437,6 +437,7 @@ class API {
     final response = await dio.get(
         'https://api.bilibili.com/x/v3/fav/resource/ids',
         queryParameters: {'media_id': mid});
+    _logger.info('called getFavBvids with url: ${response.requestOptions.uri}');
     if (response.data['code'] != 0) {
       return null;
     }
@@ -453,6 +454,7 @@ class API {
         'https://api.bilibili.com/x/web-interface/search/type',
         queryParameters: {'search_type': 'video', 'keyword': value, 'page': pn},
       );
+      _logger.info('called search with url: ${response.requestOptions.uri}');
       if (response.data['code'] != 0 || response.data['data'] == null) {
         return null;
       }
@@ -467,6 +469,7 @@ class API {
       'https://api.bilibili.com/x/web-interface/history/cursor',
       queryParameters: {'type': 'archive', 'view_at': timestamp},
     );
+    _logger.info('called getHistory with url: ${response.requestOptions.uri}');
     if (response.data['code'] != 0) {
       return null;
     }
@@ -478,6 +481,7 @@ class API {
       'https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all',
       queryParameters: {'type': 'video', 'offset': offset},
     );
+    _logger.info('called getDynamics with url: ${response.requestOptions.uri}');
     if (response.data['code'] != 0) {
       return null;
     }
@@ -489,6 +493,7 @@ class API {
       'https://api.bilibili.com/x/player/playurl',
       queryParameters: {'bvid': bvid, 'cid': cid, 'fnval': 16},
     );
+    _logger.info('called getAudio with url: ${response.requestOptions.uri}');
     if (response.data['code'] != 0) {
       return null;
     }
@@ -534,6 +539,30 @@ class API {
         .toList();
   }
 
+  Future<CommentData?> getComment(String aid, int pn) async {
+    final response = await dio.get(
+      'https://api.bilibili.com/x/v2/reply/main',
+      queryParameters: {'oid': aid, 'pn': pn, 'sort': 1, 'type': 1},
+    );
+    _logger.info('called getComment with url: ${response.requestOptions.uri}');
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return CommentData.fromJson(response.data['data']);
+  }
+
+  Future<CommentData?> getCommentsOfComment(int oid, int root, int pn) async {
+    final response = await dio.get(
+      "https://api.bilibili.com/x/v2/reply/reply",
+      queryParameters: {'type': 1, 'oid': oid, 'root': root, 'pn': pn},
+    );
+    _logger.info('called getCommentsOfComment with url: ${response.requestOptions.uri}');
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return CommentData.fromJson(response.data['data']);
+  }
+
   Future<VidResult?> getVidDetail(String bvid) async {
     final response = await dio.get(
       'https://api.bilibili.com/x/web-interface/view',
@@ -542,6 +571,7 @@ class API {
     if (response.data['code'] != 0) {
       return null;
     }
+    _logger.info('called getVidDetail with url: ${response.requestOptions.uri}');
 
     await CacheManager.cacheMetas([
       Meta(
@@ -727,6 +757,7 @@ class API {
             'del_media_ids': delMediaIds.join(','),
             'csrf': _extractCSRF(cookies),
           });
+      _logger.info('called favoriteVideo with url: ${response.requestOptions.uri}');
       if (response.data['code'] != 0) {
         _logger.warning('Failed to favorite video: ${response.data}');
       }
@@ -783,7 +814,7 @@ class API {
         tracks.add({
           'name': song['name'],
           'artist': song['ar'][0]['name'],
-          'duration': song['dt'] ~/ 1000, // Convert ms to seconds
+          'duration': song['dt'] ~/ 1000,
         });
       }
       return tracks;
@@ -874,7 +905,6 @@ class API {
     if (lastUpdateStr != null) {
       _logger.info('Last recommendations update: $lastUpdateStr');
     }
-    // Check if we need to update recommendations (daily)
     final lastUpdate =
         lastUpdateStr != null ? DateTime.parse(lastUpdateStr) : null;
     final now = DateTime.now();
@@ -882,21 +912,17 @@ class API {
         !DateUtils.isSameDay(now, lastUpdate) ||
         recommendations == null ||
         force == true) {
-      // Time to update recommendations
       final defaultFavFolder = await getDefaultFavFolder();
       if (defaultFavFolder == null) return null;
 
-      // Get videos from default fav folder
       final favVideos = await getFavMetas(defaultFavFolder['id']);
       if (favVideos == null || favVideos.isEmpty) return null;
 
-      // Randomly select 30 videos
       favVideos.shuffle();
       final selectedVideos = favVideos.take(30).toList();
 
       final recommendedVideos = await getRecommendations(selectedVideos) ?? [];
 
-      // Save to preferences
       await prefs.setString(
           'last_recommendations_update', now.toIso8601String());
       await prefs.setString('daily_recommendations',
@@ -905,7 +931,6 @@ class API {
       return recommendedVideos;
     }
 
-    // Return cached recommendations
     final List<dynamic> decoded = jsonDecode(recommendations);
     return decoded.map((v) => Meta.fromJson(v)).toList();
   }
@@ -926,7 +951,6 @@ class API {
     const tidWhitelist = [130, 193, 267, 28, 59];
     const durationConstraint = null;
 
-    // Get recommendations for each video
     List<Meta> recommendedVideos = [];
     for (var track in tracks) {
       final relatedVideos = await getRelatedVideos(track.aid,

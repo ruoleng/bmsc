@@ -7,6 +7,7 @@ import '../component/playing_card.dart';
 import '../globals.dart' as globals;
 import '../util/widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:bmsc/screen/comment_screen.dart';
 
 class DetailScreen extends StatefulWidget {
   const DetailScreen({super.key});
@@ -232,6 +233,25 @@ class _DetailScreenState extends State<DetailScreen> {
                     stream: globals.api.player.sequenceStateStream,
                     builder: (context, snapshot) {
                       final src = snapshot.data?.currentSource;
+                      return IconButton(
+                        icon: const Icon(Icons.comment_outlined),
+                        onPressed: src == null
+                            ? null
+                            : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CommentScreen(
+                                      aid: src.tag.extras['aid'].toString(),
+                                    ),
+                                  ),
+                                ),
+                      );
+                    },
+                  ),
+                  StreamBuilder<SequenceState?>(
+                    stream: globals.api.player.sequenceStateStream,
+                    builder: (context, snapshot) {
+                      final src = snapshot.data?.currentSource;
                       if (src?.tag.extras['aid'] != _currentAid) {
                         _currentAid = src?.tag.extras['aid'];
                         Future.microtask(
@@ -285,7 +305,6 @@ class _DetailScreenState extends State<DetailScreen> {
                                         content: SizedBox(
                                           width: double.maxFinite,
                                           child: StatefulBuilder(
-                                            // Add StatefulBuilder to manage checkbox states
                                             builder: (context, setDialogState) {
                                               return ListView.builder(
                                                 shrinkWrap: true,
@@ -293,7 +312,6 @@ class _DetailScreenState extends State<DetailScreen> {
                                                 itemBuilder: (context, index) {
                                                   final folder =
                                                       favs.list[index];
-                                                  // Use pending state if exists, otherwise use original state
                                                   final isSelected =
                                                       _pendingFavStates
                                                               .containsKey(
@@ -381,13 +399,12 @@ class _DetailScreenState extends State<DetailScreen> {
                                             onPressed: () {
                                               Navigator.of(context).pop();
                                               _pendingFavStates
-                                                  .clear(); // Clear pending changes on cancel
+                                                  .clear();
                                             },
                                             child: const Text('取消'),
                                           ),
                                           TextButton(
                                             onPressed: () async {
-                                              // Store the scaffold context before closing dialog
                                               final scaffoldContext = context;
                                               Navigator.of(context).pop();
 
@@ -470,7 +487,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                               }
 
                                               _pendingFavStates
-                                                  .clear(); // Clear pending changes after applying
+                                                  .clear();
                                             },
                                             child: const Text('确定'),
                                           ),
