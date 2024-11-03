@@ -19,6 +19,7 @@ class FavScreen extends StatefulWidget {
 class _FavScreenState extends State<FavScreen> {
   bool isLoading = true;
   List<Fav> favList = [];
+  List<Fav> collectedFavList = [];
 
   @override
   void initState() {
@@ -46,27 +47,35 @@ class _FavScreenState extends State<FavScreen> {
 
       // Try to load from cache first
       var cachedFavs = await cache_manager.CacheManager.getCachedFavList();
+      var cachedCollectedFavs =
+          await cache_manager.CacheManager.getCachedCollectedFavList();
+
       if (!mounted) return;
-      if (cachedFavs.isNotEmpty) {
+      if (cachedFavs.isNotEmpty || cachedCollectedFavs.isNotEmpty) {
         setState(() {
           favList = cachedFavs;
+          collectedFavList = cachedCollectedFavs;
         });
       }
 
-      logger.info('got ${cachedFavs.length} cached favs');
+      logger.info(
+          'got ${cachedFavs.length} cached favs and ${cachedCollectedFavs.length} collected favs');
 
       // Then try to fetch from network
       try {
-        final ret = (await globals.api.getFavs(uid))?.list ?? [];
+        final ret = (await globals.api.getFavs(uid)) ?? [];
+        final collectedRet = (await globals.api.getCollectedFavList(uid)) ?? [];
+
         if (!mounted) return;
-        if (ret.isNotEmpty) {
+        if (ret.isNotEmpty || collectedRet.isNotEmpty) {
           setState(() {
             favList = ret;
+            collectedFavList = collectedRet;
           });
-          logger.info('got ${ret.length} new favs from network');
+          logger.info(
+              'got ${ret.length} favs and ${collectedRet.length} collected favs from network');
         }
       } catch (e) {
-        // If network fetch fails, we'll still have the cached data
         logger.severe('loadFavorites error: $e');
       } finally {
         if (mounted) {
@@ -112,8 +121,45 @@ class _FavScreenState extends State<FavScreen> {
                     ),
                   ),
                   const Divider(),
-                  // 收藏夹列表
-                  if (favList.isEmpty)
+
+                  // 我的收藏夹标题
+                  if (favList.isNotEmpty)
+                    const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                      child: Text(
+                        '我的收藏夹',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                  // 我的收藏夹列表
+                  ...buildFavList(favList, true),
+
+                  // 收藏的收藏夹标题
+                  if (collectedFavList.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                      child: Text(
+                        '收藏的收藏夹',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    // 收藏的收藏夹列表
+                    ...buildFavList(collectedFavList, false),
+                  ],
+
+                  // 显示空状态
+                  if (favList.isEmpty && collectedFavList.isEmpty)
                     Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -130,90 +176,89 @@ class _FavScreenState extends State<FavScreen> {
                           ),
                         ],
                       ),
-                    )
-                  else
-                    ...favList.map((fav) => Column(
-                          children: [
-                            ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 24.0,
-                              ),
-                              leading: Icon(
-                                Icons.folder_outlined,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              title: Text(
-                                fav.title,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w500),
-                              ),
-                              subtitle: Text('${fav.mediaCount} 个视频'),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        FavDetailScreen(fav: fav),
-                                  ),
-                                );
-                              },
-                              trailing: IconButton(
-                                icon: const Icon(Icons.more_vert),
-                                onPressed: () => showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('选择操作'),
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ListTile(
-                                          leading:
-                                              const Icon(Icons.playlist_add),
-                                          title: const Text('添加到播放列表'),
-                                          onTap: () async {
-                                            Navigator.pop(context);
-                                            await globals.api
-                                                .addFavListToPlaylist(fav.id);
-                                          },
-                                        ),
-                                        ListTile(
-                                          leading:
-                                              const Icon(Icons.star_outline),
-                                          title: const Text('设为默认收藏夹'),
-                                          onTap: () async {
-                                            Navigator.pop(context);
-                                            final prefs =
-                                                await SharedPreferences
-                                                    .getInstance();
-                                            await prefs.setInt(
-                                                'default_fav_folder_id',
-                                                fav.id);
-                                            await prefs.setString(
-                                                'default_fav_folder_name',
-                                                fav.title);
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                      '已将 ${fav.title} 设为默认收藏夹'),
-                                                ),
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const Divider(),
-                          ],
-                        )),
+                    ),
                 ],
               ),
       ),
     );
+  }
+
+  List<Widget> buildFavList(List<Fav> favs, bool isOwned) {
+    return favs
+        .map((fav) => Column(
+              children: [
+                ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                    ),
+                    leading: Icon(
+                      Icons.folder_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: Text(
+                      fav.title,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Text('${fav.mediaCount} 个视频'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FavDetailScreen(
+                            fav: fav,
+                            isCollected: !isOwned,
+                          ),
+                        ),
+                      );
+                    },
+                    trailing: IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () => showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('选择操作'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.playlist_add),
+                                title: const Text('添加到播放列表'),
+                                onTap: () async {
+                                  Navigator.pop(context);
+                                  await (isOwned
+                                      ? globals.api.addFavListToPlaylist(fav.id)
+                                      : globals.api
+                                          .addCollectedFavListToPlaylist(
+                                              fav.id));
+                                },
+                              ),
+                              if (isOwned)
+                                ListTile(
+                                  leading: const Icon(Icons.star_outline),
+                                  title: const Text('设为默认收藏夹'),
+                                  onTap: () async {
+                                    Navigator.pop(context);
+                                    await globals.api
+                                        .setDefaultFavFolder(fav.id, fav.title);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text('已将 ${fav.title} 设为默认收藏夹'),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )),
+                const Divider(),
+              ],
+            ))
+        .toList();
   }
 }

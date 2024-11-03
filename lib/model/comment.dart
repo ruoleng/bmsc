@@ -13,7 +13,8 @@ class CommentData {
     return CommentData(
       cursor: json['cursor'] != null ? Cursor.fromJson(json['cursor']) : null,
       page: json['page'] != null ? PageInfo.fromJson(json['page']) : null,
-      replies: (json['replies'] as List?)?.map((e) => ItemInfo.fromJson(e)).toList(),
+      replies:
+          (json['replies'] as List?)?.map((e) => ItemInfo.fromJson(e)).toList(),
     );
   }
 }
@@ -100,7 +101,8 @@ class ItemInfo {
       count: json['count'] ?? 0,
       member: MemberInfo.fromJson(json['member']),
       content: ContentInfo.fromJson(json['content']),
-      replies: (json['replies'] as List?)?.map((e) => ItemInfo.fromJson(e)).toList(),
+      replies:
+          (json['replies'] as List?)?.map((e) => ItemInfo.fromJson(e)).toList(),
     );
   }
 }

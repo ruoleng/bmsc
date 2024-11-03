@@ -22,6 +22,8 @@ class CacheManager {
   static const String tableName = 'audio_cache';
   static const String metaTable = 'meta_cache';
   static const String favListVideoTable = 'fav_list_video';
+  static const String collectedFavListVideoTable = 'collected_fav_list_video';
+  static const String collectedFavListTable = 'collected_fav_list';
   static const String entityTable = 'entity_cache';
   static const String favListTable = 'fav_list';
   static const String favDetailTable = 'fav_detail';
@@ -110,6 +112,23 @@ class CacheManager {
             fav_id INTEGER,
             list_order INTEGER,
             PRIMARY KEY (id, fav_id)
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE $collectedFavListTable (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            mediaCount INTEGER,
+            list_order INTEGER
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE $collectedFavListVideoTable (
+            bvid TEXT,
+            mid INTEGER,
+            PRIMARY KEY (bvid, mid)
           )
         ''');
       });
@@ -391,6 +410,64 @@ class CacheManager {
 
     await batch.commit();
     logger.info('cached ${favs.length} fav lists');
+  }
+
+  static Future<void> cacheCollectedFavList(List<Fav> favs) async {
+    final db = await database;
+
+    await db.delete(collectedFavListTable);
+
+    final batch = db.batch();
+
+    for (int i = 0; i < favs.length; i++) {
+      batch.insert(
+        collectedFavListTable,
+        {
+          'id': favs[i].id,
+          'title': favs[i].title,
+          'mediaCount': favs[i].mediaCount,
+          'list_order': i,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    await batch.commit();
+    logger.info('cached collected ${favs.length} fav lists');
+  }
+
+  static Future<List<Fav>> getCachedCollectedFavList() async {
+    final db = await database;
+    final results =
+        await db.query(collectedFavListTable, orderBy: 'list_order ASC');
+
+    return results
+        .map((row) => Fav(
+              id: row['id'] as int,
+              title: row['title'] as String,
+              mediaCount: row['mediaCount'] as int,
+            ))
+        .toList();
+  }
+
+  static Future<void> cacheCollectedFavListVideo(
+      List<String> bvids, int mid) async {
+    final db = await database;
+    final batch = db.batch();
+    batch
+        .delete(collectedFavListVideoTable, where: 'mid = ?', whereArgs: [mid]);
+    for (var bvid in bvids) {
+      batch.insert(collectedFavListVideoTable, {'bvid': bvid, 'mid': mid});
+    }
+    await batch.commit();
+    logger.info('cached ${bvids.length} collected fav list videos');
+  }
+
+  static Future<List<String>> getCachedCollectedFavListVideo(int mid) async {
+    final db = await database;
+    final results = await db
+        .query(collectedFavListVideoTable, where: 'mid = ?', whereArgs: [mid]);
+    return results.map((row) => row['bvid'] as String).toList();
   }
 
   static Future<void> cacheFavDetail(int favId, List<Medias> medias) async {

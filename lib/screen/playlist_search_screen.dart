@@ -187,7 +187,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                 }
 
                                 final favs = await globals.api.getFavs(uid);
-                                if (favs == null || favs.list.isEmpty) {
+                                if (favs == null || favs.isEmpty) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(content: Text('未找到收藏夹')),
@@ -208,9 +208,9 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                         height: 300,
                                         child: ListView.builder(
                                           shrinkWrap: true,
-                                          itemCount: favs.list.length,
+                                          itemCount: favs.length,
                                           itemBuilder: (context, index) {
-                                            final folder = favs.list[index];
+                                            final folder = favs[index];
                                             return ListTile(
                                               title: Text(folder.title),
                                               subtitle: Text(

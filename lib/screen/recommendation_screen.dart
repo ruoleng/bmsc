@@ -41,8 +41,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
 
   Future<void> _showFolderSelectionDialog() async {
     final favs =
-        (await globals.api.getFavs(await globals.api.getStoredUID() ?? 0))
-                ?.list ??
+        (await globals.api.getFavs(await globals.api.getStoredUID() ?? 0)) ??
             [];
     if (!mounted) return;
 

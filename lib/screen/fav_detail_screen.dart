@@ -11,8 +11,13 @@ import 'package:bmsc/util/logger.dart';
 
 class FavDetailScreen extends StatefulWidget {
   final Fav fav;
+  final bool isCollected;
 
-  const FavDetailScreen({super.key, required this.fav});
+  const FavDetailScreen({
+    super.key,
+    required this.fav,
+    required this.isCollected,
+  });
 
   @override
   State<StatefulWidget> createState() => _FavDetailScreenState();
@@ -31,7 +36,9 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
 
   Future<void> _loadInitialData() async {
     _logger.info('Loading initial data for fav ${widget.fav.id}');
-    final cachedData = await globals.api.getCachedFavListVideo(widget.fav.id);
+    final cachedData = widget.isCollected
+        ? await globals.api.getCachedCollectedFavListVideo(widget.fav.id)
+        : await globals.api.getCachedFavListVideo(widget.fav.id);
     if (cachedData.isNotEmpty) {
       _logger.info('Loaded ${cachedData.length} items from cache');
       setState(() {
@@ -54,7 +61,9 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
     });
 
     try {
-      final metas = await globals.api.getFavMetas(widget.fav.id);
+      final metas = widget.isCollected
+          ? await globals.api.getCollectedFavMetas(widget.fav.id)
+          : await globals.api.getFavMetas(widget.fav.id);
       if (metas != null) {
         _logger.info('Loaded ${metas.length} metas from network');
         setState(() {
@@ -111,7 +120,9 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                 ],
               ),
               onPressed: () async {
-                await globals.api.playFavList(widget.fav.id);
+                await (widget.isCollected
+                    ? globals.api.playCollectedFavList(widget.fav.id)
+                    : globals.api.playFavList(widget.fav.id));
               },
             ),
           ),
@@ -193,23 +204,22 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (favInfo[index].parts > 1)
-                          ListTile(
-                            leading: const Icon(Icons.playlist_remove),
-                            title: const Text('管理分P'),
-                            onTap: () {
-                              Navigator.pop(dialogContext);
-                              showDialog(
-                                context: context,
-                                builder: (context) => ExcludedPartsDialog(
-                                  bvid: favInfo[index].bvid,
-                                  title: favInfo[index].title,
-                                ),
-                              ).then((_) {
-                                setState(() {});
-                              });
-                            },
-                          ),
+                        ListTile(
+                          leading: const Icon(Icons.playlist_remove),
+                          title: const Text('管理分P'),
+                          onTap: () {
+                            Navigator.pop(dialogContext);
+                            showDialog(
+                              context: context,
+                              builder: (context) => ExcludedPartsDialog(
+                                bvid: favInfo[index].bvid,
+                                title: favInfo[index].title,
+                              ),
+                            ).then((_) {
+                              setState(() {});
+                            });
+                          },
+                        ),
                         ListTile(
                           leading: const Icon(Icons.delete),
                           title: const Text('取消收藏'),

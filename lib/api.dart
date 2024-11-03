@@ -3,7 +3,6 @@ import 'package:bmsc/audio/lazy_audio_source.dart';
 import 'package:bmsc/model/comment.dart';
 import 'package:bmsc/model/dynamic.dart';
 import 'package:bmsc/model/fav.dart';
-import 'package:bmsc/model/fav_detail.dart';
 import 'package:bmsc/model/history.dart';
 import 'package:bmsc/model/search.dart';
 import 'package:bmsc/model/track.dart';
@@ -201,8 +200,24 @@ class API {
     await playByBvids(bvids, index: index);
   }
 
+  Future<void> playCollectedFavList(int mid, {int index = 0}) async {
+    final bvids = await CacheManager.getCachedCollectedFavListVideo(mid);
+    if (bvids.isEmpty) {
+      return;
+    }
+    await playByBvids(bvids, index: index);
+  }
+
   Future<void> addFavListToPlaylist(int mid) async {
     final bvids = await CacheManager.getCachedFavListVideo(mid);
+    if (bvids.isEmpty) {
+      return;
+    }
+    await addBvidsToPlaylist(bvids, insertIndex: playlist.length);
+  }
+
+  Future<void> addCollectedFavListToPlaylist(int mid) async {
+    final bvids = await CacheManager.getCachedCollectedFavListVideo(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -372,7 +387,7 @@ class API {
     }
   }
 
-  Future<FavResult?> getFavs(int uid, {int? rid}) async {
+  Future<List<Fav>?> getFavs(int uid, {int? rid}) async {
     final response = await dio.get(
         'https://api.bilibili.com/x/v3/fav/folder/created/list-all',
         queryParameters: {'up_mid': uid, 'rid': rid});
@@ -383,23 +398,80 @@ class API {
     if (rid == null) {
       await CacheManager.cacheFavList(ret.list);
     }
-    return ret;
+    return ret.list;
   }
 
-  Future<FavDetail?> getFavDetail(int mid, int pn) async {
-    final response = await dio.get(
-        'https://api.bilibili.com/x/v3/fav/resource/list',
-        queryParameters: {'media_id': mid, 'ps': 10, 'pn': pn});
-    if (response.data['code'] != 0) {
-      return null;
+  Future<List<Fav>?> getCollectedFavList(int uid) async {
+    int pn = 1;
+    List<Fav> ret = [];
+    bool hasMore = true;
+    while (hasMore) {
+      final response = await dio.get(
+          'https://api.bilibili.com/x/v3/fav/folder/collected/list',
+          queryParameters: {
+            'up_mid': uid,
+            'pn': pn,
+            'ps': 20,
+            'platform': 'web'
+          });
+      _logger.info(
+          'called getCollectedFavList with url: ${response.requestOptions.uri}');
+      if (response.data['code'] != 0) {
+        return null;
+      }
+      hasMore = response.data['data']['has_more'] as bool;
+      ++pn;
+      ret.addAll((response.data['data']['list'] as List)
+          .map((x) => Fav.fromJson(x))
+          .toList());
     }
-    return FavDetail.fromJson(response.data['data']);
+    await CacheManager.cacheCollectedFavList(ret);
+    return ret;
   }
 
   Future<List<Meta>> getCachedFavListVideo(int mid) async {
     final bvids = await CacheManager.getCachedFavListVideo(mid);
     final metas = await CacheManager.getMetas(bvids);
     return metas;
+  }
+
+  Future<List<Meta>> getCachedCollectedFavListVideo(int mid) async {
+    final bvids = await CacheManager.getCachedCollectedFavListVideo(mid);
+    final metas = await CacheManager.getMetas(bvids);
+    return metas;
+  }
+
+  Future<List<Meta>> getCollectedFavMetas(int mid) async {
+    List<Meta> ret = [];
+    int pn = 1;
+    int? mediaCount;
+    while (ret.length < (mediaCount ?? 1)) {
+      final response = await dio.get(
+          'https://api.bilibili.com/x/space/fav/season/list',
+          queryParameters: {'season_id': mid, 'ps': 20, 'pn': pn});
+      _logger.info(
+          'called getCollectedFavMetas with url: ${response.requestOptions.uri}');
+      if (response.data['code'] != 0) {
+        return [];
+      }
+      mediaCount ??= response.data['data']['info']['media_count'];
+      ret.addAll((response.data['data']['medias'] as List)
+          .map((x) => Meta(
+                bvid: x['bvid'],
+                title: x['title'],
+                artist: x['upper']['name'],
+                mid: x['upper']['mid'],
+                aid: x['id'],
+                duration: x['duration'],
+                artUri: x['cover'],
+              ))
+          .toList());
+      ++pn;
+    }
+    await CacheManager.cacheMetas(ret);
+    await CacheManager.cacheCollectedFavListVideo(
+        ret.map((x) => x.bvid).toList(), mid);
+    return ret;
   }
 
   Future<List<Meta>?> getFavMetas(int mid) async {
@@ -413,6 +485,8 @@ class API {
       if (response.data['code'] != 0) {
         return null;
       }
+      _logger
+          .info('called getFavMetas with url: ${response.requestOptions.uri}');
       ret.addAll((response.data['data']['medias'] as List)
           .map((x) => Meta(
                 bvid: x['bvid'],
@@ -554,9 +628,16 @@ class API {
   Future<CommentData?> getCommentsOfComment(int oid, int root, int pn) async {
     final response = await dio.get(
       "https://api.bilibili.com/x/v2/reply/reply",
-      queryParameters: {'type': 1, 'oid': oid, 'root': root, 'pn': pn},
+      queryParameters: {
+        'type': 1,
+        'oid': oid,
+        'root': root,
+        'pn': pn,
+        'ps': 20
+      },
     );
-    _logger.info('called getCommentsOfComment with url: ${response.requestOptions.uri}');
+    _logger.info(
+        'called getCommentsOfComment with url: ${response.requestOptions.uri}');
     if (response.data['code'] != 0) {
       return null;
     }
@@ -571,7 +652,8 @@ class API {
     if (response.data['code'] != 0) {
       return null;
     }
-    _logger.info('called getVidDetail with url: ${response.requestOptions.uri}');
+    _logger
+        .info('called getVidDetail with url: ${response.requestOptions.uri}');
 
     await CacheManager.cacheMetas([
       Meta(
@@ -757,7 +839,8 @@ class API {
             'del_media_ids': delMediaIds.join(','),
             'csrf': _extractCSRF(cookies),
           });
-      _logger.info('called favoriteVideo with url: ${response.requestOptions.uri}');
+      _logger.info(
+          'called favoriteVideo with url: ${response.requestOptions.uri}');
       if (response.data['code'] != 0) {
         _logger.warning('Failed to favorite video: ${response.data}');
       }

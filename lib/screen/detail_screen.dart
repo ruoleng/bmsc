@@ -268,7 +268,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                     await globals.api.getStoredUID() ?? 0;
                                 final favs = await globals.api
                                     .getFavs(uid, rid: src.tag.extras['aid']);
-                                if (favs == null || favs.list.isEmpty) return;
+                                if (favs == null || favs.isEmpty) return;
 
                                 final defaultFolderId =
                                     await globals.api.getDefaultFavFolder();
@@ -308,10 +308,9 @@ class _DetailScreenState extends State<DetailScreen> {
                                             builder: (context, setDialogState) {
                                               return ListView.builder(
                                                 shrinkWrap: true,
-                                                itemCount: favs.list.length,
+                                                itemCount: favs.length,
                                                 itemBuilder: (context, index) {
-                                                  final folder =
-                                                      favs.list[index];
+                                                  final folder = favs[index];
                                                   final isSelected =
                                                       _pendingFavStates
                                                               .containsKey(
@@ -398,8 +397,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                           TextButton(
                                             onPressed: () {
                                               Navigator.of(context).pop();
-                                              _pendingFavStates
-                                                  .clear();
+                                              _pendingFavStates.clear();
                                             },
                                             child: const Text('取消'),
                                           ),
@@ -413,7 +411,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
                                               _pendingFavStates.forEach(
                                                   (folderId, newState) {
-                                                final originalState = favs.list
+                                                final originalState = favs
                                                         .firstWhere((f) =>
                                                             f.id == folderId)
                                                         .favState ==
@@ -446,7 +444,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                                   await globals.api
                                                       .setDefaultFavFolder(
                                                           toAdd.first,
-                                                          favs.list
+                                                          favs
                                                               .firstWhere((f) =>
                                                                   f.id ==
                                                                   toAdd.first)
@@ -486,8 +484,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                                 }
                                               }
 
-                                              _pendingFavStates
-                                                  .clear();
+                                              _pendingFavStates.clear();
                                             },
                                             child: const Text('确定'),
                                           ),

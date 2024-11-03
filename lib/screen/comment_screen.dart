@@ -29,23 +29,26 @@ class _CommentScreenState extends State<CommentScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent - 200 && !_isLoading && _hasMore) {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoading &&
+        _hasMore) {
       _loadComments();
     }
   }
 
   Future<void> _loadComments() async {
     if (_isLoading) return;
-    
+
     setState(() => _isLoading = true);
     CommentData? commentData;
     if (widget.aid != null) {
       commentData = await globals.api.getComment(widget.aid!, _currentPage);
     } else if (widget.oid != null && widget.root != null) {
-      commentData = await globals.api.getCommentsOfComment(widget.oid!, widget.root!, _currentPage);
+      commentData = await globals.api
+          .getCommentsOfComment(widget.oid!, widget.root!, _currentPage);
     }
-    
+
     setState(() {
       if (commentData?.replies != null) {
         _comments.addAll(commentData!.replies!);
@@ -79,12 +82,18 @@ class _CommentScreenState extends State<CommentScreen> {
               ),
             );
           }
-          
+
           final comment = _comments[index];
           return GestureDetector(
             onTap: () {
               if (comment.replies != null && comment.replies!.isNotEmpty) {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => CommentScreen(oid: comment.oid, root: comment.rpid, total: comment.count)));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => CommentScreen(
+                            oid: comment.oid,
+                            root: comment.rpid,
+                            total: comment.count)));
               }
             },
             child: Padding(
@@ -102,8 +111,14 @@ class _CommentScreenState extends State<CommentScreen> {
                           color: Colors.black45,
                         ),
                       ),
+                      const SizedBox(width: 4),
                       Text(
-                        DateTime.fromMillisecondsSinceEpoch(comment.ctime * 1000).toString(),
+                        DateTime.fromMillisecondsSinceEpoch(
+                                comment.ctime * 1000)
+                            .toString()
+                            .substring(
+                              0,
+                            ),
                         style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 12,
@@ -126,8 +141,10 @@ class _CommentScreenState extends State<CommentScreen> {
                     comment.content?.message ?? '',
                     style: const TextStyle(fontSize: 14),
                   ),
-                  if (comment.replies != null && comment.replies!.isNotEmpty)
-                    Text('${comment.replies!.length} 条回复', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  if (comment.count > 0)
+                    Text('${comment.count} 条回复',
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ),
             ),
