@@ -35,12 +35,11 @@ class CacheManager {
   }
 
   static Future<Database> initDB() async {
-    logger.info('Initializing database...');
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, _dbName);
     try {
       final db =
-          await openDatabase(path, version: 1, onCreate: (db, version) async {
+          await openDatabase(path, version: 2, onCreate: (db, version) async {
         logger.info('Creating new database tables...');
         await db.execute('''
           CREATE TABLE $tableName (
@@ -131,8 +130,29 @@ class CacheManager {
             PRIMARY KEY (bvid, mid)
           )
         ''');
-      });
-      logger.info('Database initialized');
+      }, onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion == 1 && newVersion == 2) {
+          logger.info('Upgrading database from version 1 to 2');
+          logger.info('Upgrading: creating collected fav list tables');
+          await db.execute('''
+            CREATE TABLE $collectedFavListTable (
+              id INTEGER PRIMARY KEY,
+              title TEXT,
+              mediaCount INTEGER,
+              list_order INTEGER
+            )
+          ''');
+          logger.info('Upgrading: creating collected fav list video tables');
+          await db.execute('''
+            CREATE TABLE $collectedFavListVideoTable (
+              bvid TEXT,
+              mid INTEGER,
+              PRIMARY KEY (bvid, mid)
+            )
+          ''');
+          logger.info('Database upgrade completed');
+        }
+      },);
       return db;
     } catch (e, stackTrace) {
       logger.severe('Failed to initialize database', e, stackTrace);
@@ -369,10 +389,9 @@ class CacheManager {
 
   static Future<void> saveCacheMetadata(
       String bvid, int cid, String filePath) async {
-    logger.info('saving audio cache metadata for bvid: $bvid, cid: $cid');
     try {
       final db = await database;
-      await db.insert(
+      int ret = await db.insert(
           tableName,
           {
             'bvid': bvid,
@@ -381,7 +400,9 @@ class CacheManager {
             'createdAt': DateTime.now().millisecondsSinceEpoch,
           },
           conflictAlgorithm: ConflictAlgorithm.ignore);
-      logger.info('audio cache metadata saved');
+      if (ret != 0) {
+        logger.info('audio cache metadata saved');
+      }
     } catch (e, stackTrace) {
       logger.severe('Failed to save audio cache metadata', e, stackTrace);
       rethrow;
