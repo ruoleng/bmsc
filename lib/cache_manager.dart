@@ -38,10 +38,12 @@ class CacheManager {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, _dbName);
     try {
-      final db =
-          await openDatabase(path, version: 2, onCreate: (db, version) async {
-        logger.info('Creating new database tables...');
-        await db.execute('''
+      final db = await openDatabase(
+        path,
+        version: 1,
+        onCreate: (db, version) async {
+          logger.info('Creating new database tables...');
+          await db.execute('''
           CREATE TABLE $tableName (
             bvid TEXT,
             cid INTEGER,
@@ -51,7 +53,7 @@ class CacheManager {
           )
         ''');
 
-        await db.execute('''
+          await db.execute('''
           CREATE TABLE $entityTable (
             aid INTEGER,
             cid INTEGER,
@@ -67,7 +69,7 @@ class CacheManager {
           )
         ''');
 
-        await db.execute('''
+          await db.execute('''
           CREATE TABLE $metaTable (
             bvid TEXT PRIMARY KEY,
             aid INTEGER,
@@ -81,7 +83,7 @@ class CacheManager {
           )
         ''');
 
-        await db.execute('''
+          await db.execute('''
           CREATE TABLE $favListVideoTable (
             bvid TEXT,
             mid INTEGER,
@@ -89,7 +91,7 @@ class CacheManager {
           )
         ''');
 
-        await db.execute('''
+          await db.execute('''
           CREATE TABLE $favListTable (
             id INTEGER PRIMARY KEY,
             title TEXT,
@@ -98,7 +100,7 @@ class CacheManager {
           )
         ''');
 
-        await db.execute('''
+          await db.execute('''
           CREATE TABLE $favDetailTable (
             id INTEGER,
             title TEXT,
@@ -114,7 +116,7 @@ class CacheManager {
           )
         ''');
 
-        await db.execute('''
+          await db.execute('''
           CREATE TABLE $collectedFavListTable (
             id INTEGER PRIMARY KEY,
             title TEXT,
@@ -123,36 +125,15 @@ class CacheManager {
           )
         ''');
 
-        await db.execute('''
+          await db.execute('''
           CREATE TABLE $collectedFavListVideoTable (
             bvid TEXT,
             mid INTEGER,
             PRIMARY KEY (bvid, mid)
           )
         ''');
-      }, onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion == 1 && newVersion == 2) {
-          logger.info('Upgrading database from version 1 to 2');
-          logger.info('Upgrading: creating collected fav list tables');
-          await db.execute('''
-            CREATE TABLE $collectedFavListTable (
-              id INTEGER PRIMARY KEY,
-              title TEXT,
-              mediaCount INTEGER,
-              list_order INTEGER
-            )
-          ''');
-          logger.info('Upgrading: creating collected fav list video tables');
-          await db.execute('''
-            CREATE TABLE $collectedFavListVideoTable (
-              bvid TEXT,
-              mid INTEGER,
-              PRIMARY KEY (bvid, mid)
-            )
-          ''');
-          logger.info('Database upgrade completed');
-        }
-      },);
+        },
+      );
       return db;
     } catch (e, stackTrace) {
       logger.severe('Failed to initialize database', e, stackTrace);
