@@ -1039,9 +1039,13 @@ class API {
       final relatedVideos = await getRelatedVideos(track.aid,
           tidWhitelist: tidWhitelist, durationConstraint: durationConstraint);
       if (relatedVideos != null && relatedVideos.isNotEmpty) {
-        recommendedVideos.add(relatedVideos.firstWhere(
-            (video) => !history.contains(video.bvid) && video.duration >= 60));
-        history.add(relatedVideos.first.bvid);
+        for (final video in relatedVideos) {
+          if (!history.contains(video.bvid) && video.duration >= 60) {
+            recommendedVideos.add(video);
+            history.add(video.bvid);
+            break;
+          }
+        }
       }
     }
     await prefs.setString('recommend_history', jsonEncode(history.toList()));
@@ -1056,6 +1060,8 @@ class API {
         'https://api.bilibili.com/x/web-interface/archive/related',
         queryParameters: {'aid': aid},
       );
+      _logger.info(
+          'called getRelatedVideos with url: ${response.requestOptions.uri}');
       if (response.data['code'] != 0) return null;
 
       var videos = response.data['data'] as List;
