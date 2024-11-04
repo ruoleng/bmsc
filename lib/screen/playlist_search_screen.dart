@@ -1,3 +1,5 @@
+import 'package:bmsc/component/select_favlist_dialog.dart';
+import 'package:bmsc/model/fav.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../globals.dart' as globals;
@@ -242,243 +244,13 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                   (isSearching && !isSearchPaused)
                               ? null
                               : () async {
-                                  final uid = await globals.api.getStoredUID();
-                                  if (uid == null) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(content: Text('请先登录')),
-                                      );
-                                    }
-                                    return;
-                                  }
-
-                                  final favs = await globals.api.getFavs(uid);
-                                  if (favs == null || favs.isEmpty) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(content: Text('未找到收藏夹')),
-                                      );
-                                    }
-                                    return;
-                                  }
-
-                                  if (!context.mounted) return;
-
-                                  showDialog(
+                                  final folder = await showDialog<Fav>(
                                     context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: const Text('选择收藏夹'),
-                                        content: SizedBox(
-                                          width: double.maxFinite,
-                                          height: 300,
-                                          child: ListView.builder(
-                                            shrinkWrap: true,
-                                            itemCount: favs.length,
-                                            itemBuilder: (context, index) {
-                                              final folder = favs[index];
-                                              return ListTile(
-                                                title: Text(folder.title),
-                                                subtitle: Text(
-                                                    '${folder.mediaCount} 首曲目'),
-                                                onTap: () async {
-                                                  Navigator.pop(context);
-
-                                                  var foundTracks = [];
-
-                                                  for (var i = 0;
-                                                      i < results.length;
-                                                      i++) {
-                                                    final result = results[i];
-                                                    if (result['aid'] != null) {
-                                                      foundTracks.add({
-                                                        ...result,
-                                                        'index': i
-                                                      });
-                                                    }
-                                                  }
-
-                                                  final confirmed =
-                                                      await showDialog<bool>(
-                                                    context: context,
-                                                    builder:
-                                                        (BuildContext context) {
-                                                      return AlertDialog(
-                                                        title: const Text('确认'),
-                                                        content: Text(
-                                                            '确定要添加 ${foundTracks.length} 首曲目到 ${folder.title} 吗？'),
-                                                        actions: [
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                    context,
-                                                                    false),
-                                                            child: const Text(
-                                                                '取消'),
-                                                          ),
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                    context,
-                                                                    true),
-                                                            child: const Text(
-                                                                '确定'),
-                                                          ),
-                                                        ],
-                                                      );
-                                                    },
-                                                  );
-
-                                                  if (confirmed != true) return;
-
-                                                  var successCount = 0;
-
-                                                  setState(() {
-                                                    isSaving = true;
-                                                    isSavingPaused = false;
-                                                    processedFavorites = 0;
-                                                    totalFavorites =
-                                                        foundTracks.length;
-                                                  });
-
-                                                  // Show initial favorite notification
-                                                  await flutterLocalNotificationsPlugin
-                                                      .show(
-                                                    1, // Use a different notification ID for favorites
-                                                    '添加收藏',
-                                                    '准备添加到收藏夹...',
-                                                    const NotificationDetails(
-                                                      android:
-                                                          AndroidNotificationDetails(
-                                                        'favorite_progress',
-                                                        'Favorite Progress',
-                                                        channelDescription:
-                                                            'Notifications for favorite progress',
-                                                        importance:
-                                                            Importance.high,
-                                                        priority: Priority.high,
-                                                        ongoing: true,
-                                                        showProgress: true,
-                                                        onlyAlertOnce: true,
-                                                        playSound: false,
-                                                      ),
-                                                    ),
-                                                  );
-
-                                                  for (var i = 0;
-                                                      i < foundTracks.length;
-                                                      i++) {
-                                                    await _waitForSavingPause();
-                                                    final track =
-                                                        foundTracks[i];
-                                                    final success =
-                                                        await globals.api
-                                                            .favoriteVideo(
-                                                      track['aid'],
-                                                      [folder.id],
-                                                      [],
-                                                    );
-                                                    if (success == null) {
-                                                      showErrorSnackBar(
-                                                          "收藏失败，已暂停");
-                                                      --i;
-                                                      _toggleSavingPause();
-                                                      continue;
-                                                    }
-
-                                                    setState(() {
-                                                      results[track['index']]
-                                                              ['favAddStatus'] =
-                                                          success;
-                                                      processedFavorites =
-                                                          i + 1;
-                                                    });
-
-                                                    // Update favorite progress notification
-                                                    await flutterLocalNotificationsPlugin
-                                                        .show(
-                                                      1,
-                                                      '添加收藏',
-                                                      '处理中: ${i + 1}/${foundTracks.length}',
-                                                      NotificationDetails(
-                                                        android:
-                                                            AndroidNotificationDetails(
-                                                          'favorite_progress',
-                                                          'Favorite Progress',
-                                                          channelDescription:
-                                                              'Notifications for favorite progress',
-                                                          importance:
-                                                              Importance.high,
-                                                          priority:
-                                                              Priority.high,
-                                                          ongoing: true,
-                                                          showProgress: true,
-                                                          maxProgress:
-                                                              foundTracks
-                                                                  .length,
-                                                          progress: i + 1,
-                                                          onlyAlertOnce: true,
-                                                          playSound: false,
-                                                        ),
-                                                      ),
-                                                    );
-
-                                                    if (autoscroll) {
-                                                      scrollTo(track['index']);
-                                                    }
-                                                    if (success) successCount++;
-
-                                                    await Future.delayed(
-                                                        const Duration(
-                                                            milliseconds:
-                                                                1200));
-                                                  }
-
-                                                  // Show completion notification
-                                                  await flutterLocalNotificationsPlugin
-                                                      .show(
-                                                    1,
-                                                    '添加收藏',
-                                                    '完成: 已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}',
-                                                    const NotificationDetails(
-                                                      android:
-                                                          AndroidNotificationDetails(
-                                                        'favorite_progress',
-                                                        'Favorite Progress',
-                                                        channelDescription:
-                                                            'Notifications for favorite progress',
-                                                        importance:
-                                                            Importance.high,
-                                                        priority: Priority.high,
-                                                        onlyAlertOnce: true,
-                                                        playSound: false,
-                                                      ),
-                                                    ),
-                                                  );
-
-                                                  setState(() {
-                                                    isSaving = false;
-                                                  });
-                                                  if (context.mounted) {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                            '已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}'),
-                                                      ),
-                                                    );
-                                                  }
-                                                },
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                    builder: (context) => SelectFavlistDialog(),
                                   );
+                                  if (folder == null || !context.mounted)
+                                    return;
+                                  await _saveToFavlist(folder, context);
                                 },
                           child: const Text('收藏'),
                         ),
@@ -681,6 +453,148 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
               ScaffoldMessenger.of(_context).hideCurrentSnackBar();
             },
           ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveToFavlist(Fav folder, BuildContext context) async {
+    var foundTracks = [];
+
+    for (var i = 0; i < results.length; i++) {
+      final result = results[i];
+      if (result['aid'] != null) {
+        foundTracks.add({...result, 'index': i});
+      }
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('确认'),
+          content: Text('确定要添加 ${foundTracks.length} 首曲目到 ${folder.title} 吗？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('确定'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    var successCount = 0;
+
+    setState(() {
+      isSaving = true;
+      isSavingPaused = false;
+      processedFavorites = 0;
+      totalFavorites = foundTracks.length;
+    });
+
+    // Show initial favorite notification
+    await flutterLocalNotificationsPlugin.show(
+      1, // Use a different notification ID for favorites
+      '添加收藏',
+      '准备添加到收藏夹...',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'favorite_progress',
+          'Favorite Progress',
+          channelDescription: 'Notifications for favorite progress',
+          importance: Importance.high,
+          priority: Priority.high,
+          ongoing: true,
+          showProgress: true,
+          onlyAlertOnce: true,
+          playSound: false,
+        ),
+      ),
+    );
+
+    for (var i = 0; i < foundTracks.length; i++) {
+      await _waitForSavingPause();
+      final track = foundTracks[i];
+      final success = await globals.api.favoriteVideo(
+        track['aid'],
+        [folder.id],
+        [],
+      );
+      if (success == null) {
+        showErrorSnackBar("收藏失败，已暂停");
+        --i;
+        _toggleSavingPause();
+        continue;
+      }
+
+      setState(() {
+        results[track['index']]['favAddStatus'] = success;
+        processedFavorites = i + 1;
+      });
+
+      // Update favorite progress notification
+      await flutterLocalNotificationsPlugin.show(
+        1,
+        '添加收藏',
+        '处理中: ${i + 1}/${foundTracks.length}',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'favorite_progress',
+            'Favorite Progress',
+            channelDescription: 'Notifications for favorite progress',
+            importance: Importance.high,
+            priority: Priority.high,
+            ongoing: true,
+            showProgress: true,
+            maxProgress: foundTracks.length,
+            progress: i + 1,
+            onlyAlertOnce: true,
+            playSound: false,
+          ),
+        ),
+      );
+
+      if (autoscroll) {
+        scrollTo(track['index']);
+      }
+      if (success) successCount++;
+
+      await Future.delayed(const Duration(milliseconds: 1200));
+    }
+
+    // Show completion notification
+    await flutterLocalNotificationsPlugin.show(
+      1,
+      '添加收藏',
+      '完成: 已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'favorite_progress',
+          'Favorite Progress',
+          channelDescription: 'Notifications for favorite progress',
+          importance: Importance.high,
+          priority: Priority.high,
+          onlyAlertOnce: true,
+          playSound: false,
+        ),
+      ),
+    );
+
+    setState(() {
+      isSaving = false;
+    });
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '已添加 $successCount/${foundTracks.length} 首曲目到 ${folder.title}'),
         ),
       );
     }

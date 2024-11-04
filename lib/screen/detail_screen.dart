@@ -1,5 +1,6 @@
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:bmsc/api.dart';
+import 'package:bmsc/component/select_favlist_dialog_multi.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -19,7 +20,6 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   bool? _isFavorite;
   int? _currentAid;
-  final Map<int, bool> _pendingFavStates = {};
 
   @override
   void initState() {
@@ -101,6 +101,7 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: const Text('正在播放'),
         ),
@@ -297,201 +298,62 @@ class _DetailScreenState extends State<DetailScreen> {
                                   }
                                 } else {
                                   if (!context.mounted) return;
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: const Text('选择收藏夹'),
-                                        content: SizedBox(
-                                          width: double.maxFinite,
-                                          child: StatefulBuilder(
-                                            builder: (context, setDialogState) {
-                                              return ListView.builder(
-                                                shrinkWrap: true,
-                                                itemCount: favs.length,
-                                                itemBuilder: (context, index) {
-                                                  final folder = favs[index];
-                                                  final isSelected =
-                                                      _pendingFavStates
-                                                              .containsKey(
-                                                                  folder.id)
-                                                          ? _pendingFavStates[
-                                                              folder.id]!
-                                                          : folder.favState ==
-                                                              1;
-                                                  return FutureBuilder<
-                                                          Map<String,
-                                                              dynamic>?>(
-                                                      future: globals.api
-                                                          .getDefaultFavFolder(),
-                                                      builder:
-                                                          (context, snapshot) {
-                                                        final isDefault =
-                                                            snapshot.data !=
-                                                                    null &&
-                                                                snapshot.data![
-                                                                        'id'] ==
-                                                                    folder.id;
-                                                        return CheckboxListTile(
-                                                          title: Row(
-                                                            children: [
-                                                              Text(
-                                                                  folder.title),
-                                                              if (isDefault)
-                                                                Padding(
-                                                                  padding:
-                                                                      const EdgeInsets
-                                                                          .only(
-                                                                          left:
-                                                                              8.0),
-                                                                  child:
-                                                                      Container(
-                                                                    padding: const EdgeInsets
-                                                                        .symmetric(
-                                                                        horizontal:
-                                                                            6,
-                                                                        vertical:
-                                                                            2),
-                                                                    decoration:
-                                                                        BoxDecoration(
-                                                                      color: Theme.of(
-                                                                              context)
-                                                                          .colorScheme
-                                                                          .primaryContainer,
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                              4),
-                                                                    ),
-                                                                    child: Text(
-                                                                      '默认',
-                                                                      style:
-                                                                          TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                        color: Theme.of(context)
-                                                                            .colorScheme
-                                                                            .onPrimaryContainer,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                            ],
-                                                          ),
-                                                          value: isSelected,
-                                                          onChanged: (value) {
-                                                            setDialogState(() {
-                                                              _pendingFavStates[
-                                                                      folder
-                                                                          .id] =
-                                                                  value!;
-                                                            });
-                                                          },
-                                                        );
-                                                      });
-                                                },
-                                              );
-                                            },
-                                          ),
+                                  final result = await showDialog(
+                                      context: context,
+                                      builder: (context) =>
+                                          SelectMultiFavlistDialog(
+                                              aid: src.tag.extras['aid']));
+                                  if (result == null) return;
+                                  final toAdd = result['toAdd'];
+                                  final toRemove = result['toRemove'];
+                                  if (toAdd.isEmpty && toRemove.isEmpty) return;
+
+                                  final success =
+                                      await globals.api.favoriteVideo(
+                                            src.tag.extras['aid'],
+                                            toAdd,
+                                            toRemove,
+                                          ) ??
+                                          false;
+                                  if (!mounted) return;
+
+                                  if (success) {
+                                    if (toAdd.isNotEmpty && toAdd.length == 1) {
+                                      await globals.api.setDefaultFavFolder(
+                                          toAdd.first,
+                                          favs
+                                              .firstWhere(
+                                                  (f) => f.id == toAdd.first)
+                                              .title);
+                                      Future.microtask(() => setState(() {
+                                            _isFavorite = true;
+                                          }));
+                                    } else {
+                                      _checkFavoriteStatus(
+                                          src.tag.extras['aid']);
+                                    }
+
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text('收藏夹已更新'),
+                                          duration: Duration(seconds: 2),
                                         ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.of(context).pop();
-                                              _pendingFavStates.clear();
-                                            },
-                                            child: const Text('取消'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              final scaffoldContext = context;
-                                              Navigator.of(context).pop();
-
-                                              final toAdd = <int>[];
-                                              final toRemove = <int>[];
-
-                                              _pendingFavStates.forEach(
-                                                  (folderId, newState) {
-                                                final originalState = favs
-                                                        .firstWhere((f) =>
-                                                            f.id == folderId)
-                                                        .favState ==
-                                                    1;
-
-                                                if (newState != originalState) {
-                                                  if (newState) {
-                                                    toAdd.add(folderId);
-                                                  } else {
-                                                    toRemove.add(folderId);
-                                                  }
-                                                }
-                                              });
-
-                                              if (toAdd.isEmpty &&
-                                                  toRemove.isEmpty) return;
-
-                                              final success = await globals.api
-                                                      .favoriteVideo(
-                                                    src.tag.extras['aid'],
-                                                    toAdd,
-                                                    toRemove,
-                                                  ) ??
-                                                  false;
-
-                                              if (!mounted) return;
-
-                                              if (success) {
-                                                if (toAdd.isNotEmpty) {
-                                                  await globals.api
-                                                      .setDefaultFavFolder(
-                                                          toAdd.first,
-                                                          favs
-                                                              .firstWhere((f) =>
-                                                                  f.id ==
-                                                                  toAdd.first)
-                                                              .title);
-                                                  Future.microtask(
-                                                      () => setState(() {
-                                                            _isFavorite = true;
-                                                          }));
-                                                } else {
-                                                  _checkFavoriteStatus(
-                                                      src.tag.extras['aid']);
-                                                }
-
-                                                if (scaffoldContext.mounted) {
-                                                  ScaffoldMessenger.of(
-                                                          scaffoldContext)
-                                                      .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text('收藏夹已更新'),
-                                                      duration:
-                                                          Duration(seconds: 2),
-                                                    ),
-                                                  );
-                                                }
-                                              } else {
-                                                _checkFavoriteStatus(
-                                                    src.tag.extras['aid']);
-                                                if (context.mounted) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text('操作失败'),
-                                                      duration:
-                                                          Duration(seconds: 2),
-                                                    ),
-                                                  );
-                                                }
-                                              }
-
-                                              _pendingFavStates.clear();
-                                            },
-                                            child: const Text('确定'),
-                                          ),
-                                        ],
                                       );
-                                    },
-                                  );
+                                    }
+                                  } else {
+                                    _checkFavoriteStatus(src.tag.extras['aid']);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text('操作失败'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  }
                                 }
                               },
                       );
@@ -502,5 +364,90 @@ class _DetailScreenState extends State<DetailScreen> {
             ],
           ),
         ));
+  }
+
+  Widget _createFavFolderListTile(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.add),
+      title: const Text('新建收藏夹'),
+      onTap: () async {
+        final result = await showDialog<Map<String, dynamic>>(
+          context: context,
+          builder: (BuildContext context) {
+            final nameController = TextEditingController();
+            bool isPrivate = false;
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: const Text('新建收藏夹'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: '收藏夹名称',
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: isPrivate,
+                            onChanged: (value) {
+                              setState(() {
+                                isPrivate = value ?? false;
+                              });
+                            },
+                          ),
+                          const Text('设为私密'),
+                        ],
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('取消'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        if (nameController.text.isEmpty) return;
+                        Navigator.pop(context, {
+                          'name': nameController.text,
+                          'privacy': isPrivate,
+                        });
+                      },
+                      child: const Text('确定'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+
+        if (result != null) {
+          final id = await globals.api.createFavFolder(
+            result['name'],
+            privacy: result['privacy'],
+          );
+
+          if (id != null && context.mounted) {
+            Navigator.pop(context);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('创建成功，请重新打开对话框')),
+              );
+            }
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('创建失败')),
+              );
+            }
+          }
+        }
+      },
+    );
   }
 }

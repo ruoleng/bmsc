@@ -4,7 +4,6 @@ import '../globals.dart' as globals;
 import 'fav_detail_screen.dart';
 import 'package:bmsc/cache_manager.dart' as cache_manager;
 import 'recommendation_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bmsc/util/logger.dart';
 
 final logger = LoggerUtils.getLogger('FavScreen');
@@ -86,6 +85,193 @@ class _FavScreenState extends State<FavScreen> {
     });
   }
 
+  Future<void> _showCreateFolderDialog() async {
+    final nameController = TextEditingController();
+    bool isPrivate = false;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('创建收藏夹'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: '收藏夹名称',
+                  hintText: '请输入收藏夹名称',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Checkbox(
+                    value: isPrivate,
+                    onChanged: (value) => setState(() => isPrivate = value!),
+                  ),
+                  const Text('设为私密收藏夹'),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (nameController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('请输入收藏夹名称')),
+                  );
+                  return;
+                }
+                Navigator.pop(context, {
+                  'name': nameController.text.trim(),
+                  'privacy': isPrivate,
+                });
+              },
+              child: const Text('创建'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null) {
+      final folderId = await globals.api.createFavFolder(
+        result['name'],
+        privacy: result['privacy'],
+      );
+
+      if (folderId != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('创建成功')),
+          );
+          loadFavorites();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('创建失败')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showEditFolderDialog(Fav fav) async {
+    final nameController = TextEditingController(text: fav.title);
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('编辑收藏夹'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: '收藏夹名称',
+                  hintText: '请输入收藏夹名称',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (nameController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('请输入收藏夹名称')),
+                  );
+                  return;
+                }
+                Navigator.pop(context, {
+                  'name': nameController.text.trim(),
+                });
+              },
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null) {
+      final success = await globals.api.editFavFolder(
+        fav.id,
+        result['name'],
+      );
+
+      if (success == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('修改成功')),
+          );
+          loadFavorites();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('修改失败')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showDeleteConfirmation(Fav fav) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除收藏夹'),
+        content: Text('确定要删除收藏夹"${fav.title}"吗？此操作不可恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await globals.api.deleteFavFolder(fav.id);
+      if (success == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('删除成功')),
+          );
+          loadFavorites();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('删除失败')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,6 +279,10 @@ class _FavScreenState extends State<FavScreen> {
         title: const Text('云收藏夹',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _showCreateFolderDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: loadFavorites,
@@ -211,51 +401,67 @@ class _FavScreenState extends State<FavScreen> {
                         ),
                       );
                     },
-                    trailing: IconButton(
-                      icon: const Icon(Icons.more_vert),
-                      onPressed: () => showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('选择操作'),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ListTile(
-                                leading: const Icon(Icons.playlist_add),
-                                title: const Text('添加到播放列表'),
-                                onTap: () async {
-                                  Navigator.pop(context);
-                                  await (isOwned
-                                      ? globals.api.addFavListToPlaylist(fav.id)
-                                      : globals.api
-                                          .addCollectedFavListToPlaylist(
-                                              fav.id));
-                                },
-                              ),
-                              if (isOwned)
-                                ListTile(
-                                  leading: const Icon(Icons.star_outline),
-                                  title: const Text('设为默认收藏夹'),
-                                  onTap: () async {
-                                    Navigator.pop(context);
-                                    await globals.api
-                                        .setDefaultFavFolder(fav.id, fav.title);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content:
-                                              Text('已将 ${fav.title} 设为默认收藏夹'),
-                                        ),
-                                      );
-                                    }
-                                  },
+                    trailing: isOwned
+                        ? IconButton(
+                            icon: const Icon(Icons.more_vert),
+                            onPressed: () => showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('选择操作'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      leading: const Icon(Icons.playlist_add),
+                                      title: const Text('添加到播放列表'),
+                                      onTap: () async {
+                                        Navigator.pop(context);
+                                        await globals.api
+                                            .addFavListToPlaylist(fav.id);
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(Icons.star_outline),
+                                      title: const Text('设为默认收藏夹'),
+                                      onTap: () async {
+                                        Navigator.pop(context);
+                                        await globals.api.setDefaultFavFolder(
+                                            fav.id, fav.title);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  '已将 ${fav.title} 设为默认收藏夹'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(Icons.edit),
+                                      title: const Text('编辑收藏夹'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _showEditFolderDialog(fav);
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(Icons.delete,
+                                          color: Colors.red),
+                                      title: const Text('删除收藏夹',
+                                          style: TextStyle(color: Colors.red)),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _showDeleteConfirmation(fav);
+                                      },
+                                    ),
+                                  ],
                                 ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )),
+                              ),
+                            ),
+                          )
+                        : null),
                 const Divider(),
               ],
             ))

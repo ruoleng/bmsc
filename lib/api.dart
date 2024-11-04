@@ -1018,6 +1018,45 @@ class API {
     return decoded.map((v) => Meta.fromJson(v)).toList();
   }
 
+  Future<Fav?> createFavFolder(String name, {bool privacy = false}) async {
+    final response = await dio
+        .post('https://api.bilibili.com/x/v3/fav/folder/add', queryParameters: {
+      'title': name,
+      'privacy': privacy ? 1 : 0,
+      'csrf': _extractCSRF(cookies)
+    });
+    _logger.info(
+        'called createFavFolder with url: ${response.requestOptions.uri}');
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return Fav.fromJson(response.data['data']);
+  }
+
+  Future<bool?> deleteFavFolder(int mediaId) async {
+    final response = await dio.post(
+        'https://api.bilibili.com/x/v3/fav/folder/del',
+        queryParameters: {'media_ids': mediaId, 'csrf': _extractCSRF(cookies)});
+    _logger.info(
+        'called deleteFavFolder with url: ${response.requestOptions.uri}');
+    return response.data['code'] == 0;
+  }
+
+  Future<bool?> editFavFolder(int mediaId, String name,
+      {bool privacy = false}) async {
+    final response = await dio.post(
+        'https://api.bilibili.com/x/v3/fav/folder/edit',
+        queryParameters: {
+          'media_id': mediaId,
+          'title': name,
+          'privacy': privacy ? 1 : 0,
+          'csrf': _extractCSRF(cookies)
+        });
+    _logger
+        .info('called editFavFolder with url: ${response.requestOptions.uri}');
+    return response.data['code'] == 0;
+  }
+
   Future<List<Meta>?> getRecommendations(List<Meta> tracks) async {
     _logger.info('Getting recommendations for ${tracks.length} tracks');
     if (tracks.isEmpty) {
