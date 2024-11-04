@@ -53,7 +53,12 @@ class API {
   API(String cookie) {
     setCookies(cookie);
     player.setAudioSource(playlist);
-    player.setLoopMode(LoopMode.all);
+    const cycleModes = [
+      LoopMode.off,
+      LoopMode.all,
+      LoopMode.one,
+      LoopMode.off,
+    ];
     durationState = Rx.combineLatest2<Duration, PlaybackEvent, DurationState>(
         player.positionStream,
         player.playbackEventStream,
@@ -67,6 +72,17 @@ class API {
         if (!restored) {
           restored = true;
           await restorePlaylist();
+          final prefs = await SharedPreferences.getInstance();
+          final playmode = prefs.getInt('playmode');
+          if (playmode != null) {
+            if (playmode == 3) {
+              await player.setShuffleModeEnabled(true);
+              await player.setLoopMode(LoopMode.off);
+            } else {
+              await player.setLoopMode(cycleModes[playmode]);
+            }
+            _logger.info('Restored playmode: $playmode');
+          }
         }
       }
       if (state.processingState == ProcessingState.ready) {
@@ -80,6 +96,26 @@ class API {
         await _hijackDummySource(index: index);
       }
     });
+    Rx.combineLatest2(
+        player.loopModeStream,
+        player.shuffleModeEnabledStream,
+        (loopMode, shuffleModeEnabled) => (
+              loopMode,
+              loopMode == LoopMode.off && shuffleModeEnabled
+            )).listen((data) async {
+      if (!restored) {
+        return;
+      }
+      final (loopMode, shuffleModeEnabled) = data;
+      final prefs = await SharedPreferences.getInstance();
+
+      if (loopMode == LoopMode.off && shuffleModeEnabled) {
+        prefs.setInt('playmode', 3);
+      } else {
+        prefs.setInt('playmode', cycleModes.indexOf(loopMode));
+      }
+    });
+
     player.currentIndexStream.listen((index) async {
       if (index != null && restored) {
         final prefs = await SharedPreferences.getInstance();
@@ -120,8 +156,15 @@ class API {
         return;
       }
       await doAndSave(() async {
+        final shuffleModeEnabled = player.shuffleModeEnabled;
+        if (shuffleModeEnabled) {
+          await player.setShuffleModeEnabled(false);
+        }
         await playlist.insertAll(index! + 1, srcs!);
         await playlist.removeAt(index);
+        if (shuffleModeEnabled) {
+          await player.setShuffleModeEnabled(true);
+        }
       });
       await player.play();
     }

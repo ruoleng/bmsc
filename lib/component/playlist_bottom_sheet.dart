@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:rxdart/rxdart.dart';
 import '../cache_manager.dart';
 import '../globals.dart' as globals;
 
@@ -68,25 +69,40 @@ class PlaylistBottomSheet extends StatelessWidget {
                     );
                   },
                 ),
-                StreamBuilder<LoopMode>(
-                  stream: globals.api.player.loopModeStream,
+                StreamBuilder<(LoopMode, bool)>(
+                  // set stream to loopModeStream and shuffleModeEnabledStream combined
+                  stream: Rx.combineLatest2(
+                    globals.api.player.loopModeStream,
+                    globals.api.player.shuffleModeEnabledStream,
+                    (loopMode, shuffleModeEnabled) => (
+                      loopMode,
+                      loopMode == LoopMode.off && shuffleModeEnabled
+                    ),
+                  ),
                   builder: (context, snapshot) {
-                    final loopMode = snapshot.data ?? LoopMode.off;
+                    final (loopMode, shuffleModeEnabled) =
+                        snapshot.data ?? (LoopMode.off, false);
                     final icons = [
                       Icons.playlist_play,
                       Icons.repeat,
-                      Icons.repeat_one
+                      Icons.repeat_one,
+                      Icons.shuffle,
                     ];
-                    final labels = ["顺序播放", "歌单循环", "单曲循环"];
+                    final labels = ["顺序播放", "歌单循环", "单曲循环", "随机播放"];
                     final cycleModes = [
                       LoopMode.off,
                       LoopMode.all,
-                      LoopMode.one
+                      LoopMode.one,
+                      LoopMode.off,
                     ];
-                    final index = cycleModes.indexOf(loopMode);
+                    final index =
+                        shuffleModeEnabled ? 3 : cycleModes.indexOf(loopMode);
 
                     return IconButton(
-                      icon: Icon(icons[index], size: 20),
+                      icon: Icon(
+                        shuffleModeEnabled ? Icons.shuffle : icons[index],
+                        size: 20,
+                      ),
                       tooltip: labels[index],
                       style: IconButton.styleFrom(
                         backgroundColor: Theme.of(context)
@@ -96,8 +112,13 @@ class PlaylistBottomSheet extends StatelessWidget {
                             Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       onPressed: () {
-                        final nextIndex = (index + 1) % cycleModes.length;
+                        final nextIndex = (index + 1) % labels.length;
                         globals.api.player.setLoopMode(cycleModes[nextIndex]);
+                        if (nextIndex == 3) {
+                          globals.api.player.setShuffleModeEnabled(true);
+                        } else {
+                          globals.api.player.setShuffleModeEnabled(false);
+                        }
                       },
                     );
                   },
