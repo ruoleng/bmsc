@@ -129,18 +129,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                           borderRadius: BorderRadius.circular(0),
                         ),
                       ),
-                      onPressed: null,
-                      // onPressed: () async {
-                      //   final bvids = vidList.map((x) => x.bvid);
-                      //   await globals.api.player.stop();
-                      //   await globals.api.playlist.clear();
-                      //   await globals.api.appendPlaylist(bvids.first);
-                      //   await globals.api.player.seek(Duration.zero, index: 0);
-                      //   await globals.api.player.play();
-                      //   for (final x in bvids.skip(1)) {
-                      //     await globals.api.appendPlaylist(x);
-                      //   }
-                      // },
+                      onPressed: () async {
+                        final bvids = vidList.map((x) => x.bvid).toList();
+                        await globals.api.playByBvids(bvids);
+                      },
                     ),
                   )
                 ],

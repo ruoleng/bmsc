@@ -9,6 +9,7 @@ import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/user_card.dart';
 import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
+import 'package:bmsc/util/crypto.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ class API {
   static final _logger = LoggerUtils.getLogger('API');
 
   int? uid;
+  String? username;
   late String cookies;
   late Map<String, String> headers;
   Dio dio = Dio();
@@ -176,13 +178,32 @@ class API {
   }
 
   Future<UserUploadResult?> getUserUploads(int mid, int pn) async {
-    final response = await dio.get(
-        "https://api.bilibili.com/x/space/wbi/arc/search",
-        queryParameters: {'mid': mid, 'ps': 40, 'pn': pn});
+    final response =
+        await dio.get("https://api.bilibili.com/x/space/wbi/arc/search",
+            queryParameters: await encodeParams({
+              'mid': mid,
+              'ps': 40,
+              'pn': pn,
+            }));
+    _logger
+        .info('called getUserUploads with url: ${response.requestOptions.uri}');
     if (response.data['code'] != 0) {
       return null;
     }
-    return UserUploadResult.fromJson(response.data['data']);
+    final ret = UserUploadResult.fromJson(response.data['data']);
+    await CacheManager.cacheMetas(ret.list.vlist.map((x) {
+      final durations = x.length.split(':').map(int.parse).toList();
+      return Meta(
+        bvid: x.bvid,
+        aid: x.aid,
+        title: x.title,
+        artist: x.author,
+        mid: x.mid,
+        duration: durations[0] * 60 + durations[1],
+        artUri: x.pic,
+      );
+    }).toList());
+    return ret;
   }
 
   Future<UserInfoResult?> getUserInfo(int mid) async {
@@ -425,6 +446,33 @@ class API {
       final uid = prefs.getInt('uid');
       if (uid != null) {
         return uid;
+      }
+      return null;
+    }
+  }
+
+  Future<String?> getStoredUsername() async {
+    if (username != null) {
+      return username;
+    }
+    username = await getUsername();
+    return username;
+  }
+
+  Future<String?> getUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
+      if (response.data['code'] != 0) {
+        return null;
+      }
+      final ret = response.data['data']['name'];
+      await prefs.setString('username', ret);
+      return ret;
+    } catch (e) {
+      final username = prefs.getString('username');
+      if (username != null) {
+        return username;
       }
       return null;
     }
@@ -1173,5 +1221,35 @@ class API {
     } catch (e) {
       return null;
     }
+  }
+
+  Future<String?> getRawWbiKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawWbiKey = prefs.getString('raw_wbi_key');
+    final lastUpdateDay = prefs.getInt('img_sub_key_last_update');
+    final currentDay = (DateTime.now().millisecondsSinceEpoch ~/ 86400000);
+    if (lastUpdateDay != null &&
+        rawWbiKey != null &&
+        lastUpdateDay == currentDay) {
+      return rawWbiKey;
+    }
+    _logger.info('Getting new raw_wbi_key');
+    final response =
+        await dio.get('https://api.bilibili.com/x/web-interface/nav');
+    _logger
+        .info('called getRawWbiKey with url: ${response.requestOptions.uri}');
+    if (response.data['code'] != 0) return null;
+    final data = response.data['data']['wbi_img'];
+    final imgsubNew = data['img_url'] as String?;
+    final subidNew = data['sub_url'] as String?;
+    if (imgsubNew == null || subidNew == null) return null;
+    final rawWbiKeyNew = imgsubNew.substring(
+            imgsubNew.lastIndexOf('/') + 1, imgsubNew.lastIndexOf('.')) +
+        subidNew.substring(
+            subidNew.lastIndexOf('/') + 1, subidNew.lastIndexOf('.'));
+    await prefs.setString('raw_wbi_key', rawWbiKeyNew);
+    await prefs.setInt('img_sub_key_last_update', currentDay);
+    _logger.info('New raw_wbi_key: $rawWbiKeyNew');
+    return rawWbiKeyNew;
   }
 }
