@@ -71,7 +71,6 @@ class API {
     } else {
       await resetCookies();
     }
-    resetCookies();
     _logger.info('init player');
     player.setAudioSource(playlist);
     const cycleModes = [
