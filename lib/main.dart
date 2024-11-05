@@ -2,7 +2,6 @@ import 'package:bmsc/model/release.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
-import 'package:bmsc/screen/cache_screen.dart';
 import 'package:bmsc/util/update.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -11,7 +10,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:webview_cookie_manager/webview_cookie_manager.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:bmsc/screen/search_screen.dart';
-import 'package:bmsc/screen/playlist_search_screen.dart';
 
 import 'component/playing_card.dart';
 import 'globals.dart' as globals;
@@ -21,6 +19,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'screen/about_screen.dart';
 import 'util/logger.dart';
+import 'package:bmsc/screen/settings_screen.dart';
 
 final logger = LoggerUtils.getLogger('Main');
 
@@ -185,14 +184,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute<Widget>(
-                  builder: (_) => const PlaylistSearchScreen()),
-            ),
-            icon: const Icon(Icons.input),
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
               MaterialPageRoute<Widget>(builder: (_) => const SearchScreen()),
             ),
             icon: const Icon(Icons.search),
@@ -214,9 +205,11 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute<Widget>(builder: (_) => const CacheScreen()),
+              MaterialPageRoute<Widget>(
+                builder: (_) => const SettingsScreen(),
+              ),
             ),
-            icon: const Icon(Icons.storage),
+            icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
