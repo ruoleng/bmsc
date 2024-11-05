@@ -21,13 +21,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     loadMore();
+    _checkLogin();
+  }
+
+  void _checkLogin() async {
+    final uid = await globals.api.getStoredUID();
+    setState(() {
+      login = uid != null && uid != 0;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(title: const Text('历史记录')),
-        body: hisListView(),
+        body: login ? hisListView() : const Center(child: Text('请先登录')),
         bottomNavigationBar: StreamBuilder<SequenceState?>(
           stream: globals.api.player.sequenceStateStream,
           builder: (_, snapshot) {

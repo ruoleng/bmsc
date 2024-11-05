@@ -20,13 +20,21 @@ class _DynamicScreenState extends State<DynamicScreen> {
   void initState() {
     super.initState();
     loadMore();
+    _checkLogin();
+  }
+
+  void _checkLogin() async {
+    final uid = await globals.api.getStoredUID();
+    setState(() {
+      login = uid != null && uid != 0;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('动态')),
-      body: dynListView(),
+      body: login ? dynListView() : const Center(child: Text('请先登录')),
       bottomNavigationBar: StreamBuilder<SequenceState?>(
         stream: globals.api.player.sequenceStateStream,
         builder: (_, snapshot) {

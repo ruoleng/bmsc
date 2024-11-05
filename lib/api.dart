@@ -429,6 +429,7 @@ class API {
       return uid;
     }
     uid = await getUID();
+    _logger.info('Stored UID: $uid');
     return uid;
   }
 
