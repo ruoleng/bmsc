@@ -248,8 +248,9 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                     context: context,
                                     builder: (context) => SelectFavlistDialog(),
                                   );
-                                  if (folder == null || !context.mounted)
+                                  if (folder == null || !context.mounted) {
                                     return;
+                                  }
                                   await _saveToFavlist(folder, context);
                                 },
                           child: const Text('收藏'),

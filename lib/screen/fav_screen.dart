@@ -17,13 +17,24 @@ class FavScreen extends StatefulWidget {
 
 class _FavScreenState extends State<FavScreen> {
   bool isLoading = true;
+  bool signedin = false;
   List<Fav> favList = [];
   List<Fav> collectedFavList = [];
 
   @override
   void initState() {
     super.initState();
-    loadFavorites();
+    _checkSignedinAndLoadFavorites();
+  }
+
+  Future<void> _checkSignedinAndLoadFavorites() async {
+    final uid = await globals.api.getUID();
+    setState(() {
+      signedin = uid != 0 && uid != null;
+    });
+    if (signedin) {
+      _loadFavorites();
+    }
   }
 
   @override
@@ -31,8 +42,8 @@ class _FavScreenState extends State<FavScreen> {
     super.dispose();
   }
 
-  Future<void> loadFavorites() async {
-    if (!mounted) return;
+  Future<void> _loadFavorites() async {
+    if (!mounted || !signedin) return;
     setState(() => isLoading = true);
 
     globals.api.getStoredUID().then((uid) async {
@@ -152,7 +163,7 @@ class _FavScreenState extends State<FavScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('创建成功')),
           );
-          loadFavorites();
+          _loadFavorites();
         }
       } else {
         if (mounted) {
@@ -219,7 +230,7 @@ class _FavScreenState extends State<FavScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('修改成功')),
           );
-          loadFavorites();
+          _loadFavorites();
         }
       } else {
         if (mounted) {
@@ -260,7 +271,7 @@ class _FavScreenState extends State<FavScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('删除成功')),
           );
-          loadFavorites();
+          _loadFavorites();
         }
       } else {
         if (mounted) {
@@ -285,17 +296,19 @@ class _FavScreenState extends State<FavScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: loadFavorites,
+            onPressed: _checkSignedinAndLoadFavorites,
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: loadFavorites,
-        child: isLoading
+        onRefresh: _checkSignedinAndLoadFavorites,
+        child: !signedin
+                ? const Center(child: Text('请先登录'))
+                : isLoading
             ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                children: [
-                  // 每日推荐入口
+            :  ListView(
+                    children: [
+                      // 每日推荐入口
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 24.0,

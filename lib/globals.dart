@@ -1,3 +1,3 @@
 import 'api.dart';
 
-API api = API("");
+API api = API();

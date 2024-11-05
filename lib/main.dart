@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:webview_cookie_manager/webview_cookie_manager.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:bmsc/screen/search_screen.dart';
 
 import 'component/playing_card.dart';
@@ -93,22 +91,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
-  var signedin = true;
   List<ReleaseResult>? officialVersions;
   String? curVersion;
   bool hasNewVersion = false;
-  late WebViewController controller;
-
-  Future<void> onSuccessLogin() async {
-    final cookies =
-        (await WebviewCookieManager().getCookies('https://www.bilibili.com'))
-            .join(';');
-
-    setState(() {
-      signedin = true;
-      globals.api.setCookies(cookies);
-    });
-  }
 
   @override
   void initState() {
@@ -125,33 +110,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         hasNewVersion = x.first.tagName != curVersion;
       });
     });
-    (WebviewCookieManager().getCookies('https://www.bilibili.com'))
-        .then((x) async {
-      final cookies = x.join(';');
-      globals.api.setCookies(cookies);
-      if ((await globals.api.getUID()) == 0) {
-        setState(() {
-          signedin = false;
-        });
-        logger.info('User not logged in');
-        controller = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setNavigationDelegate(
-            NavigationDelegate(
-              onNavigationRequest: (NavigationRequest request) async {
-                if (!request.url.startsWith('https://passport.bilibili.com/')) {
-                  onSuccessLogin();
-                  logger.info('User logged in');
-                  return NavigationDecision.prevent;
-                }
-                return NavigationDecision.navigate;
-              },
-            ),
-          )
-          ..loadRequest(
-              Uri.parse('https://passport.bilibili.com/h5-app/passport/login'));
-      }
-    });
+    globals.api.init();
   }
 
   @override
@@ -213,8 +172,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body:
-          !signedin ? WebViewWidget(controller: controller) : const FavScreen(),
+      body: const FavScreen(),
     );
   }
 }

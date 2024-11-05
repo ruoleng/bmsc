@@ -1,8 +1,9 @@
+import 'package:bmsc/cache_manager.dart';
 import 'package:bmsc/screen/about_screen.dart';
 import 'package:bmsc/screen/cache_screen.dart';
+import 'package:bmsc/screen/login_screen.dart';
 import 'package:bmsc/screen/playlist_search_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:webview_cookie_manager/webview_cookie_manager.dart';
 import 'package:bmsc/globals.dart' as globals;
 import 'package:bmsc/util/logger.dart';
 
@@ -28,21 +29,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _checkLoginStatus() async {
     final uid = await globals.api.getUID();
     final username = await globals.api.getStoredUsername();
-    setState(() {
-      _isLoggedIn = uid != 0;
-      _username = username;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = uid != 0;
+        _username = username;
+      });
+    }
   }
 
   Future<void> _logout() async {
-    final cookieManager = WebviewCookieManager();
-    await cookieManager.clearCookies();
-    globals.api.setCookies('');
-    await globals.api.getUID();
     logger.info('user logout');
-    setState(() {
-      _isLoggedIn = false;
-    });
+    await globals.api.resetCookies();
+    await globals.api.getUID();
+    await CacheManager.cacheFavList([]);
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = false;
+      });
+    }
   }
 
   @override
@@ -85,7 +89,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           await _logout();
                           if (context.mounted) {
                             Navigator.pop(context);
-                            Navigator.pop(context);
                           }
                         },
                         child: const Text('确定'),
@@ -94,7 +97,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
               } else {
-                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<Widget>(builder: (_) => const LoginScreen()),
+                ).then((value) async {
+                  await _checkLoginStatus();
+                });
               }
             },
           ),

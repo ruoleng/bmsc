@@ -52,8 +52,27 @@ class API {
   );
   bool restored = false;
 
-  API(String cookie) {
-    setCookies(cookie);
+  Future<void> resetCookies() async {
+    final response = await dio.get("https://www.bilibili.com");
+    final cookie = response.headers['set-cookie'];
+    _logger.info('init cookies: ${response.headers['set-cookie']}');
+    if (cookie != null) {
+      setCookies(cookie.join('; '), save: true);
+    }
+  }
+
+  void init() async {
+    _logger.info('init cookies');
+    final prefs = await SharedPreferences.getInstance();
+    final cookie = prefs.getString('cookie');
+    if (cookie != null) {
+      setCookies(cookie);
+      _logger.info('Loaded cookies: $cookie');
+    } else {
+      await resetCookies();
+    }
+    resetCookies();
+    _logger.info('init player');
     player.setAudioSource(playlist);
     const cycleModes = [
       LoopMode.off,
@@ -229,7 +248,11 @@ class API {
     });
   }
 
-  setCookies(String cookie) {
+  setCookies(String cookie, {bool save = false}) async {
+    if (save) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cookie', cookie);
+    }
     cookies = cookie;
     headers = {
       'cookie': cookie,
@@ -1252,5 +1275,171 @@ class API {
     await prefs.setInt('img_sub_key_last_update', currentDay);
     _logger.info('New raw_wbi_key: $rawWbiKeyNew');
     return rawWbiKeyNew;
+  }
+
+  Future<Map<String, dynamic>?> getGeetestParams() async {
+    try {
+      final response = await dio.get(
+        'https://passport.bilibili.com/x/passport-login/web/key',
+      );
+      if (response.data['code'] != 0) {
+        return null;
+      }
+      return response.data['data'];
+    } catch (e) {
+      _logger.severe('Error getting geetest params: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, String>?> getLoginCaptcha() async {
+    final response = await dio.get(
+      'https://passport.bilibili.com/x/passport-login/captcha?source=main_web',
+    );
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return {
+      'challenge': response.data['data']['geetest']['challenge'],
+      'gt': response.data['data']['geetest']['gt'],
+      'token': response.data['data']['token'],
+    };
+  }
+
+  Future<Map<String, dynamic>?> getLoginKey() async {
+    final response = await dio.get(
+      'https://passport.bilibili.com/x/passport-login/web/key',
+    );
+    _logger.info(
+        'called getLoginKey with url: ${response.requestOptions.uri}');
+    if (response.data['code'] != 0) {
+      return null;
+    }
+    return response.data['data'];
+  }
+
+  Future<(bool, String?)> login({
+    required String username,
+    required String password,
+    required Map<String, dynamic> geetestResult,
+  }) async {
+    _logger.info('Logging in with username: $username');
+    try {
+      final loginKey = await getLoginKey();
+      if (loginKey == null) {
+        throw Exception('Failed to get login key');
+      }
+
+      final encryptedPassword = encryptPassword(password, loginKey['key']!, loginKey['hash']!);
+      _logger.info('Encrypted password: $encryptedPassword');
+
+      final loginResponse = await dio.post(
+        'https://passport.bilibili.com/x/passport-login/web/login',
+        queryParameters: {
+          'username': username,
+          'password': encryptedPassword,
+          'token': geetestResult['token'],
+          'go_url': 'https://www.bilibili.com',
+          'source': 'main-fe-header',
+          'challenge': geetestResult['challenge'],
+          'validate': geetestResult['validate'],
+          'seccode': geetestResult['seccode'],
+        },
+      );
+      _logger.info(
+          'called login with url: ${loginResponse.requestOptions.uri}');
+
+      if (loginResponse.data['code'] != 0) {
+        return (false, "网络错误");
+      }
+
+      if (loginResponse.data['data']['status'] != 0) {
+        return (false, loginResponse.data['data']['message'] as String);
+      }
+
+      final cookies = loginResponse.headers['set-cookie'];
+      if (cookies != null) {
+        setCookies(cookies.join(';'), save: true);
+      }
+
+      return (true, null);
+    } catch (e) {
+      _logger.severe('Login error: $e');
+      return (false, e.toString());
+    }
+  }
+
+  Future<(String, String?)> getSmsCaptcha({
+    required int tel,
+    required Map<String, dynamic> geetestResult,
+
+  }) async {
+    try {
+      final response = await dio.post(
+        'https://passport.bilibili.com/x/passport-login/web/sms/send',
+      queryParameters: {
+        'cid': "86",
+        'tel': tel.toString(),
+        'source': 'main-fe-header',
+        'token': geetestResult['token'],
+        'challenge': geetestResult['challenge'],
+        'validate': geetestResult['validate'],
+        'seccode': geetestResult['seccode'],
+      },
+    );
+    _logger.info(
+        'called getSmsCaptcha with url: ${response.requestOptions.uri}');
+    if (response.data['code'] != 0) {
+      return ("", response.data['message'] as String);
+    }
+    return (response.data['data']['captcha_key'] as String, null);
+  } on DioException catch (e) {
+    _logger.info('${e.response?.statusCode}: ${e.response?.data}');
+    _logger.severe('Error getting sms captcha: $e');
+    return ("", e.toString());
+  } catch (e) {
+    _logger.severe('Error getting sms captcha: $e');
+    return ("", e.toString());
+  }
+  }
+
+  Future<(bool, String?)> smslogin({
+    required int tel,
+    required String code,
+    required String captchaKey,
+  }) async {
+    _logger.info('Logging in with sms: $tel');
+    try {
+      final loginResponse = await dio.post(
+        'https://passport.bilibili.com/x/passport-login/web/login/sms',
+        queryParameters: {
+          'cid': "86",
+          'tel': tel.toString(),
+          'code': code,
+          'captcha_key': captchaKey,
+          'source': 'main-fe-header'
+        },
+      );
+      _logger.info(
+          'called login with url: ${loginResponse.requestOptions.uri}');
+
+      if (loginResponse.data['code'] != 0) {
+        return (false, loginResponse.data['message'] as String);
+      }
+
+      if (loginResponse.data['data']['status'] != 0) {
+        return (false, loginResponse.data['data']['message'] as String);
+      }
+
+      final cookies = loginResponse.headers['set-cookie'];
+      if (cookies != null) {
+        setCookies(cookies.join(';'), save: true);
+      }
+
+      return (true, null);
+    } catch (e) {
+      _logger.severe('Login error: $e');
+      return (false, e.toString());
+    }
   }
 }

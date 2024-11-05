@@ -2,8 +2,16 @@ import 'package:bmsc/util/logger.dart';
 import 'package:bmsc/globals.dart' as globals;
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:crypton/crypton.dart' as crypton;
 
 final _logger = LoggerUtils.getLogger('Crypto');
+
+String encryptPassword(String password, String key, String hash) {
+  final pubKey = crypton.RSAPublicKey.fromPEM(key);
+  final encryptedPassword = pubKey.encryptData(utf8.encode(hash + password));
+  final b64Password = base64.encode(encryptedPassword);
+  return b64Password;
+}
 
   String _getMixinKey(String rawWbiKey) {
     const mixinKeyEncTab = [
