@@ -294,10 +294,11 @@ packages:
   gt3_flutter_plugin:
     dependency: "direct main"
     description:
-      name: gt3_flutter_plugin
-      sha256: "08f35692e937770ad6b3e2017eb8ef81839a82b8a63f5acf3abab14b688fc36c"
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: "99cf0cd2b3c224904490c37071c9eec4d7e1782b"
+      resolved-ref: "99cf0cd2b3c224904490c37071c9eec4d7e1782b"
+      url: "https://github.com/u2x1/gt3_flutter_plugin/"
+    source: git
     version: "0.1.0"
   html:
     dependency: transitive
