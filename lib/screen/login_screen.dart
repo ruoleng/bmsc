@@ -41,15 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('Failed to get login captcha');
       }
 
-    
       logger.info('Geetest gt: ${captcha['gt']}');
-      final geetest =
-          Gt3FlutterPlugin();
+      final geetest = Gt3FlutterPlugin();
 
       Gt3RegisterData registerData = Gt3RegisterData(
-        gt: captcha['gt']!,
-        challenge: captcha['challenge']!,
-        success: true);
+          gt: captcha['gt']!, challenge: captcha['challenge']!, success: true);
 
       geetest.addEventHandler(onShow: (message) {
         logger.info('Geetest challenge dialog shown: $message');
@@ -58,23 +54,24 @@ class _LoginScreenState extends State<LoginScreen> {
           logger.info('Geetest verification result: $result');
           result = Map<String, dynamic>.from(result['result']);
           final (loginSuccess, loginError) = await globals.api.login(
-          username: _usernameController.text,
-          password: _passwordController.text,
-          geetestResult: {
-            'token': captcha['token']!,
-            'challenge': result['geetest_challenge'],
-            'validate': result['geetest_validate'],
-            'seccode': result['geetest_seccode'],
-          },
-        );
-        
-        if (loginSuccess) {
-          if (context.mounted) {
-            Navigator.pop(context);
+            username: _usernameController.text,
+            password: _passwordController.text,
+            geetestResult: {
+              'token': captcha['token']!,
+              'challenge': result['geetest_challenge'],
+              'validate': result['geetest_validate'],
+              'seccode': result['geetest_seccode'],
+            },
+          );
+
+          if (loginSuccess) {
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
+          } else {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(loginError ?? '登录失败')));
           }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loginError ?? '登录失败')));
-        }
         } catch (e) {
           logger.severe('Geetest onResult error: $e');
           throw Exception('Geetest onResult error: $e');
@@ -111,9 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final geetest = Gt3FlutterPlugin();
       Gt3RegisterData registerData = Gt3RegisterData(
-        gt: captcha['gt']!,
-        challenge: captcha['challenge']!,
-        success: true);
+          gt: captcha['gt']!, challenge: captcha['challenge']!, success: true);
 
       geetest.addEventHandler(
         onShow: (message) {
@@ -221,7 +216,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 _errorMessage = null;
               });
             },
-            icon: Icon(_isSmsLogin ? Icons.lock_outline : Icons.message_outlined),
+            icon:
+                Icon(_isSmsLogin ? Icons.lock_outline : Icons.message_outlined),
             label: Text(_isSmsLogin ? '密码登录' : '短信登录'),
           ),
         ],
@@ -247,12 +243,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   _isSmsLogin ? '手机验证码登录' : '账号密码登录',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                
                 if (!_isSmsLogin) ...[
                   TextFormField(
                     controller: _usernameController,
@@ -278,8 +273,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       hintText: '请输入密码',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        icon: Icon(_obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -334,7 +332,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(width: 16),
                       ElevatedButton(
-                        onPressed: _isLoading ? null : () => _getSmsCode(context),
+                        onPressed:
+                            _isLoading ? null : () => _getSmsCode(context),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -346,13 +345,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ],
-
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                      color:
+                          Theme.of(context).colorScheme.error.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -374,7 +373,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 32),
                 FilledButton(
                   onPressed: _isLoading
@@ -423,4 +421,4 @@ class _LoginScreenState extends State<LoginScreen> {
     _smsCodeController.dispose();
     super.dispose();
   }
-} 
+}

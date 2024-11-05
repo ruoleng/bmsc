@@ -1310,8 +1310,7 @@ class API {
     final response = await dio.get(
       'https://passport.bilibili.com/x/passport-login/web/key',
     );
-    _logger.info(
-        'called getLoginKey with url: ${response.requestOptions.uri}');
+    _logger.info('called getLoginKey with url: ${response.requestOptions.uri}');
     if (response.data['code'] != 0) {
       return null;
     }
@@ -1330,7 +1329,8 @@ class API {
         throw Exception('Failed to get login key');
       }
 
-      final encryptedPassword = encryptPassword(password, loginKey['key']!, loginKey['hash']!);
+      final encryptedPassword =
+          encryptPassword(password, loginKey['key']!, loginKey['hash']!);
       _logger.info('Encrypted password: $encryptedPassword');
 
       final loginResponse = await dio.post(
@@ -1346,8 +1346,8 @@ class API {
           'seccode': geetestResult['seccode'],
         },
       );
-      _logger.info(
-          'called login with url: ${loginResponse.requestOptions.uri}');
+      _logger
+          .info('called login with url: ${loginResponse.requestOptions.uri}');
 
       if (loginResponse.data['code'] != 0) {
         return (false, "网络错误");
@@ -1372,35 +1372,34 @@ class API {
   Future<(String, String?)> getSmsCaptcha({
     required int tel,
     required Map<String, dynamic> geetestResult,
-
   }) async {
     try {
       final response = await dio.post(
         'https://passport.bilibili.com/x/passport-login/web/sms/send',
-      queryParameters: {
-        'cid': "86",
-        'tel': tel.toString(),
-        'source': 'main-fe-header',
-        'token': geetestResult['token'],
-        'challenge': geetestResult['challenge'],
-        'validate': geetestResult['validate'],
-        'seccode': geetestResult['seccode'],
-      },
-    );
-    _logger.info(
-        'called getSmsCaptcha with url: ${response.requestOptions.uri}');
-    if (response.data['code'] != 0) {
-      return ("", response.data['message'] as String);
+        queryParameters: {
+          'cid': "86",
+          'tel': tel.toString(),
+          'source': 'main-fe-header',
+          'token': geetestResult['token'],
+          'challenge': geetestResult['challenge'],
+          'validate': geetestResult['validate'],
+          'seccode': geetestResult['seccode'],
+        },
+      );
+      _logger.info(
+          'called getSmsCaptcha with url: ${response.requestOptions.uri}');
+      if (response.data['code'] != 0) {
+        return ("", response.data['message'] as String);
+      }
+      return (response.data['data']['captcha_key'] as String, null);
+    } on DioException catch (e) {
+      _logger.info('${e.response?.statusCode}: ${e.response?.data}');
+      _logger.severe('Error getting sms captcha: $e');
+      return ("", e.toString());
+    } catch (e) {
+      _logger.severe('Error getting sms captcha: $e');
+      return ("", e.toString());
     }
-    return (response.data['data']['captcha_key'] as String, null);
-  } on DioException catch (e) {
-    _logger.info('${e.response?.statusCode}: ${e.response?.data}');
-    _logger.severe('Error getting sms captcha: $e');
-    return ("", e.toString());
-  } catch (e) {
-    _logger.severe('Error getting sms captcha: $e');
-    return ("", e.toString());
-  }
   }
 
   Future<(bool, String?)> smslogin({
@@ -1420,8 +1419,8 @@ class API {
           'source': 'main-fe-header'
         },
       );
-      _logger.info(
-          'called login with url: ${loginResponse.requestOptions.uri}');
+      _logger
+          .info('called login with url: ${loginResponse.requestOptions.uri}');
 
       if (loginResponse.data['code'] != 0) {
         return (false, loginResponse.data['message'] as String);

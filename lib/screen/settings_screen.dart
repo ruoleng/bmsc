@@ -99,7 +99,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               } else {
                 Navigator.push(
                   context,
-                  MaterialPageRoute<Widget>(builder: (_) => const LoginScreen()),
+                  MaterialPageRoute<Widget>(
+                      builder: (_) => const LoginScreen()),
                 ).then((value) async {
                   await _checkLoginStatus();
                 });

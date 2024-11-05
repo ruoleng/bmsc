@@ -118,7 +118,7 @@ class _AboutScreenState extends State<AboutScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '本软件仅供学习交流使用\n请勿用于任何商业用途\n资源版权仍归原网站或其作者所有',
+                          '资源版权仍归原网站或其作者所有',
                           textAlign: TextAlign.center,
                           style: Theme.of(context)
                               .textTheme
