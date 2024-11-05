@@ -1,3 +1,4 @@
+import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/model/fav.dart';
 import '../component/track_tile.dart';
@@ -204,6 +205,21 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        ListTile(
+                          leading: const Icon(Icons.person),
+                          title: const Text('查看 UP 主'),
+                          onTap: () {
+                            Navigator.pop(dialogContext);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => UserDetailScreen(
+                                  mid: favInfo[index].mid,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                         ListTile(
                           leading: const Icon(Icons.playlist_remove),
                           title: const Text('管理分P'),

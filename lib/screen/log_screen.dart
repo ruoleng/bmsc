@@ -128,7 +128,7 @@ class _LogScreenState extends State<LogScreen> {
         stream: LoggerUtils.logStream,
         builder: (context, _) {
           final logs = LoggerUtils.logs;
-          
+
           if (logs.isEmpty) {
             return const Center(
               child: Text(

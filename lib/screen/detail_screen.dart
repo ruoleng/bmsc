@@ -213,44 +213,6 @@ class _DetailScreenState extends State<DetailScreen> {
                 children: [
                   StreamBuilder<SequenceState?>(
                     stream: globals.api.player.sequenceStateStream,
-                    builder: (_, __) {
-                      return _previousButton();
-                    },
-                  ),
-                  StreamBuilder<PlayerState>(
-                    stream: globals.api.player.playerStateStream,
-                    builder: (_, snapshot) {
-                      final playerState = snapshot.data;
-                      return _playPauseButton(playerState);
-                    },
-                  ),
-                  StreamBuilder<SequenceState?>(
-                    stream: globals.api.player.sequenceStateStream,
-                    builder: (_, __) {
-                      return _nextButton();
-                    },
-                  ),
-                  StreamBuilder<SequenceState?>(
-                    stream: globals.api.player.sequenceStateStream,
-                    builder: (context, snapshot) {
-                      final src = snapshot.data?.currentSource;
-                      return IconButton(
-                        icon: const Icon(Icons.comment_outlined),
-                        onPressed: src == null
-                            ? null
-                            : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CommentScreen(
-                                      aid: src.tag.extras['aid'].toString(),
-                                    ),
-                                  ),
-                                ),
-                      );
-                    },
-                  ),
-                  StreamBuilder<SequenceState?>(
-                    stream: globals.api.player.sequenceStateStream,
                     builder: (context, snapshot) {
                       final src = snapshot.data?.currentSource;
                       if (src?.tag.extras['aid'] != _currentAid) {
@@ -318,13 +280,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                   if (!mounted) return;
 
                                   if (success) {
-                                    if (toAdd.isNotEmpty && toAdd.length == 1) {
-                                      await globals.api.setDefaultFavFolder(
-                                          toAdd.first,
-                                          favs
-                                              .firstWhere(
-                                                  (f) => f.id == toAdd.first)
-                                              .title);
+                                    if (toAdd.isNotEmpty) {
                                       Future.microtask(() => setState(() {
                                             _isFavorite = true;
                                           }));
@@ -359,95 +315,48 @@ class _DetailScreenState extends State<DetailScreen> {
                       );
                     },
                   ),
+                  StreamBuilder<SequenceState?>(
+                    stream: globals.api.player.sequenceStateStream,
+                    builder: (_, __) {
+                      return _previousButton();
+                    },
+                  ),
+                  StreamBuilder<PlayerState>(
+                    stream: globals.api.player.playerStateStream,
+                    builder: (_, snapshot) {
+                      final playerState = snapshot.data;
+                      return _playPauseButton(playerState);
+                    },
+                  ),
+                  StreamBuilder<SequenceState?>(
+                    stream: globals.api.player.sequenceStateStream,
+                    builder: (_, __) {
+                      return _nextButton();
+                    },
+                  ),
+                  StreamBuilder<SequenceState?>(
+                    stream: globals.api.player.sequenceStateStream,
+                    builder: (context, snapshot) {
+                      final src = snapshot.data?.currentSource;
+                      return IconButton(
+                        icon: const Icon(Icons.comment_outlined),
+                        onPressed: src == null
+                            ? null
+                            : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CommentScreen(
+                                      aid: src.tag.extras['aid'].toString(),
+                                    ),
+                                  ),
+                                ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ],
           ),
         ));
-  }
-
-  Widget _createFavFolderListTile(BuildContext context) {
-    return ListTile(
-      leading: const Icon(Icons.add),
-      title: const Text('新建收藏夹'),
-      onTap: () async {
-        final result = await showDialog<Map<String, dynamic>>(
-          context: context,
-          builder: (BuildContext context) {
-            final nameController = TextEditingController();
-            bool isPrivate = false;
-            return StatefulBuilder(
-              builder: (context, setState) {
-                return AlertDialog(
-                  title: const Text('新建收藏夹'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: nameController,
-                        decoration: const InputDecoration(
-                          labelText: '收藏夹名称',
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: isPrivate,
-                            onChanged: (value) {
-                              setState(() {
-                                isPrivate = value ?? false;
-                              });
-                            },
-                          ),
-                          const Text('设为私密'),
-                        ],
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('取消'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        if (nameController.text.isEmpty) return;
-                        Navigator.pop(context, {
-                          'name': nameController.text,
-                          'privacy': isPrivate,
-                        });
-                      },
-                      child: const Text('确定'),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-
-        if (result != null) {
-          final id = await globals.api.createFavFolder(
-            result['name'],
-            privacy: result['privacy'],
-          );
-
-          if (id != null && context.mounted) {
-            Navigator.pop(context);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('创建成功，请重新打开对话框')),
-              );
-            }
-          } else {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('创建失败')),
-              );
-            }
-          }
-        }
-      },
-    );
   }
 }

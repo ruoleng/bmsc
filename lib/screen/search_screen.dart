@@ -1,3 +1,4 @@
+import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
@@ -85,6 +86,32 @@ class _SearchScreenState extends State<SearchScreen> {
           insertIndex: globals.api.playlist.length == 0
               ? 0
               : globals.api.player.currentIndex! + 1),
+      onLongPress: () async {
+        if (!context.mounted) return;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('选择操作'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: const Text('查看 UP 主'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                UserDetailScreen(mid: vid.mid)));
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
