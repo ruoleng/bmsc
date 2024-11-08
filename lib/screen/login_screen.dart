@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _smsCodeController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isSmsLogin = false;
+  bool _isSmsLogin = true;
   String? _captchaKey;
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
