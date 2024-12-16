@@ -62,6 +62,7 @@ class API {
   }
 
   void init() async {
+    getStoredUID();
     _logger.info('init cookies');
     final prefs = await SharedPreferencesService.instance;
     final cookie = prefs.getString('cookie');
@@ -450,8 +451,13 @@ class API {
     if (uid != null && uid != 0) {
       return uid;
     }
+    final prefs = await SharedPreferencesService.instance;
+    uid = prefs.getInt('uid');
+    if (uid != null) {
+      _logger.info('UID in prefs: $uid');
+      return uid;
+    }
     uid = await getUID();
-    _logger.info('Stored UID: $uid');
     return uid;
   }
 

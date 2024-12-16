@@ -16,7 +16,6 @@ class FavScreen extends StatefulWidget {
 }
 
 class _FavScreenState extends State<FavScreen> {
-  bool isLoading = true;
   bool signedin = false;
   List<Fav> favList = [];
   List<Fav> collectedFavList = [];
@@ -28,12 +27,12 @@ class _FavScreenState extends State<FavScreen> {
   }
 
   Future<void> _checkSignedinAndLoadFavorites() async {
-    final uid = await globals.api.getUID();
+    final uid = await globals.api.getStoredUID();
     setState(() {
       signedin = uid != 0 && uid != null;
     });
     if (signedin) {
-      _loadFavorites();
+      _loadFavorites(local: true);
     }
   }
 
@@ -42,26 +41,16 @@ class _FavScreenState extends State<FavScreen> {
     super.dispose();
   }
 
-  Future<void> _loadFavorites() async {
+  Future<void> _loadFavorites({bool local = false}) async {
     if (!mounted || !signedin) return;
-    setState(() => isLoading = true);
 
-    globals.api.getStoredUID().then((uid) async {
-      if (!mounted) return;
-      if (uid == null) {
-        setState(() {
-          isLoading = false;
-        });
-        return;
-      }
-
-      // Try to load from cache first
+    if (local) {
       var cachedFavs = await cache_manager.CacheManager.getCachedFavList();
       var cachedCollectedFavs =
           await cache_manager.CacheManager.getCachedCollectedFavList();
 
-      if (!mounted) return;
       if (cachedFavs.isNotEmpty || cachedCollectedFavs.isNotEmpty) {
+        if (!mounted) return;
         setState(() {
           favList = cachedFavs;
           collectedFavList = cachedCollectedFavs;
@@ -70,30 +59,40 @@ class _FavScreenState extends State<FavScreen> {
 
       logger.info(
           'got ${cachedFavs.length} cached favs and ${cachedCollectedFavs.length} collected favs');
-
-      // Then try to fetch from network
-      try {
-        final ret = (await globals.api.getFavs(uid)) ?? [];
-        final collectedRet = (await globals.api.getCollectedFavList(uid)) ?? [];
-
+    } else {
+      globals.api.getStoredUID().then((uid) async {
         if (!mounted) return;
-        if (ret.isNotEmpty || collectedRet.isNotEmpty) {
-          setState(() {
-            favList = ret;
-            collectedFavList = collectedRet;
-          });
-          logger.info(
-              'got ${ret.length} favs and ${collectedRet.length} collected favs from network');
+        if (uid == null) {
+          return;
         }
-      } catch (e) {
-        logger.severe('loadFavorites error: $e');
-      } finally {
-        if (mounted) {
-          setState(() => isLoading = false);
+
+        try {
+          final ret = (await globals.api.getFavs(uid)) ?? [];
+          final collectedRet = (await globals.api.getCollectedFavList(uid)) ?? [];
+
+          if (ret.isNotEmpty || collectedRet.isNotEmpty) {
+            if (!mounted) return;
+            setState(() {
+              favList = ret;
+              collectedFavList = collectedRet;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('加载成功')),
+            );
+            logger.info(
+                'got ${ret.length} favs and ${collectedRet.length} collected favs from network');
+          }
+        } catch (e) {
+          logger.severe('loadFavorites error: $e');
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('加载失败')),
+          );
         }
-      }
-      logger.info('loadFavorites done');
-    });
+        logger.info('loadFavorites done');
+      });
+    }
   }
 
   Future<void> _showCreateFolderDialog() async {
@@ -296,7 +295,7 @@ class _FavScreenState extends State<FavScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _checkSignedinAndLoadFavorites,
+            onPressed: _loadFavorites,
           ),
         ],
       ),
@@ -304,27 +303,46 @@ class _FavScreenState extends State<FavScreen> {
         onRefresh: _checkSignedinAndLoadFavorites,
         child: !signedin
             ? const Center(child: Text('请先登录'))
-            : isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
+            : ListView(
                     children: [
-                      // 每日推荐入口
-                      ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 24.0,
+                      if (favList.isEmpty && collectedFavList.isEmpty)
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.folder_outlined,
+                                  size: 64, color: Colors.grey),
+                              const SizedBox(height: 16),
+                              Text(
+                                '暂无收藏夹',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color:
+                                      Theme.of(context).colorScheme.secondary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        leading:
-                            const Icon(Icons.recommend, color: Colors.orange),
-                        title: const Text('每日推荐',
-                            style: TextStyle(fontWeight: FontWeight.w500)),
-                        subtitle: const Text('基于收藏夹的个性化推荐'),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute<Widget>(
-                              builder: (_) => const RecommendationScreen()),
+
+                      if (favList.isNotEmpty || collectedFavList.isNotEmpty) ...[
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 24.0,
+                          ),
+                          leading:
+                              const Icon(Icons.recommend, color: Colors.orange),
+                          title: const Text('每日推荐',
+                              style: TextStyle(fontWeight: FontWeight.w500)),
+                          subtitle: const Text('基于收藏夹的个性化推荐'),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<Widget>(
+                                builder: (_) => const RecommendationScreen()),
+                          ),
                         ),
-                      ),
-                      const Divider(),
+                        const Divider(),
+                      ],
 
                       // 我的收藏夹标题
                       if (favList.isNotEmpty)
@@ -363,25 +381,7 @@ class _FavScreenState extends State<FavScreen> {
                       ],
 
                       // 显示空状态
-                      if (favList.isEmpty && collectedFavList.isEmpty)
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.folder_outlined,
-                                  size: 64, color: Colors.grey),
-                              const SizedBox(height: 16),
-                              Text(
-                                '暂无收藏夹',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color:
-                                      Theme.of(context).colorScheme.secondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      
                     ],
                   ),
       ),

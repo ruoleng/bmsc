@@ -27,7 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    final uid = await globals.api.getUID();
+    final uid = await globals.api.getStoredUID();
     final username = await globals.api.getStoredUsername();
     if (mounted) {
       setState(() {

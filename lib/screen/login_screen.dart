@@ -65,6 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
           );
 
           if (loginSuccess) {
+            await globals.api.getStoredUID();
             if (context.mounted) {
               Navigator.pop(context);
             }
@@ -183,6 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (loginSuccess) {
+        await globals.api.getUID();
         if (context.mounted) {
           Navigator.pop(context);
         }
