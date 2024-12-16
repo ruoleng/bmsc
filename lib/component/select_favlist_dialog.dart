@@ -39,6 +39,7 @@ class _SelectFavlistDialogState extends State<SelectFavlistDialog> {
             const Divider(),
             Expanded(
               child: ListView.builder(
+                cacheExtent: 10000,
                 shrinkWrap: true,
                 itemCount: favs.length,
                 itemBuilder: (context, index) {

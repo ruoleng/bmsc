@@ -128,6 +128,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
           : SizedBox(
               width: double.maxFinite,
               child: ListView.builder(
+                cacheExtent: 10000,
                 shrinkWrap: true,
                 itemCount: entities.length,
                 itemBuilder: (context, index) {

@@ -62,6 +62,7 @@ class _SearchScreenState extends State<SearchScreen> {
         return true;
       },
       child: ListView.builder(
+        cacheExtent: 10000,
         physics: const ClampingScrollPhysics(),
         itemCount: vidList.length,
         itemBuilder: (BuildContext context, int index) {

@@ -299,6 +299,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                     ),
                   Expanded(
                     child: ListView.builder(
+                      cacheExtent: 10000,
                       controller: scrollController,
                       itemCount: results.length,
                       itemBuilder: (context, index) {
@@ -371,6 +372,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                                     width: double.maxFinite,
                                                     height: 400,
                                                     child: ListView.builder(
+                                                      cacheExtent: 10000,
                                                       shrinkWrap: true,
                                                       itemCount:
                                                           trackResults.length,

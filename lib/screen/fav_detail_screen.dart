@@ -132,6 +132,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
       body: RefreshIndicator(
         onRefresh: _refreshData,
         child: ListView.builder(
+          cacheExtent: 10000,
           itemCount: favInfo.length,
           itemBuilder: (context, index) => favDetailListTileView(index),
         ),

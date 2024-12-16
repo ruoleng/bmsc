@@ -60,6 +60,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           return true;
         },
         child: ListView.builder(
+          cacheExtent: 10000,
           itemCount: hisList.length,
           itemBuilder: (context, index) => hisListTileView(index),
         ));

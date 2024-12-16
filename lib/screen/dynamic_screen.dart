@@ -60,6 +60,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
           return true;
         },
         child: ListView.builder(
+          cacheExtent: 10000,
           itemCount: dynList.length,
           itemBuilder: (context, index) => dynListTileView(index),
         ));

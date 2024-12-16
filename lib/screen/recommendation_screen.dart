@@ -53,6 +53,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
+            cacheExtent: 10000,
             shrinkWrap: true,
             itemCount: favs.length,
             itemBuilder: (context, index) => ListTile(
@@ -229,6 +230,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                   ),
                 )
               : ListView.builder(
+                  cacheExtent: 10000,
                   itemCount: recommendations.length,
                   itemBuilder: (context, index) {
                     final video = recommendations[index];

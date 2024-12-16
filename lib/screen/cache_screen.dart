@@ -258,6 +258,7 @@ class _CacheScreenState extends State<CacheScreen> {
                       ],
                     )
                   : ListView.builder(
+                      cacheExtent: 10000,
                       itemCount: filteredFiles.length,
                       itemBuilder: (context, index) {
                         final file = filteredFiles[index];

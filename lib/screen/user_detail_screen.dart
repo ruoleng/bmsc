@@ -145,6 +145,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   vidListView() {
     return ListView.builder(
+      cacheExtent: 10000,
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemCount: vidList.length,
