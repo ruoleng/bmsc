@@ -7,8 +7,9 @@ import 'package:just_audio/just_audio.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
 import '../model/meta.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:bmsc/util/logger.dart';
+import '../util/logger.dart';
+
+import '../util/shared_preferences_service.dart';
 
 class RecommendationScreen extends StatefulWidget {
   const RecommendationScreen({super.key});
@@ -153,7 +154,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     });
 
     // 更新缓存
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     await prefs.setString('daily_recommendations',
         jsonEncode(recommendations.map((v) => v.toJson()).toList()));
 

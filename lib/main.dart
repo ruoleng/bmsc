@@ -99,6 +99,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    globals.api.init();
     checkNewVersion().then((x) async {
       if (x == null) {
         return;
@@ -110,7 +111,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         hasNewVersion = x.first.tagName != curVersion;
       });
     });
-    globals.api.init();
   }
 
   @override

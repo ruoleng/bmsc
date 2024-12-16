@@ -1,7 +1,8 @@
 import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'shared_preferences_service.dart';
 
 class LoggerUtils {
   static const String _loggingEnabledKey = 'logging_enabled';
@@ -11,7 +12,7 @@ class LoggerUtils {
   static bool _isLoggingEnabled = kDebugMode;
 
   static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     _isLoggingEnabled = prefs.getBool(_loggingEnabledKey) ?? kDebugMode;
     Logger.root.level = Level.ALL;
     final levelName = prefs.getString(_loggingLevelKey);
@@ -53,13 +54,13 @@ class LoggerUtils {
 
   static Future<void> setLoggingEnabled(bool value) async {
     _isLoggingEnabled = value;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     await prefs.setBool(_loggingEnabledKey, value);
   }
 
   static Future<void> setLoggingLevel(Level level) async {
     Logger.root.level = level;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     await prefs.setString(_loggingLevelKey, level.name);
   }
 

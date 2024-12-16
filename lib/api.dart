@@ -18,11 +18,11 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:bmsc/cache_manager.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bmsc/model/playlist_data.dart';
 import 'package:bmsc/model/tag.dart';
 import 'package:bmsc/model/meta.dart';
 import 'model/entity.dart';
+import 'util/shared_preferences_service.dart';
 
 class DurationState {
   const DurationState({
@@ -63,7 +63,7 @@ class API {
 
   void init() async {
     _logger.info('init cookies');
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     final cookie = prefs.getString('cookie');
     if (cookie != null) {
       setCookies(cookie);
@@ -92,7 +92,7 @@ class API {
         if (!restored) {
           restored = true;
           await restorePlaylist();
-          final prefs = await SharedPreferences.getInstance();
+          final prefs = await SharedPreferencesService.instance;
           final playmode = prefs.getInt('playmode');
           if (playmode != null) {
             if (playmode == 3) {
@@ -127,7 +127,7 @@ class API {
         return;
       }
       final (loopMode, shuffleModeEnabled) = data;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferencesService.instance;
 
       if (loopMode == LoopMode.off && shuffleModeEnabled) {
         prefs.setInt('playmode', 3);
@@ -138,7 +138,7 @@ class API {
 
     player.currentIndexStream.listen((index) async {
       if (index != null && restored) {
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = await SharedPreferencesService.instance;
         await prefs.setInt('currentIndex', index);
         if (player.playing) {
           await _hijackDummySource(index: index);
@@ -249,7 +249,7 @@ class API {
 
   setCookies(String cookie, {bool save = false}) async {
     if (save) {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferencesService.instance;
       await prefs.setString('cookie', cookie);
     }
     cookies = cookie;
@@ -456,7 +456,7 @@ class API {
   }
 
   Future<int?> getUID() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     try {
       final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
       if (response.data['code'] != 0) {
@@ -483,7 +483,7 @@ class API {
   }
 
   Future<String?> getUsername() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     try {
       final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
       if (response.data['code'] != 0) {
@@ -848,7 +848,7 @@ class API {
   }
 
   Future<void> savePlaylist() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     final playlistData = playlist.children
         .map((source) {
           if ((source is UriAudioSource || source is LazyAudioSource)) {
@@ -884,7 +884,7 @@ class API {
 
   Future<void> restorePlaylist() async {
     _logger.info('Restoring playlist from preferences');
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     final playlistJson = prefs.getString('playlist');
     final currentIndex = prefs.getInt('currentIndex') ?? 0;
 
@@ -985,7 +985,7 @@ class API {
   }
 
   Future<Map<String, dynamic>?> getDefaultFavFolder() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     final id = prefs.getInt('default_fav_folder');
     final name = prefs.getString('default_fav_folder_name');
     if (id == null) return null;
@@ -996,7 +996,7 @@ class API {
   }
 
   Future<void> setDefaultFavFolder(int folderId, String folderName) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     await prefs.setInt('default_fav_folder', folderId);
     await prefs.setString('default_fav_folder_name', folderName);
   }
@@ -1095,7 +1095,7 @@ class API {
 
   Future<List<Meta>?> getDailyRecommendations({bool force = false}) async {
     _logger.info('Getting daily recommendations (force: $force)');
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     final lastUpdateStr = prefs.getString('last_recommendations_update');
     final recommendations = prefs.getString('daily_recommendations');
 
@@ -1178,7 +1178,7 @@ class API {
       return null;
     }
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     final recommendHistory = prefs.getString('recommend_history');
     Set<String> history = recommendHistory != null
         ? Set<String>.from(jsonDecode(recommendHistory))
@@ -1247,7 +1247,7 @@ class API {
   }
 
   Future<String?> getRawWbiKey() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferencesService.instance;
     final rawWbiKey = prefs.getString('raw_wbi_key');
     final lastUpdateDay = prefs.getInt('img_sub_key_last_update');
     final currentDay = (DateTime.now().millisecondsSinceEpoch ~/ 86400000);
