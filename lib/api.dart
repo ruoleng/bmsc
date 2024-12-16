@@ -1252,6 +1252,21 @@ class API {
     }
   }
 
+  Future<List<String>> getSearchSuggestions(String keyword) async {
+    final response = await dio.get(
+      'https://s.search.bilibili.com/main/suggest',
+      queryParameters: {'term': keyword},
+    );
+    _logger.info('called getSearchSuggestions with url: ${response.requestOptions.uri}');
+    final data = jsonDecode(response.data);
+    if (data['code'] != 0) return [];
+    List<String> suggestions = [];
+    for (final tag in data['result']['tag']) {
+      suggestions.add(tag['term'] as String);
+    }
+    return suggestions;
+  }
+
   Future<String?> getRawWbiKey() async {
     final prefs = await SharedPreferencesService.instance;
     final rawWbiKey = prefs.getString('raw_wbi_key');

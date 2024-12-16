@@ -1,4 +1,5 @@
 import 'package:bmsc/screen/user_detail_screen.dart';
+import 'package:bmsc/util/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
@@ -6,6 +7,7 @@ import '../model/search.dart';
 import '../util/string.dart';
 import '../component/playing_card.dart';
 import 'package:just_audio/just_audio.dart';
+import 'dart:async';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -16,27 +18,92 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   List<Result> vidList = [];
+  final _focusNode = FocusNode();
   final fieldTextController = TextEditingController();
   bool _hasMore = false;
   int _curPage = 1;
   String _curSearch = "";
+  List<String> _searchHistory = [];
+  Timer? _debounceTimer;
+  List<String> _suggestions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSearchHistory();
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSearchHistory() async {
+    final prefs = await SharedPreferencesService.instance;
+    setState(() {
+      _searchHistory = prefs.getStringList('search_history') ?? [];
+    });
+  }
+
+  Future<void> _saveSearchHistory(String query) async {
+    if (query.trim().isEmpty) return;
+
+    final prefs = await SharedPreferencesService.instance;
+    _searchHistory.remove(query);
+    _searchHistory.insert(0, query);
+
+    if (_searchHistory.length > 10) {
+      _searchHistory = _searchHistory.sublist(0, 10);
+    }
+
+    await prefs.setStringList('search_history', _searchHistory);
+  }
+
+  void _onSearchChanged(String value) {
+    _debounceTimer?.cancel();
+    if (value.isEmpty) {
+      setState(() {
+        _suggestions = [];
+      });
+      return;
+    }
+
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      final suggestions = await globals.api.getSearchSuggestions(value);
+      if (!mounted) return;
+      setState(() {
+        _suggestions = suggestions;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: TextField(
+          autofocus: true,
+          focusNode: _focusNode,
           controller: fieldTextController,
           decoration: const InputDecoration(
             hintText: '搜索歌曲...',
             border: InputBorder.none,
           ),
+          onChanged: _onSearchChanged,
           onSubmitted: onSearching,
         ),
       ),
-      body: vidList.isEmpty
-          ? const Center(child: Text('输入关键词开始搜索'))
-          : _listView(),
+      body: (fieldTextController.text.isNotEmpty &&
+              _suggestions.isNotEmpty &&
+              _focusNode.hasFocus)
+          ? _buildSuggestions()
+          : _focusNode.hasFocus
+              ? _buildSearchHistory()
+              : (vidList.isEmpty
+                  ? const Center(child: Text('输入关键词开始搜索'))
+                  : _listView()),
       bottomNavigationBar: StreamBuilder<SequenceState?>(
         stream: globals.api.player.sequenceStateStream,
         builder: (_, snapshot) {
@@ -116,7 +183,52 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Widget _buildSearchHistory() {
+    return ListView.builder(
+      itemCount: _searchHistory.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          leading: const Icon(Icons.history),
+          title: Text(_searchHistory[index]),
+          trailing: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () async {
+              setState(() {
+                _searchHistory.removeAt(index);
+              });
+              final prefs = await SharedPreferencesService.instance;
+              await prefs.setStringList('search_history', _searchHistory);
+            },
+          ),
+          onTap: () {
+            _focusNode.unfocus();
+            fieldTextController.text = _searchHistory[index];
+            onSearching(_searchHistory[index]);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSuggestions() {
+    return ListView.builder(
+      itemCount: _suggestions.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          leading: const Icon(Icons.search),
+          title: Text(_suggestions[index]),
+          onTap: () {
+            _focusNode.unfocus();
+            fieldTextController.text = _suggestions[index];
+            onSearching(_suggestions[index]);
+          },
+        );
+      },
+    );
+  }
+
   void onSearching(String value) async {
+    await _saveSearchHistory(value);
     setState(() {
       _curSearch = value;
       _hasMore = true;
