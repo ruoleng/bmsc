@@ -43,8 +43,7 @@ showUpdateDialog(
     onPressed: () async {
       if (newVersion.assets.isNotEmpty) {
         await launchUrl(
-            Uri.parse(
-                'https://ghp.ci/${newVersion.assets.first.browserDownloadUrl}'),
+            Uri.parse(newVersion.assets.first.browserDownloadUrl),
             mode: LaunchMode.externalApplication);
       }
     },
