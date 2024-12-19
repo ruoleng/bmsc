@@ -12,10 +12,10 @@ class FavScreen extends StatefulWidget {
   const FavScreen({super.key});
 
   @override
-  State<StatefulWidget> createState() => _FavScreenState();
+  State<StatefulWidget> createState() => FavScreenState();
 }
 
-class _FavScreenState extends State<FavScreen> {
+class FavScreenState extends State<FavScreen> {
   bool signedin = false;
   List<Fav> favList = [];
   List<Fav> collectedFavList = [];
@@ -23,10 +23,10 @@ class _FavScreenState extends State<FavScreen> {
   @override
   void initState() {
     super.initState();
-    _checkSignedinAndLoadFavorites();
+    checkSignedinAndLoadFavorites();
   }
 
-  Future<void> _checkSignedinAndLoadFavorites() async {
+  Future<void> checkSignedinAndLoadFavorites() async {
     final uid = await globals.api.getStoredUID();
     setState(() {
       signedin = uid != 0 && uid != null;

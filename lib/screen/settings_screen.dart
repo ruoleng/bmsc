@@ -6,6 +6,7 @@ import 'package:bmsc/screen/playlist_search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/globals.dart' as globals;
 import 'package:bmsc/util/logger.dart';
+import '../util/shared_preferences_service.dart';
 
 final logger = LoggerUtils.getLogger('SettingsScreen');
 
@@ -40,8 +41,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _logout() async {
     logger.info('user logout');
     await globals.api.resetCookies();
-    await globals.api.getUID();
     await CacheManager.cacheFavList([]);
+    final prefs = await SharedPreferencesService.instance;
+    await prefs.setInt('uid', 0);
     if (mounted) {
       setState(() {
         _isLoggedIn = false;
@@ -97,12 +99,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
               } else {
-                Navigator.push(
+                Navigator.push<bool>(
                   context,
-                  MaterialPageRoute<Widget>(
+                  MaterialPageRoute<bool>(
                       builder: (_) => const LoginScreen()),
                 ).then((value) async {
-                  await _checkLoginStatus();
+                  if (value == true) {
+                    await _checkLoginStatus();
+                    if (context.mounted && _isLoggedIn) {
+                      Navigator.pop(context, true);
+                    }
+                  }
                 });
               }
             },

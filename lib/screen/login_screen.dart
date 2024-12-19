@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (loginSuccess) {
             await globals.api.getStoredUID();
             if (context.mounted) {
-              Navigator.pop(context);
+              Navigator.pop(context, true);
             }
           } else {
             ScaffoldMessenger.of(context)
@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (loginSuccess) {
         await globals.api.getUID();
         if (context.mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       } else {
         ScaffoldMessenger.of(context)

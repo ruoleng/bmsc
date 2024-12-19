@@ -145,26 +145,21 @@ class PlayingCard extends StatelessWidget {
                                   final playing = globals.api.player.playing;
                                   final processingState =
                                       snapshot.data?.processingState;
+                                  final isLoadingOrBuffering = 
+                                      [ProcessingState.loading, 
+                                       ProcessingState.buffering]
+                                          .contains(processingState);
 
-                                  if (processingState ==
-                                          ProcessingState.loading ||
-                                      processingState ==
-                                          ProcessingState.buffering) {
-                                    return const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    );
-                                  }
-
-                                  return IconButton(
-                                    icon: Icon(playing
-                                        ? Icons.pause
-                                        : Icons.play_arrow),
-                                    onPressed: playing
-                                        ? globals.api.player.pause
-                                        : globals.api.player.play,
+                                  return Opacity(
+                                    opacity: isLoadingOrBuffering ? 0.6 : 1.0,
+                                    child: IconButton(
+                                      icon: Icon(playing
+                                          ? Icons.pause
+                                          : Icons.play_arrow),
+                                      onPressed: playing
+                                          ? globals.api.player.pause
+                                          : globals.api.player.play,
+                                    ),
                                   );
                                 },
                               ),

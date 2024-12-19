@@ -18,8 +18,10 @@ import 'dart:io';
 import 'screen/about_screen.dart';
 import 'util/logger.dart';
 import 'package:bmsc/screen/settings_screen.dart';
+import 'package:bmsc/theme.dart';
 
 final logger = LoggerUtils.getLogger('Main');
+final GlobalKey<FavScreenState> favScreenKey = GlobalKey<FavScreenState>();
 
 Future<void> main() async {
   await JustAudioBackground.init(
@@ -62,7 +64,9 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       navigatorKey: ErrorHandler.navigatorKey,
-      theme: theme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       home: Builder(builder: (context) {
         return Scaffold(
           body: MyHomePage(title: 'BiliMusic'),
@@ -123,7 +127,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: GestureDetector(
           onTap: () => Navigator.push(
             context,
@@ -135,7 +138,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               if (hasNewVersion &&
                   officialVersions != null &&
                   curVersion != null)
-                Icon(Icons.arrow_circle_up_outlined, color: Colors.red),
+                Icon(Icons.arrow_circle_up_outlined,
+                    color: Theme.of(context).colorScheme.error),
             ],
           ),
         ),
@@ -164,15 +168,19 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute<Widget>(
+              MaterialPageRoute<bool>(
                 builder: (_) => const SettingsScreen(),
               ),
-            ),
+            ).then((shouldRefresh) {
+              if (shouldRefresh == true) {
+                favScreenKey.currentState?.checkSignedinAndLoadFavorites();
+              }
+            }),
             icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
-      body: const FavScreen(),
+      body: FavScreen(key: favScreenKey),
     );
   }
 }
