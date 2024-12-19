@@ -37,4 +37,4 @@ class AppTheme {
       bodySmall: TextStyle(color: Color(0xFFBDBDBD)),
     ),
   );
-} 
+}

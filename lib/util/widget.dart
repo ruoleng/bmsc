@@ -9,20 +9,21 @@ Widget shadow(Widget child) {
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
-              color: (isDark 
-                ? const Color(0xFF1A1A1A).withOpacity(0.95)  // Darker shadow
-                : Colors.grey.withOpacity(0.5)
+              color: (isDark
+                  ? const Color(0xFF1A1A1A).withOpacity(0.95) // Darker shadow
+                  : Colors.grey.withOpacity(0.5)),
+              spreadRadius: isDark ? 8 : 5, // Increased spread
+              blurRadius: isDark ? 25 : 7, // Increased blur
+              offset: const Offset(0, 4), // Slightly larger offset
+            ),
+            if (isDark)
+              BoxShadow(
+                // Enhanced highlight
+                color: Colors.white.withOpacity(0.05), // Slightly brighter
+                spreadRadius: 2, // Increased spread
+                blurRadius: 8, // Increased blur
+                offset: const Offset(0, 0),
               ),
-              spreadRadius: isDark ? 8 : 5,  // Increased spread
-              blurRadius: isDark ? 25 : 7,   // Increased blur
-              offset: const Offset(0, 4),     // Slightly larger offset
-            ),
-            if (isDark) BoxShadow(  // Enhanced highlight
-              color: Colors.white.withOpacity(0.05),  // Slightly brighter
-              spreadRadius: 2,  // Increased spread
-              blurRadius: 8,    // Increased blur
-              offset: const Offset(0, 0),
-            ),
           ],
         ),
         child: child,

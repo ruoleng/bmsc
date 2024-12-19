@@ -145,10 +145,10 @@ class PlayingCard extends StatelessWidget {
                                   final playing = globals.api.player.playing;
                                   final processingState =
                                       snapshot.data?.processingState;
-                                  final isLoadingOrBuffering = 
-                                      [ProcessingState.loading, 
-                                       ProcessingState.buffering]
-                                          .contains(processingState);
+                                  final isLoadingOrBuffering = [
+                                    ProcessingState.loading,
+                                    ProcessingState.buffering
+                                  ].contains(processingState);
 
                                   return Opacity(
                                     opacity: isLoadingOrBuffering ? 0.6 : 1.0,

@@ -61,8 +61,9 @@ class API {
     }
   }
 
-  void init() async {
+  Future<void> init() async {
     getStoredUID();
+    getStoredUsername();
     _logger.info('init cookies');
     final prefs = await SharedPreferencesService.instance;
     final cookie = prefs.getString('cookie');
@@ -235,7 +236,7 @@ class API {
     return UserInfoResult.fromJson(response.data['data']);
   }
 
-  initAudioSession() async {
+  Future<void> initAudioSession() async {
     session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
     session.interruptionEventStream.listen((event) {
@@ -248,7 +249,7 @@ class API {
     });
   }
 
-  setCookies(String cookie, {bool save = false}) async {
+  Future<void> setCookies(String cookie, {bool save = false}) async {
     if (save) {
       final prefs = await SharedPreferencesService.instance;
       await prefs.setString('cookie', cookie);
@@ -267,6 +268,7 @@ class API {
         return handler.next(options);
       },
     ));
+    _logger.info('setCookies: $cookie');
   }
 
   Future<void> appendPlaylistSingle(String bvid,
@@ -466,12 +468,16 @@ class API {
     try {
       final response = await dio.get('https://api.bilibili.com/x/space/myinfo');
       if (response.data['code'] != 0) {
+        _logger.severe('getUID error: ${response.data}');
         return 0;
       }
       final ret = response.data['data']['mid'] ?? 0;
+      _logger.info('getUID from api: $ret');
       await prefs.setInt('uid', ret);
+      uid = ret;
       return ret;
     } catch (e) {
+      _logger.severe('getUID error: $e');
       final uid = prefs.getInt('uid');
       if (uid != null) {
         return uid;
@@ -482,6 +488,12 @@ class API {
 
   Future<String?> getStoredUsername() async {
     if (username != null) {
+      return username;
+    }
+    final prefs = await SharedPreferencesService.instance;
+    username = prefs.getString('username');
+    if (username != null) {
+      _logger.info('username in prefs: $username');
       return username;
     }
     username = await getUsername();
@@ -496,7 +508,9 @@ class API {
         return null;
       }
       final ret = response.data['data']['name'];
+      _logger.info('getUsername from api: $ret');
       await prefs.setString('username', ret);
+      username = ret;
       return ret;
     } catch (e) {
       final username = prefs.getString('username');
@@ -1257,7 +1271,8 @@ class API {
       'https://s.search.bilibili.com/main/suggest',
       queryParameters: {'term': keyword},
     );
-    _logger.info('called getSearchSuggestions with url: ${response.requestOptions.uri}');
+    _logger.info(
+        'called getSearchSuggestions with url: ${response.requestOptions.uri}');
     final data = jsonDecode(response.data);
     if (data['code'] != 0) return [];
     List<String> suggestions = [];
@@ -1379,7 +1394,7 @@ class API {
 
       final cookies = loginResponse.headers['set-cookie'];
       if (cookies != null) {
-        setCookies(cookies.join(';'), save: true);
+        await setCookies(cookies.join(';'), save: true);
       }
 
       return (true, null);
@@ -1452,7 +1467,7 @@ class API {
 
       final cookies = loginResponse.headers['set-cookie'];
       if (cookies != null) {
-        setCookies(cookies.join(';'), save: true);
+        await setCookies(cookies.join(';'), save: true);
       }
 
       return (true, null);

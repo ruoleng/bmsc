@@ -5,10 +5,8 @@ import 'package:bmsc/screen/login_screen.dart';
 import 'package:bmsc/screen/playlist_search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/globals.dart' as globals;
-import 'package:bmsc/util/logger.dart';
 import '../util/shared_preferences_service.dart';
 
-final logger = LoggerUtils.getLogger('SettingsScreen');
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,32 +16,23 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _isLoggedIn = true;
-  String? _username;
+  bool _isLoggedIn = globals.api.uid != 0;
+  final String? _username = globals.api.username;
 
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
-  }
-
-  Future<void> _checkLoginStatus() async {
-    final uid = await globals.api.getStoredUID();
-    final username = await globals.api.getStoredUsername();
-    if (mounted) {
-      setState(() {
-        _isLoggedIn = uid != 0;
-        _username = username;
-      });
-    }
   }
 
   Future<void> _logout() async {
     logger.info('user logout');
     await globals.api.resetCookies();
+    globals.api.uid = 0;
+    globals.api.username = null;
     await CacheManager.cacheFavList([]);
     final prefs = await SharedPreferencesService.instance;
     await prefs.setInt('uid', 0);
+    await prefs.setString('username', '');
     if (mounted) {
       setState(() {
         _isLoggedIn = false;
@@ -91,6 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           await _logout();
                           if (context.mounted) {
                             Navigator.pop(context);
+                            Navigator.pop(context, true);
                           }
                         },
                         child: const Text('确定'),
@@ -101,12 +91,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               } else {
                 Navigator.push<bool>(
                   context,
-                  MaterialPageRoute<bool>(
-                      builder: (_) => const LoginScreen()),
+                  MaterialPageRoute<bool>(builder: (_) => const LoginScreen()),
                 ).then((value) async {
                   if (value == true) {
-                    await _checkLoginStatus();
-                    if (context.mounted && _isLoggedIn) {
+                    if (context.mounted) {
                       Navigator.pop(context, true);
                     }
                   }
@@ -134,6 +122,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 MaterialPageRoute<Widget>(builder: (_) => const CacheScreen()),
               );
             },
+          ),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              '显示',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          StatefulBuilder(
+            builder: (context, setState) => FutureBuilder<bool>(
+              future: SharedPreferencesService.instance.then((prefs) =>
+                  prefs.getBool('show_daily_recommendations') ?? true),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox();
+                return SwitchListTile(
+                  title: const Text('显示每日推荐'),
+                  subtitle: const Text('在收藏夹页面显示每日推荐'),
+                  value: snapshot.data!,
+                  onChanged: (bool value) async {
+                    final prefs = await SharedPreferencesService.instance;
+                    await prefs.setBool('show_daily_recommendations', value);
+                    setState(() {});
+                  },
+                );
+              },
+            ),
           ),
           const Padding(
             padding: EdgeInsets.all(16.0),

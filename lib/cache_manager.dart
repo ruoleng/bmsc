@@ -13,7 +13,7 @@ import '../model/meta.dart';
 import 'dart:math' show min;
 import 'package:bmsc/util/logger.dart';
 
-final logger = LoggerUtils.getLogger('CacheManager');
+final _logger = LoggerUtils.getLogger('CacheManager');
 
 const String _dbName = 'AudioCache.db';
 
@@ -42,7 +42,7 @@ class CacheManager {
         path,
         version: 1,
         onCreate: (db, version) async {
-          logger.info('Creating new database tables...');
+          _logger.info('Creating new database tables...');
           await db.execute('''
           CREATE TABLE $tableName (
             bvid TEXT,
@@ -136,7 +136,7 @@ class CacheManager {
       );
       return db;
     } catch (e, stackTrace) {
-      logger.severe('Failed to initialize database', e, stackTrace);
+      _logger.severe('Failed to initialize database', e, stackTrace);
       rethrow;
     }
   }
@@ -152,7 +152,7 @@ class CacheManager {
   }
 
   static Future<void> cacheMetas(List<Meta> metas) async {
-    logger.info('Caching ${metas.length} metas');
+    _logger.info('Caching ${metas.length} metas');
     try {
       final db = await database;
       final batch = db.batch();
@@ -163,9 +163,9 @@ class CacheManager {
             conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await batch.commit();
-      logger.info('cached ${metas.length} metas');
+      _logger.info('cached ${metas.length} metas');
     } catch (e, stackTrace) {
-      logger.severe('Failed to cache metas', e, stackTrace);
+      _logger.severe('Failed to cache metas', e, stackTrace);
       rethrow;
     }
   }
@@ -183,10 +183,10 @@ class CacheManager {
 
   static Future<List<Meta>> getMetas(List<String> bvids) async {
     if (bvids.isEmpty) {
-      logger.info('No bvids to fetch');
+      _logger.info('No bvids to fetch');
       return [];
     }
-    logger.info('Fetching ${bvids.length} metas from cache');
+    _logger.info('Fetching ${bvids.length} metas from cache');
     try {
       final db = await database;
       const int chunkSize = 500;
@@ -206,10 +206,10 @@ class CacheManager {
         allResults.addAll(results.map((e) => Meta.fromJson(e)));
       }
 
-      logger.info('Retrieved ${allResults.length} metas from cache');
+      _logger.info('Retrieved ${allResults.length} metas from cache');
       return allResults;
     } catch (e, stackTrace) {
-      logger.severe('Failed to get metas from cache', e, stackTrace);
+      _logger.severe('Failed to get metas from cache', e, stackTrace);
       rethrow;
     }
   }
@@ -242,7 +242,7 @@ class CacheManager {
           conflictAlgorithm: ConflictAlgorithm.ignore);
     }
     await batch.commit();
-    logger.info('cached ${data.length} entities');
+    _logger.info('cached ${data.length} entities');
   }
 
   static Future<List<Entity>> getEntities(String bvid) async {
@@ -317,7 +317,7 @@ class CacheManager {
   }
 
   static Future<LazyAudioSource?> getCachedAudio(String bvid, int cid) async {
-    logger.info('Fetching cached audio for bvid: $bvid, cid: $cid');
+    _logger.info('Fetching cached audio for bvid: $bvid, cid: $cid');
     try {
       final meta = await getMeta(bvid);
       if (meta == null) {
@@ -331,7 +331,7 @@ class CacheManager {
       );
 
       if (results.isNotEmpty) {
-        logger.info('Found cached audio for bvid: $bvid, cid: $cid');
+        _logger.info('Found cached audio for bvid: $bvid, cid: $cid');
         final filePath = results.first['filePath'] as String;
         final entities = await getEntities(bvid);
         final entity =
@@ -352,11 +352,11 @@ class CacheManager {
             });
         return LazyAudioSource.create(bvid, cid, Uri.parse(filePath), tag);
       } else {
-        logger.info('No cached audio found for bvid: $bvid, cid: $cid');
+        _logger.info('No cached audio found for bvid: $bvid, cid: $cid');
       }
       return null;
     } catch (e, stackTrace) {
-      logger.severe('Failed to get cached audio', e, stackTrace);
+      _logger.severe('Failed to get cached audio', e, stackTrace);
       rethrow;
     }
   }
@@ -382,10 +382,10 @@ class CacheManager {
           },
           conflictAlgorithm: ConflictAlgorithm.ignore);
       if (ret != 0) {
-        logger.info('audio cache metadata saved');
+        _logger.info('audio cache metadata saved');
       }
     } catch (e, stackTrace) {
-      logger.severe('Failed to save audio cache metadata', e, stackTrace);
+      _logger.severe('Failed to save audio cache metadata', e, stackTrace);
       rethrow;
     }
   }
@@ -411,7 +411,7 @@ class CacheManager {
     }
 
     await batch.commit();
-    logger.info('cached ${favs.length} fav lists');
+    _logger.info('cached ${favs.length} fav lists');
   }
 
   static Future<void> cacheCollectedFavList(List<Fav> favs) async {
@@ -435,7 +435,7 @@ class CacheManager {
     }
 
     await batch.commit();
-    logger.info('cached collected ${favs.length} fav lists');
+    _logger.info('cached collected ${favs.length} fav lists');
   }
 
   static Future<List<Fav>> getCachedCollectedFavList() async {
@@ -462,7 +462,7 @@ class CacheManager {
       batch.insert(collectedFavListVideoTable, {'bvid': bvid, 'mid': mid});
     }
     await batch.commit();
-    logger.info('cached ${bvids.length} collected fav list videos');
+    _logger.info('cached ${bvids.length} collected fav list videos');
   }
 
   static Future<List<String>> getCachedCollectedFavListVideo(int mid) async {
@@ -503,7 +503,7 @@ class CacheManager {
     }
 
     await batch.commit();
-    logger.info('cached ${medias.length} fav details');
+    _logger.info('cached ${medias.length} fav details');
   }
 
   static Future<void> appendCacheFavDetail(
@@ -537,7 +537,7 @@ class CacheManager {
     }
 
     await batch.commit();
-    logger.info('appended ${medias.length} fav details');
+    _logger.info('appended ${medias.length} fav details');
   }
 
   static Future<List<Fav>> getCachedFavList() async {
@@ -561,7 +561,7 @@ class CacheManager {
       batch.insert(favListVideoTable, {'bvid': bvid, 'mid': mid});
     }
     await batch.commit();
-    logger.info('cached ${bvids.length} fav list videos');
+    _logger.info('cached ${bvids.length} fav list videos');
   }
 
   static Future<List<String>> getCachedFavListVideo(int mid) async {

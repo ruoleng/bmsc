@@ -65,7 +65,8 @@ class _LoginScreenState extends State<LoginScreen> {
           );
 
           if (loginSuccess) {
-            await globals.api.getStoredUID();
+            await globals.api.getUID();
+            await globals.api.getUsername();
             if (context.mounted) {
               Navigator.pop(context, true);
             }
@@ -185,6 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (loginSuccess) {
         await globals.api.getUID();
+        await globals.api.getUsername();
         if (context.mounted) {
           Navigator.pop(context, true);
         }

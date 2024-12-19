@@ -76,10 +76,18 @@ class _AboutScreenState extends State<AboutScreen> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    'assets/icon.png',
-                    width: 100,
-                    height: 100,
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                      BlendMode.srcIn,
+                    ),
+                    child: Image.asset(
+                      'assets/icon.png',
+                      width: 100,
+                      height: 100,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

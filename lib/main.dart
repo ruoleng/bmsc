@@ -20,8 +20,6 @@ import 'util/logger.dart';
 import 'package:bmsc/screen/settings_screen.dart';
 import 'package:bmsc/theme.dart';
 
-final logger = LoggerUtils.getLogger('Main');
-final GlobalKey<FavScreenState> favScreenKey = GlobalKey<FavScreenState>();
 
 Future<void> main() async {
   await JustAudioBackground.init(
@@ -57,11 +55,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
-      useMaterial3: true,
-    );
-
     return MaterialApp(
       navigatorKey: ErrorHandler.navigatorKey,
       theme: AppTheme.lightTheme,
@@ -98,6 +91,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   List<ReleaseResult>? officialVersions;
   String? curVersion;
   bool hasNewVersion = false;
+  FavScreenState? _favScreenState;
 
   @override
   void initState() {
@@ -173,14 +167,25 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               ),
             ).then((shouldRefresh) {
               if (shouldRefresh == true) {
-                favScreenKey.currentState?.checkSignedinAndLoadFavorites();
+                if (globals.api.uid == 0) {
+                  _favScreenState?.setState(() {
+                    _favScreenState?.signedin = false;
+                  });
+                } else {
+                  _favScreenState?.setState(() {
+                    _favScreenState?.signedin = true;
+                  });
+                  _favScreenState?.loadFavorites();
+                }
               }
             }),
             icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
-      body: FavScreen(key: favScreenKey),
+      body: FavScreen(
+        onInit: (state) => _favScreenState = state,
+      ),
     );
   }
 }

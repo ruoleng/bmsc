@@ -2,6 +2,9 @@ import 'package:bmsc/model/entity.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/cache_manager.dart';
 import 'package:bmsc/globals.dart' as globals;
+import 'package:bmsc/util/logger.dart';
+
+final _logger = LoggerUtils.getLogger('ExcludedPartsDialog');
 
 class ExcludedPartsDialog extends StatefulWidget {
   final String bvid;
@@ -32,7 +35,8 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
   Future<void> _loadExcludedParts() async {
     var es = await CacheManager.getEntities(widget.bvid);
     if (es.isEmpty) {
-      logger.info('entities not in cache, fetching from API');
+      _logger
+          .info('entities of ${widget.bvid} not in cache, fetching from API');
       await globals.api.getVidDetail(widget.bvid);
       es = await CacheManager.getEntities(widget.bvid);
     }

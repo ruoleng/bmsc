@@ -42,8 +42,7 @@ showUpdateDialog(
     child: const Text("下载"),
     onPressed: () async {
       if (newVersion.assets.isNotEmpty) {
-        await launchUrl(
-            Uri.parse(newVersion.assets.first.browserDownloadUrl),
+        await launchUrl(Uri.parse(newVersion.assets.first.browserDownloadUrl),
             mode: LaunchMode.externalApplication);
       }
     },
