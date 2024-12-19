@@ -42,7 +42,7 @@ class PlayingCard extends StatelessWidget {
                         total: globals.api.player.duration ?? Duration.zero,
                         onSeek: globals.api.player.seek,
                         barHeight: 2,
-                        baseBarColor: Colors.grey[300],
+                        baseBarColor: Theme.of(context).colorScheme.surface,
                         progressBarColor: Theme.of(context).colorScheme.primary,
                         thumbRadius: 0,
                         timeLabelLocation: TimeLabelLocation.none,
