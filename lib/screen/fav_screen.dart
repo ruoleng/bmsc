@@ -299,92 +299,89 @@ class _FavScreenState extends State<FavScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _checkSignedinAndLoadFavorites,
-        child: !signedin
-            ? const Center(child: Text('请先登录'))
-            : ListView(
-                    children: [
-                      if (favList.isEmpty && collectedFavList.isEmpty)
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.folder_outlined,
-                                  size: 64, color: Colors.grey),
-                              const SizedBox(height: 16),
-                              Text(
-                                '暂无收藏夹',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color:
-                                      Theme.of(context).colorScheme.secondary,
-                                ),
+      body: !signedin
+          ? const Center(child: Text('请先登录'))
+          : ListView(
+                  children: [
+                    if (favList.isEmpty && collectedFavList.isEmpty)
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.folder_outlined,
+                                size: 64, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(
+                              '暂无收藏夹',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color:
+                                    Theme.of(context).colorScheme.secondary,
                               ),
-                            ],
-                          ),
-                        ),
-
-                      if (favList.isNotEmpty || collectedFavList.isNotEmpty) ...[
-                        ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 24.0,
-                          ),
-                          leading:
-                              const Icon(Icons.recommend, color: Colors.orange),
-                          title: const Text('每日推荐',
-                              style: TextStyle(fontWeight: FontWeight.w500)),
-                          subtitle: const Text('基于收藏夹的个性化推荐'),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute<Widget>(
-                                builder: (_) => const RecommendationScreen()),
-                          ),
-                        ),
-                        const Divider(),
-                      ],
-
-                      // 我的收藏夹标题
-                      if (favList.isNotEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 24.0, vertical: 8.0),
-                          child: Text(
-                            '我的收藏夹',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
+                          ],
                         ),
-
-                      // 我的收藏夹列表
-                      ...buildFavList(favList, true),
-
-                      // 收藏的收藏夹标题
-                      if (collectedFavList.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 24.0, vertical: 8.0),
-                          child: Text(
-                            '收藏的收藏夹',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                      ),
+      
+                    if (favList.isNotEmpty || collectedFavList.isNotEmpty) ...[
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 24.0,
                         ),
-
-                        // 收藏的收藏夹列表
-                        ...buildFavList(collectedFavList, false),
-                      ],
-
-                      // 显示空状态
-                      
+                        leading:
+                            const Icon(Icons.recommend, color: Colors.orange),
+                        title: const Text('每日推荐',
+                            style: TextStyle(fontWeight: FontWeight.w500)),
+                        subtitle: const Text('基于收藏夹的个性化推荐'),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<Widget>(
+                              builder: (_) => const RecommendationScreen()),
+                        ),
+                      ),
+                      const Divider(),
                     ],
-                  ),
-      ),
+      
+                    // 我的收藏夹标题
+                    if (favList.isNotEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 24.0, vertical: 8.0),
+                        child: Text(
+                          '我的收藏夹',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+      
+                    // 我的收藏夹列表
+                    ...buildFavList(favList, true),
+      
+                    // 收藏的收藏夹标题
+                    if (collectedFavList.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 24.0, vertical: 8.0),
+                        child: Text(
+                          '收藏的收藏夹',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+      
+                      // 收藏的收藏夹列表
+                      ...buildFavList(collectedFavList, false),
+                    ],
+      
+                    // 显示空状态
+                    
+                  ],
+                ),
     );
   }
 
