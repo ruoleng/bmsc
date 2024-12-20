@@ -202,7 +202,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         total: total,
                         onSeek: globals.api.player.seek,
                         timeLabelTextStyle:
-                            const TextStyle(color: Colors.black, fontSize: 10),
+                             TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 10),
                         timeLabelPadding: 5,
                         thumbRadius: 5,
                       );

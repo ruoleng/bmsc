@@ -105,10 +105,10 @@ class _CommentScreenState extends State<CommentScreen> {
                     children: [
                       Text(
                         comment.member.uname,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Colors.black45,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                       const SizedBox(width: 4),

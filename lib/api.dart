@@ -147,6 +147,19 @@ class API {
         }
       }
     });
+
+    player.playbackEventStream.listen(null, onError: (error, stackTrace) async {
+      if (player.loopMode == LoopMode.off &&
+          player.currentIndex != null &&
+          player.currentIndex! == playlist.length - 1) {
+        return;
+      }
+      if (player.loopMode == LoopMode.one) {
+        return;
+      }
+      await player.seekToNext();
+      await player.play();
+    });
   }
 
   Future<void> _hijackDummySource({int? index}) async {
@@ -175,6 +188,13 @@ class API {
         srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
       }
       if (srcs == null) {
+        _logger.warning('No audio sources found for BVID: ${currentSource.tag.id}');
+        if (player.loopMode != LoopMode.one &&
+            player.currentIndex != null &&
+            player.currentIndex! < playlist.length - 1) {
+          await player.seekToNext();
+          await player.play();
+        }
         return;
       }
       await doAndSave(() async {
