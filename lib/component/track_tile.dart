@@ -17,6 +17,7 @@ class TrackTile extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.onAddToPlaylistButtonPressed,
+    this.selected = false,
   });
 
   final String? pic;
@@ -32,6 +33,7 @@ class TrackTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onAddToPlaylistButtonPressed;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -39,11 +41,13 @@ class TrackTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       elevation: 2,
       shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-      color: cachedCount == parts
-          ? Colors.green.withOpacity(0.1)
-          : cachedCount > 0
-              ? Colors.blue.withOpacity(0.1)
-              : null,
+      color: selected
+          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+          : (cachedCount == parts
+              ? Colors.green.withOpacity(0.1)
+              : cachedCount > 0
+                  ? Colors.blue.withOpacity(0.1)
+                  : null),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
