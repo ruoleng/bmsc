@@ -162,7 +162,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                 OverlayEntry(builder: (context3) {
                                   return Scaffold(
                                       body: UserDetailScreen(
-                                        mid: src.tag.extras['mid'],
+                                        mid: src.tag.extras['mid'] ?? 0,
                                       ),
                                       bottomNavigationBar:
                                           StreamBuilder<SequenceState?>(
