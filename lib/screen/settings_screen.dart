@@ -250,7 +250,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
-              );
+              ).then((_) {
+                if (context.mounted) {
+                  setState(() {});
+                }
+              });
             },
           ),
            ListTile(

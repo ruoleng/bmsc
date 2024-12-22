@@ -268,8 +268,8 @@ class _CacheScreenState extends State<CacheScreen> {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('保存到下载'),
-                    content: Text('确定要保存这 ${selectedItems.length} 个缓存文件吗？'),
+                    title: const Text('保存到本地'),
+                    content: Text('确定要保存这 ${selectedItems.length} 个缓存文件到本地下载目录吗？'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),

@@ -64,6 +64,11 @@ class ThemeProvider extends ChangeNotifier {
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    snackBarTheme: const SnackBarThemeData(
+      backgroundColor: Color(0xFF191919),
+      actionTextColor: Colors.white70,
+      contentTextStyle: TextStyle(color: Colors.white70),
+    ),
     colorScheme: ColorScheme.fromSeed(
       seedColor: Colors.blue,
       brightness: Brightness.dark,

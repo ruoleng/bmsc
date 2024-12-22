@@ -1,9 +1,11 @@
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:bmsc/api.dart';
+import 'package:bmsc/component/playlist_bottom_sheet.dart';
 import 'package:bmsc/component/select_favlist_dialog_multi.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:rxdart/rxdart.dart';
 import '../component/playing_card.dart';
 import '../globals.dart' as globals;
 import '../util/widget.dart';
@@ -211,6 +213,60 @@ class _DetailScreenState extends State<DetailScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  StreamBuilder<(LoopMode, bool)>(
+                  // set stream to loopModeStream and shuffleModeEnabledStream combined
+                  stream: Rx.combineLatest2(
+                    globals.api.player.loopModeStream,
+                    globals.api.player.shuffleModeEnabledStream,
+                    (loopMode, shuffleModeEnabled) => (
+                      loopMode,
+                      loopMode == LoopMode.off && shuffleModeEnabled
+                    ),
+                  ),
+                  builder: (context, snapshot) {
+                    final (loopMode, shuffleModeEnabled) =
+                        snapshot.data ?? (LoopMode.off, false);
+                    final icons = [
+                      Icons.playlist_play,
+                      Icons.repeat,
+                      Icons.repeat_one,
+                      Icons.shuffle,
+                    ];
+                    final labels = ["顺序播放", "歌单循环", "单曲循环", "随机播放"];
+                    final cycleModes = [
+                      LoopMode.off,
+                      LoopMode.all,
+                      LoopMode.one,
+                      LoopMode.off,
+                    ];
+                    final index =
+                        shuffleModeEnabled ? 3 : cycleModes.indexOf(loopMode);
+
+                    return IconButton(
+                      icon: Icon(
+                        shuffleModeEnabled ? Icons.shuffle : icons[index],
+                        size: 20,
+                      ),
+                      tooltip: labels[index],
+                      onPressed: () {
+                        final nextIndex = (index + 1) % labels.length;
+                        globals.api.player.setLoopMode(cycleModes[nextIndex]);
+                        if (nextIndex == 3) {
+                          globals.api.player.setShuffleModeEnabled(true);
+                        } else {
+                          globals.api.player.setShuffleModeEnabled(false);
+                        }
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(labels[nextIndex]),
+                            duration: const Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
                   StreamBuilder<SequenceState?>(
                     stream: globals.api.player.sequenceStateStream,
                     builder: (context, snapshot) {
@@ -353,10 +409,29 @@ class _DetailScreenState extends State<DetailScreen> {
                       );
                     },
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.queue_music),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) =>
+                            const PlaylistBottomSheet(),
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surface,
+                        isScrollControlled: true,
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              MediaQuery.of(context).size.height *
+                                  0.7,
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ],
           ),
-        ));
+        ),
+      );
   }
 }
