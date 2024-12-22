@@ -6,6 +6,7 @@ import 'package:bmsc/screen/playlist_search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/globals.dart' as globals;
 import '../util/shared_preferences_service.dart';
+import '../theme.dart';
 
 
 class SettingsScreen extends StatefulWidget {
@@ -134,6 +135,125 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+
+          ListTile(
+            title: const Text('主题模式'),
+            leading: const Icon(Icons.palette),
+            subtitle: Text(
+              switch (ThemeProvider.instance.themeMode) {
+                ThemeMode.light => '浅色',
+                ThemeMode.dark => '深色',
+                ThemeMode.system => '跟随系统',
+              }
+            ),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('选择主题模式'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RadioListTile<ThemeMode>(
+                        title: const Text('浅色'),
+                        value: ThemeMode.light,
+                        groupValue: ThemeProvider.instance.themeMode,
+                        onChanged: (ThemeMode? value) async {
+                          if (value != null) {
+                            await ThemeProvider.instance.setThemeMode(value);
+                            if (context.mounted) Navigator.pop(context);
+                          }
+                        },
+                      ),
+                      RadioListTile<ThemeMode>(
+                        title: const Text('深色'),
+                        value: ThemeMode.dark,
+                        groupValue: ThemeProvider.instance.themeMode,
+                        onChanged: (ThemeMode? value) async {
+                          if (value != null) {
+                            await ThemeProvider.instance.setThemeMode(value);
+                            if (context.mounted) Navigator.pop(context);
+                          }
+                        },
+                      ),
+                      RadioListTile<ThemeMode>(
+                        title: const Text('跟随系统'),
+                        value: ThemeMode.system,
+                        groupValue: ThemeProvider.instance.themeMode,
+                        onChanged: (ThemeMode? value) async {
+                          if (value != null) {
+                            await ThemeProvider.instance.setThemeMode(value);
+                            if (context.mounted) Navigator.pop(context);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+           ListTile(
+            title: const Text('评论字体大小'),
+            subtitle: Text('${ThemeProvider.instance.commentFontSize}'),
+            leading: const Icon(Icons.format_size),
+            onTap: () {
+              var fontSize = ThemeProvider.instance.commentFontSize;
+              showDialog(
+                context: context,
+                builder: (context) => SimpleDialog(
+                  title: const Text('评论字体大小'),
+                  children: [
+                    StatefulBuilder(
+                      builder: (context, setState) => Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Row(
+                              children: [
+                                Text('12', 
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.secondary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Slider(
+                                    value: fontSize.toDouble(),
+                                    min: 12,
+                                    max: 20,
+                                    divisions: 8,
+                                    label: fontSize.toString(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        fontSize = value.toInt();
+                                      });
+                                    },
+                                  ),
+                                ),
+                                Text('20',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.secondary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ).then((_) {
+                if (context.mounted) {
+                  setState(() {
+                    ThemeProvider.instance.setCommentFontSize(fontSize);
+                  });
+                }
+              });
+            },
+          ),
           StatefulBuilder(
             builder: (context, setState) => FutureBuilder<bool>(
               future: SharedPreferencesService.instance.then((prefs) =>
@@ -142,6 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (!snapshot.hasData) return const SizedBox();
                 return SwitchListTile(
                   title: const Text('显示每日推荐'),
+                  secondary: const Icon(Icons.recommend),
                   subtitle: const Text('在收藏夹页面显示每日推荐'),
                   value: snapshot.data!,
                   onChanged: (bool value) async {
@@ -196,6 +317,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+         
         ],
       ),
     );

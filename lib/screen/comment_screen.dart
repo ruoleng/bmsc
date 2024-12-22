@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../globals.dart' as globals;
 import '../model/comment.dart';
+import '../theme.dart';
 
 class CommentScreen extends StatefulWidget {
   final String? aid;
@@ -116,9 +117,7 @@ class _CommentScreenState extends State<CommentScreen> {
                         DateTime.fromMillisecondsSinceEpoch(
                                 comment.ctime * 1000)
                             .toString()
-                            .substring(
-                              0,
-                            ),
+                            .substring(0, 19),
                         style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 12,
@@ -139,7 +138,9 @@ class _CommentScreenState extends State<CommentScreen> {
                   const SizedBox(height: 4),
                   Text(
                     comment.content?.message ?? '',
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: ThemeProvider.instance.commentFontSize.toDouble(),
+                    ),
                   ),
                   if (comment.count > 0)
                     Text('${comment.count} 条回复',

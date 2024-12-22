@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:bmsc/component/select_favlist_dialog.dart';
 import 'package:bmsc/model/fav.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../globals.dart' as globals;
 import '../model/search.dart';
 import '../util/string.dart';
@@ -605,6 +607,9 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
 
   Future<void> _processPlaylist() async {
     _logger.info('Starting playlist processing');
+    if (Platform.isAndroid) {
+      Permission.notification.request();
+    }
     await _initializeNotifications();
 
     final text = textController.text;

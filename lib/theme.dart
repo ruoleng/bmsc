@@ -1,6 +1,57 @@
 import 'package:flutter/material.dart';
 
-class AppTheme {
+import 'util/shared_preferences_service.dart';
+
+class ThemeProvider extends ChangeNotifier {
+  static final ThemeProvider _instance = ThemeProvider._internal();
+  factory ThemeProvider() => _instance;
+  ThemeProvider._internal();
+
+  static ThemeProvider get instance => _instance;
+
+  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode get themeMode => _themeMode;
+
+  int _commentFontSize = 16;
+  int get commentFontSize => _commentFontSize;
+
+  Future<void> init() async {
+    final prefs = await SharedPreferencesService.instance;
+    _commentFontSize = prefs.getInt('comment_font_size') ?? 14;
+    switch (prefs.getString('theme_mode') ?? '') {
+      case 'light':
+        _themeMode = ThemeMode.light;
+        break;
+      case 'dark':
+        _themeMode = ThemeMode.dark;
+        break;
+      case 'system':
+        _themeMode = ThemeMode.system;
+        break;
+      default:
+        _themeMode = ThemeMode.system;
+        break;
+    }
+    notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    if (_themeMode != mode) {
+      _themeMode = mode;
+      final prefs = await SharedPreferencesService.instance;
+      await prefs.setString('theme_mode', mode.name);
+      notifyListeners();
+    }
+  }
+
+  Future<void> setCommentFontSize(int size) async {
+    if (_commentFontSize != size) {
+      _commentFontSize = size;
+      final prefs = await SharedPreferencesService.instance;
+      await prefs.setInt('comment_font_size', size);
+    }
+  }
+
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,

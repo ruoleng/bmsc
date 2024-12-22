@@ -13,8 +13,6 @@ import 'component/playing_card.dart';
 import 'globals.dart' as globals;
 import 'package:flutter/foundation.dart';
 import 'util/error_handler.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
 import 'screen/about_screen.dart';
 import 'util/logger.dart';
 import 'package:bmsc/screen/settings_screen.dart';
@@ -22,12 +20,14 @@ import 'package:bmsc/theme.dart';
 
 
 Future<void> main() async {
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
-    androidNotificationChannelName: 'Audio Playback',
-    androidNotificationOngoing: true,
-  );
+  WidgetsFlutterBinding.ensureInitialized();
+  await ThemeProvider.instance.init();
+  runApp(const MyApp());
+  _setupErrorHandlers();
+  _initializeBackgroundServices();
+}
 
+void _setupErrorHandlers() {
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     ErrorHandler.handleException(details.exception);
@@ -37,17 +37,17 @@ Future<void> main() async {
     ErrorHandler.handleException(error);
     return true;
   };
+}
 
+Future<void> _initializeBackgroundServices() async {
+  LoggerUtils.init();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
+    androidNotificationChannelName: 'Audio Playback',
+    androidNotificationOngoing: true,
+  );
+  globals.api.init();
   globals.api.initAudioSession();
-  WidgetsFlutterBinding.ensureInitialized();
-
-  if (Platform.isAndroid) {
-    await Permission.notification.request();
-  }
-
-  await LoggerUtils.init();
-
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -55,25 +55,30 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: ErrorHandler.navigatorKey,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      home: Builder(builder: (context) {
-        return Scaffold(
-          body: MyHomePage(title: 'BiliMusic'),
-          bottomNavigationBar: StreamBuilder<SequenceState?>(
-            stream: globals.api.player.sequenceStateStream,
-            builder: (_, snapshot) {
-              final src = snapshot.data?.sequence;
-              return (src == null || src.isEmpty)
-                  ? const SizedBox()
-                  : PlayingCard();
-            },
-          ),
+    return ListenableBuilder(
+      listenable: ThemeProvider.instance,
+      builder: (context, child) {
+        return MaterialApp(
+          navigatorKey: ErrorHandler.navigatorKey,
+          theme: ThemeProvider.lightTheme,
+          darkTheme: ThemeProvider.darkTheme,
+          themeMode: ThemeProvider.instance.themeMode,
+          home: Builder(builder: (context) {
+            return Scaffold(
+              body: MyHomePage(title: 'BiliMusic'),
+              bottomNavigationBar: StreamBuilder<SequenceState?>(
+                stream: globals.api.player.sequenceStateStream,
+                builder: (_, snapshot) {
+                  final src = snapshot.data?.sequence;
+                  return (src == null || src.isEmpty)
+                      ? const SizedBox()
+                      : const PlayingCard();
+                },
+              ),
+            );
+          }),
         );
-      }),
+      },
     );
   }
 }
@@ -97,7 +102,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    globals.api.init();
     checkNewVersion().then((x) async {
       if (x == null) {
         return;
