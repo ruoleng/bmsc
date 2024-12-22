@@ -169,47 +169,57 @@ class API {
       return;
     }
 
-    final currentSource = playlist.children[index];
-    if (currentSource is IndexedAudioSource &&
-        currentSource.tag.extras['dummy'] == true) {
-      _logger.info('Hijacking dummy source for index: $index');
+    final currentSource = playlist.sequence[index];
 
-      await player.pause();
-      List<IndexedAudioSource>? srcs;
-      try {
-        srcs = await getAudioSources(currentSource.tag.id);
-      } catch (e) {
-        _logger.warning('Failed to get audio sources: $e');
-        srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
-      }
-      final excludedCids =
-          await CacheManager.getExcludedParts(currentSource.tag.id);
-      for (var cid in excludedCids) {
-        srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
-      }
-      if (srcs == null) {
-        _logger.warning('No audio sources found for BVID: ${currentSource.tag.id}');
-        if (player.loopMode != LoopMode.one &&
-            player.currentIndex != null &&
-            player.currentIndex! < playlist.length - 1) {
-          await player.seekToNext();
-          await player.play();
-        }
-        return;
-      }
-      await doAndSave(() async {
-        final shuffleModeEnabled = player.shuffleModeEnabled;
-        if (shuffleModeEnabled) {
-          await player.setShuffleModeEnabled(false);
-        }
-        await playlist.insertAll(index! + 1, srcs!);
-        await playlist.removeAt(index);
-        if (shuffleModeEnabled) {
-          await player.setShuffleModeEnabled(true);
-        }
-      });
-      await player.play();
+    final extras = currentSource.tag.extras;
+    if (extras == null) {
+      return;
     }
+    if (extras['dummy'] != true) {
+      if (extras['bvid'] != null && extras['cid'] != null) {
+        await CacheManager.updatePlayStats(extras['bvid'], extras['cid']);
+        _logger.info('update play stats for bvid: ${extras['bvid']} cid: ${extras['cid']}');
+      }
+      return;
+    }
+    _logger.info('Hijacking dummy source for index: $index');
+
+    await player.pause();
+    List<IndexedAudioSource>? srcs;
+    try {
+      srcs = await getAudioSources(currentSource.tag.id);
+    } catch (e) {
+      _logger.warning('Failed to get audio sources: $e');
+      srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
+    }
+    final excludedCids =
+        await CacheManager.getExcludedParts(currentSource.tag.id);
+    for (var cid in excludedCids) {
+      srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
+    }
+    if (srcs == null) {
+      _logger.warning('No audio sources found for BVID: ${currentSource.tag.id}');
+      if (player.loopMode != LoopMode.one &&
+          player.currentIndex != null &&
+          player.currentIndex! < playlist.length - 1) {
+        await player.seekToNext();
+        await player.play();
+      }
+      return;
+    }
+    await doAndSave(() async {
+      final shuffleModeEnabled = player.shuffleModeEnabled;
+      if (shuffleModeEnabled) {
+        await player.setShuffleModeEnabled(false);
+      }
+      await playlist.insertAll(index! + 1, srcs!);
+      await playlist.removeAt(index);
+      if (shuffleModeEnabled) {
+        await player.setShuffleModeEnabled(true);
+      }
+    });
+    await player.play();
+    
   }
 
   Future<void> doAndSave(Future<void> Function() func) async {

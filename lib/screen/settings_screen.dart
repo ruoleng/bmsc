@@ -124,6 +124,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          ListTile(
+            title: const Text('缓存大小限制'),
+            subtitle: FutureBuilder<int>(
+              future: SharedPreferencesService.getCacheLimitSize(),
+              builder: (context, snapshot) {
+                final limit = snapshot.data ?? 300;
+                return Text('$limit MB');
+              },
+            ),
+            leading: const Icon(Icons.folder_outlined),
+            onTap: () async {
+              var currentLimit = await SharedPreferencesService.getCacheLimitSize();
+              final controller = TextEditingController(
+                text: currentLimit.toString()
+              );
+              if (!context.mounted) return;
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('设置缓存大小限制'),
+                  content: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '缓存大小',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('MB'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('取消'),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        final newValue = int.tryParse(controller.text);
+                        if (newValue != null) {
+                          currentLimit = newValue;
+                          await SharedPreferencesService.setCacheLimitSize(currentLimit);
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            setState(() {});
+                          }
+                        }
+                      },
+                      child: const Text('确定'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(

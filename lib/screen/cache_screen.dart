@@ -76,6 +76,7 @@ class _CacheScreenState extends State<CacheScreen> {
 
       return {
         'filePath': x['filePath'],
+        'fileSize': x['fileSize'],
         'bvid': x['bvid'],
         'cid': x['cid'],
         'createdAt': x['createdAt'],
@@ -96,17 +97,11 @@ class _CacheScreenState extends State<CacheScreen> {
     });
   }
 
-  String getFileSize(String filePath) {
-    try {
-      final file = File(filePath);
-      final sizeInBytes = file.lengthSync();
-      if (sizeInBytes < 1024 * 1024) {
-        return '${(sizeInBytes / 1024).toStringAsFixed(2)} KB';
-      }
-      return '${(sizeInBytes / (1024 * 1024)).toStringAsFixed(2)} MB';
-    } catch (e) {
-      return 'Unknown';
+  String getFileSize(int sizeInBytes) {
+    if (sizeInBytes < 1024 * 1024) {
+      return '${(sizeInBytes / 1024).toStringAsFixed(2)} KB';
     }
+    return '${(sizeInBytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 
   Future<void> deleteCaches(List<Map<String, dynamic>> fileDatas) async {
@@ -357,7 +352,7 @@ class _CacheScreenState extends State<CacheScreen> {
                       itemCount: filteredFiles.length,
                       itemBuilder: (context, index) {
                         final file = filteredFiles[index];
-                        final fileSize = getFileSize(file['filePath']);
+                        final fileSize = getFileSize(file['fileSize']);
                         final id = '${file['bvid']}_${file['cid']}';
 
                         return TrackTile(

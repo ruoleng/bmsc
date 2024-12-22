@@ -14,7 +14,8 @@ class LazyAudioSource extends LockCachingAudioSource {
     final ret = LazyAudioSource._(bvid, cid, uri, cacheFile, tag);
     ret.downloadProgressStream.listen((progress) {
       if (progress == 1.0) {
-        CacheManager.saveCacheMetadata(bvid, cid, cacheFile.path);
+        CacheManager.saveCacheMetadata(bvid, cid, cacheFile);
+        CacheManager.cleanupCache(ignoreFile: cacheFile);
       }
     });
     return ret;

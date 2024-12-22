@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:bmsc/audio/lazy_audio_source.dart';
 import 'package:bmsc/model/entity.dart';
+import 'package:bmsc/util/shared_preferences_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:audio_service/audio_service.dart';
@@ -10,7 +11,7 @@ import 'package:just_audio/just_audio.dart';
 import '../model/fav.dart';
 import '../model/fav_detail.dart';
 import '../model/meta.dart';
-import 'dart:math' show min;
+import 'dart:math' as math;
 import 'package:bmsc/util/logger.dart';
 
 final _logger = LoggerUtils.getLogger('CacheManager');
@@ -40,7 +41,7 @@ class CacheManager {
     try {
       final db = await openDatabase(
         path,
-        version: 1,
+        version: 2,
         onCreate: (db, version) async {
           _logger.info('Creating new database tables...');
           await db.execute('''
@@ -48,6 +49,9 @@ class CacheManager {
             bvid TEXT,
             cid INTEGER,
             filePath TEXT,
+            fileSize INTEGER,
+            playCount INTEGER DEFAULT 0,
+            lastPlayed INTEGER,
             createdAt INTEGER,
             PRIMARY KEY (bvid, cid)
           )
@@ -133,6 +137,60 @@ class CacheManager {
           )
         ''');
         },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          _logger.info('Upgrading database from v$oldVersion to v$newVersion');
+          
+          if (oldVersion == 1) {
+            await db.execute('''
+              CREATE TABLE ${tableName}_new (
+                bvid TEXT,
+                cid INTEGER,
+                filePath TEXT,
+                fileSize INTEGER,
+                playCount INTEGER DEFAULT 0,
+                lastPlayed INTEGER,
+                createdAt INTEGER,
+                PRIMARY KEY (bvid, cid)
+              )
+            ''');
+
+            await db.execute('''
+              INSERT INTO ${tableName}_new (bvid, cid, filePath, createdAt)
+              SELECT bvid, cid, filePath, createdAt
+              FROM $tableName
+            ''');
+
+            final rows = await db.query('${tableName}_new');
+            final batch = db.batch();
+            
+            for (final row in rows) {
+              final filePath = row['filePath'] as String;
+              final file = File(filePath);
+              int fileSize = 0;
+              try {
+                if (await file.exists()) {
+                  fileSize = await file.length();
+                }
+              } catch (e) {
+                _logger.warning('Failed to get file size for $filePath: $e');
+              }
+
+              batch.update(
+                '${tableName}_new',
+                {
+                  'fileSize': fileSize,
+                  'playCount': 0,
+                  'lastPlayed': DateTime.now().millisecondsSinceEpoch,
+                },
+                where: 'bvid = ? AND cid = ?',
+                whereArgs: [row['bvid'] as String, row['cid'] as int],
+              );
+            }
+
+            await db.execute('DROP TABLE $tableName');
+            await db.execute('ALTER TABLE ${tableName}_new RENAME TO $tableName');
+          }
+        },
       );
       return db;
     } catch (e, stackTrace) {
@@ -193,7 +251,7 @@ class CacheManager {
       final List<Meta> allResults = [];
 
       for (var i = 0; i < bvids.length; i += chunkSize) {
-        final chunk = bvids.sublist(i, min(i + chunkSize, bvids.length));
+        final chunk = bvids.sublist(i, math.min(i + chunkSize, bvids.length));
         final placeholders = List.filled(chunk.length, '?').join(',');
         final orderString = ',${chunk.join(',')},';
 
@@ -369,18 +427,22 @@ class CacheManager {
   }
 
   static Future<void> saveCacheMetadata(
-      String bvid, int cid, String filePath) async {
+      String bvid, int cid, File file) async {
     try {
       final db = await database;
+      final now = DateTime.now().millisecondsSinceEpoch;
       int ret = await db.insert(
           tableName,
           {
             'bvid': bvid,
             'cid': cid,
-            'filePath': filePath,
-            'createdAt': DateTime.now().millisecondsSinceEpoch,
+            'filePath': file.path,
+            'fileSize': file.lengthSync(),
+            'playCount': 0,
+            'lastPlayed': now,
+            'createdAt': now,
           },
-          conflictAlgorithm: ConflictAlgorithm.ignore);
+          conflictAlgorithm: ConflictAlgorithm.replace);
       if (ret != 0) {
         _logger.info('audio cache metadata saved');
       }
@@ -388,6 +450,96 @@ class CacheManager {
       _logger.severe('Failed to save audio cache metadata', e, stackTrace);
       rethrow;
     }
+  }
+
+  static Future<void> updatePlayStats(String bvid, int cid) async {
+    final db = await database;
+    await db.rawUpdate('''
+      UPDATE $tableName 
+      SET playCount = playCount + 1,
+          lastPlayed = ?
+      WHERE bvid = ? AND cid = ?
+      ''',
+      [DateTime.now().millisecondsSinceEpoch, bvid, cid]);
+  }
+
+  static Future<int> getCacheTotalSize() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT SUM(fileSize) as total FROM $tableName'
+    );
+    return (result.first['total'] as int?) ?? 0;
+  }
+
+  static Future<void> cleanupCache({File? ignoreFile}) async {
+    const double playCountWeight = 0.7;
+    const double recencyWeight = 0.3;
+    final currentSize = await getCacheTotalSize();
+    final maxCacheSize = await SharedPreferencesService.getCacheLimitSize() * 1024 * 1024;
+    _logger.info('currentSize: $currentSize, maxCacheSize: $maxCacheSize');
+    if (currentSize <= maxCacheSize) {
+      return;
+    }
+
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    // 获取所有缓存文件信息并计算分数
+    final results = await db.query(tableName);
+    
+    // 计算最大播放次数用于归一化
+    final maxPlayCount = results.fold<int>(1, (max, row) => 
+      math.max(max, row['playCount'] as int));
+      
+    var files = results.map((row) {
+      final playCount = row['playCount'] as int;
+      final lastPlayed = row['lastPlayed'] as int;
+      final daysAgo = (now - lastPlayed) / (24 * 60 * 60 * 1000);
+      
+      // 计算归一化分数
+      final playScore = playCount / maxPlayCount;
+      final recencyScore = math.exp(-daysAgo / 7); // 使用指数衰减
+      
+      final score = (playScore * playCountWeight) + 
+                  (recencyScore * recencyWeight);
+                  
+      return {
+        'bvid': row['bvid'],
+        'cid': row['cid'],
+        'filePath': row['filePath'],
+        'fileSize': row['fileSize'],
+        'score': score,
+      };
+    }).toList();
+
+    // 按分数升序排序(分数低的先删除)
+    files.sort((a, b) => (a['score'] as double).compareTo(b['score'] as double));
+
+    // 删除文件直到缓存大小低于限制
+    int removedSize = 0;
+    for (var file in files) {
+      if (ignoreFile != null && file['filePath'] == ignoreFile.path) {
+        continue;
+      }
+      if (currentSize - removedSize <= maxCacheSize) {
+        break;
+      }
+
+      final filePath = file['filePath'] as String;
+      final fileObj = File(filePath);
+      if (await fileObj.exists()) {
+        await fileObj.delete();
+      }
+
+      await db.delete(
+        tableName,
+        where: 'bvid = ? AND cid = ?',
+        whereArgs: [file['bvid'], file['cid']],
+      );
+
+      removedSize += file['fileSize'] as int;
+    }
+    _logger.info('Cleaned up cache, removed $removedSize bytes');
   }
 
   static Future<void> cacheFavList(List<Fav> favs) async {
