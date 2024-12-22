@@ -141,54 +141,57 @@ class CacheManager {
           _logger.info('Upgrading database from v$oldVersion to v$newVersion');
           
           if (oldVersion == 1) {
-            await db.execute('''
-              CREATE TABLE ${tableName}_new (
-                bvid TEXT,
-                cid INTEGER,
-                filePath TEXT,
-                fileSize INTEGER,
-                playCount INTEGER DEFAULT 0,
-                lastPlayed INTEGER,
-                createdAt INTEGER,
-                PRIMARY KEY (bvid, cid)
-              )
-            ''');
+            await db.transaction((txn) async {
+              await txn.execute('''
+                CREATE TABLE ${tableName}_new (
+                  bvid TEXT,
+                  cid INTEGER,
+                  filePath TEXT,
+                  fileSize INTEGER,
+                  playCount INTEGER DEFAULT 0,
+                  lastPlayed INTEGER,
+                  createdAt INTEGER,
+                  PRIMARY KEY (bvid, cid)
+                )
+              ''');
+              
+              await txn.execute('''
+                INSERT INTO ${tableName}_new (bvid, cid, filePath, createdAt)
+                SELECT bvid, cid, filePath, createdAt
+                FROM $tableName
+              ''');
 
-            await db.execute('''
-              INSERT INTO ${tableName}_new (bvid, cid, filePath, createdAt)
-              SELECT bvid, cid, filePath, createdAt
-              FROM $tableName
-            ''');
-
-            final rows = await db.query('${tableName}_new');
-            final batch = db.batch();
-            
-            for (final row in rows) {
-              final filePath = row['filePath'] as String;
-              final file = File(filePath);
-              int fileSize = 0;
-              try {
-                if (await file.exists()) {
-                  fileSize = await file.length();
+              final rows = await txn.query('${tableName}_new');
+              final batch = txn.batch();
+              
+              for (final row in rows) {
+                final filePath = row['filePath'] as String;
+                final file = File(filePath);
+                int fileSize = 0;
+                try {
+                  if (await file.exists()) {
+                    fileSize = await file.length();
+                  }
+                } catch (e) {
+                  _logger.warning('Failed to get file size for $filePath: $e');
                 }
-              } catch (e) {
-                _logger.warning('Failed to get file size for $filePath: $e');
+
+                batch.update(
+                  '${tableName}_new',
+                  {
+                    'fileSize': fileSize,
+                    'playCount': 0,
+                    'lastPlayed': DateTime.now().millisecondsSinceEpoch,
+                  },
+                  where: 'bvid = ? AND cid = ?',
+                  whereArgs: [row['bvid'] as String, row['cid'] as int],
+                );
               }
 
-              batch.update(
-                '${tableName}_new',
-                {
-                  'fileSize': fileSize,
-                  'playCount': 0,
-                  'lastPlayed': DateTime.now().millisecondsSinceEpoch,
-                },
-                where: 'bvid = ? AND cid = ?',
-                whereArgs: [row['bvid'] as String, row['cid'] as int],
-              );
-            }
-
-            await db.execute('DROP TABLE $tableName');
-            await db.execute('ALTER TABLE ${tableName}_new RENAME TO $tableName');
+              await batch.commit();
+              await txn.execute('DROP TABLE $tableName');
+              await txn.execute('ALTER TABLE ${tableName}_new RENAME TO $tableName');
+            });
           }
         },
       );
