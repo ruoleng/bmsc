@@ -19,4 +19,14 @@ class SharedPreferencesService {
     final prefs = await instance;
     return prefs.getInt('cacheLimitSize') ?? 300;
   }
+
+  static Future<bool> getReadFromClipboard() async {
+    final prefs = await instance;
+    return prefs.getBool('readFromClipboard') ?? true;
+  }
+
+  static Future<void> setReadFromClipboard(bool value) async {
+    final prefs = await instance;
+    await prefs.setBool('readFromClipboard', value);
+  }
 }

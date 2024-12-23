@@ -326,12 +326,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (!snapshot.hasData) return const SizedBox();
                 return SwitchListTile(
                   title: const Text('显示每日推荐'),
-                  secondary: const Icon(Icons.recommend),
+                  secondary: const Icon(Icons.star),
                   subtitle: const Text('在收藏夹页面显示每日推荐'),
                   value: snapshot.data!,
                   onChanged: (bool value) async {
                     final prefs = await SharedPreferencesService.instance;
                     await prefs.setBool('show_daily_recommendations', value);
+                    setState(() {});
+                  },
+                );
+              },
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              '隐私',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          StatefulBuilder(
+            builder: (context, setState) => FutureBuilder<bool>(
+              future: SharedPreferencesService.getReadFromClipboard(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox();
+                return SwitchListTile(
+                  title: const Text('从剪贴板读取链接'),
+                  secondary: const Icon(Icons.content_paste),
+                  subtitle: const Text('自动读取剪贴板中的链接'),
+                  value: snapshot.data!,
+                  onChanged: (bool value) async {
+                    await SharedPreferencesService.setReadFromClipboard(value);
                     setState(() {});
                   },
                 );

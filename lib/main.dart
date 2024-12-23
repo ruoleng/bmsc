@@ -4,6 +4,7 @@ import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
+import 'package:bmsc/util/shared_preferences_service.dart';
 import 'package:bmsc/util/update.dart';
 import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
@@ -137,6 +138,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _checkClipboard() async {
+    if (!(await SharedPreferencesService.getReadFromClipboard())) return;
     final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
     if (clipboardData?.text == null) return;
     if (clipboardData?.text == _clipboardText) return;
@@ -145,28 +147,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
     var text = _clipboardText!;
 
-    VidResult? vidDetail;
-    String? bvid;
-
-    final urlMatch = RegExp(r'https?://b23\.tv/[a-zA-Z0-9]+').firstMatch(text);
-    if (urlMatch != null) {
-      final url = urlMatch.group(0)!;
-      _logger.info('b23.tv url detected, trying to get redirect url: $url');
-      text = await getRedirectUrl(url);
-    }
-
-    final bvMatch = RegExp(r'[Bb][Vv][a-zA-Z0-9]{10}').firstMatch(text);
-    if (bvMatch != null) {
-      bvid = bvMatch.group(0)!;
-      vidDetail = await globals.api.getVidDetail(bvid: bvid);
-    }
-
-    final avMatch = RegExp(r'[Aa][Vv]([0-9]+)').firstMatch(text);
-    if (avMatch != null) {
-      final aid = avMatch.group(1)!;
-      vidDetail = await globals.api.getVidDetail(aid: aid);
-    }
-
+    VidResult? vidDetail = await getVidDetailFromUrl(text);
     if (vidDetail == null) return;
 
     int min = vidDetail.duration ~/ 60;
@@ -181,14 +162,14 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       builder: (context) => AlertDialog(
           title: const Text('检测到剪贴板链接'),
           content: TrackTile(
-              title: vidDetail!.title,
+              title: vidDetail.title,
               author: vidDetail.owner.name,
               len: duration,
               pic: vidDetail.pic,
               view: unit(vidDetail.stat.view),
               onTap: () {
                 Navigator.pop(context);
-                globals.api.playByBvid(vidDetail!.bvid);
+                globals.api.playByBvid(vidDetail.bvid);
               })),
     );
   }

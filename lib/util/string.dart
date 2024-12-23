@@ -2,6 +2,12 @@ String stripHtmlIfNeeded(String text) {
   return text.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), '');
 }
 
+String duration(int duration) {
+  int min = duration ~/ 60;
+  int sec = duration % 60;
+  return "$min:${sec.toString().padLeft(2, '0')}";
+}
+
 String unit(int cnt) {
   if (cnt >= 10000) {
     return "${cnt ~/ 10000}.${cnt % 10000 ~/ 1000}w";
