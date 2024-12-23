@@ -1,5 +1,6 @@
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/util/shared_preferences_service.dart';
+import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
 import '../globals.dart' as globals;
@@ -8,6 +9,7 @@ import '../util/string.dart';
 import '../component/playing_card.dart';
 import 'package:just_audio/just_audio.dart';
 import 'dart:async';
+import 'package:flutter/services.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -26,11 +28,13 @@ class _SearchScreenState extends State<SearchScreen> {
   List<String> _searchHistory = [];
   Timer? _debounceTimer;
   List<String> _suggestions = [];
+  String? _clipboardUrl;
 
   @override
   void initState() {
     super.initState();
     _loadSearchHistory();
+    _checkClipboard();
   }
 
   @override
@@ -77,6 +81,20 @@ class _SearchScreenState extends State<SearchScreen> {
         _suggestions = suggestions;
       });
     });
+  }
+
+  Future<void> _checkClipboard() async {
+    if (!(await SharedPreferencesService.getReadFromClipboard())) return;
+    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    if (clipboardData?.text == null) return;
+
+    final text = clipboardData!.text!;
+    final url = extractBiliUrl(text);
+    if (url != null) {
+      setState(() {
+        _clipboardUrl = url;
+      });
+    }
   }
 
   @override
@@ -144,7 +162,11 @@ class _SearchScreenState extends State<SearchScreen> {
         vid.duration.split(':').map((x) => x.padLeft(2, '0')).join(':');
     return TrackTile(
       key: Key(vid.bvid),
-      pic: 'https:${vid.pic}',
+      pic: vid.pic.startsWith('http')
+          ? vid.pic
+          : vid.pic.startsWith('//')
+              ? 'https:${vid.pic}'
+              : 'https://$vid.pic',
       title: stripHtmlIfNeeded(vid.title),
       author: vid.author,
       len: duration,
@@ -185,8 +207,21 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchHistory() {
     return ListView.builder(
-      itemCount: _searchHistory.length,
+      itemCount: _searchHistory.length + (_clipboardUrl != null ? 1 : 0),
       itemBuilder: (context, index) {
+        if (_clipboardUrl != null && index == 0) {
+          return ListTile(
+            leading: const Icon(Icons.link),
+            title: Text(_clipboardUrl!),
+            subtitle: const Text('从剪贴板'),
+            onTap: () {
+              _focusNode.unfocus();
+              fieldTextController.text = _clipboardUrl!;
+              onSearching(null, fromClipboard: true);
+            },
+          );
+        }
+        index = _clipboardUrl != null ? index - 1 : index;
         return ListTile(
           leading: const Icon(Icons.history),
           title: Text(_searchHistory[index]),
@@ -227,7 +262,32 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  void onSearching(String value) async {
+  void onSearching(String? value, {bool fromClipboard = false}) async {
+    if (fromClipboard == true && _clipboardUrl != null) {
+      final vidDetail = await getVidDetailFromUrl(_clipboardUrl!);
+      if (vidDetail != null) {
+        setState(() {
+          _hasMore = false;
+          _curPage = 1;
+          vidList = [
+            Result(
+              author: vidDetail.owner.name,
+              mid: vidDetail.owner.mid,
+              typeid: "",
+              typename: "",
+              aid: vidDetail.aid,
+              bvid: vidDetail.bvid,
+              title: vidDetail.title,
+              pic: vidDetail.pic,
+              play: vidDetail.stat.view,
+              duration: duration(vidDetail.duration),
+            )
+          ];
+        });
+        return;
+      }
+    }
+    if (value == null) return;
     await _saveSearchHistory(value);
     setState(() {
       _curSearch = value;

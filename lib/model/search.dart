@@ -41,93 +41,38 @@ class SearchResult {
 
 class Result {
   Result({
-    required this.type,
-    required this.id,
     required this.author,
     required this.mid,
     required this.typeid,
     required this.typename,
-    required this.arcurl,
     required this.aid,
     required this.bvid,
     required this.title,
-    required this.description,
-    required this.arcrank,
     required this.pic,
     required this.play,
-    required this.videoReview,
-    required this.favorites,
-    required this.tag,
-    required this.review,
-    required this.pubdate,
-    required this.senddate,
     required this.duration,
-    required this.badgepay,
-    required this.hitColumns,
-    required this.viewType,
-    required this.isPay,
-    required this.isUnionVideo,
-    required this.rankScore,
   });
-  late final String type;
-  late final int id;
   late final String author;
   late final int mid;
   late final String typeid;
   late final String typename;
-  late final String arcurl;
   late final int aid;
   late final String bvid;
   late final String title;
-  late final String description;
-  late final String arcrank;
   late final String pic;
   late final int play;
-  late final int videoReview;
-  late final int favorites;
-  late final String tag;
-  late final int review;
-  late final int pubdate;
-  late final int senddate;
   late final String duration;
-  late final bool badgepay;
-  late final List<String> hitColumns;
-  late final String viewType;
-  late final int isPay;
-  late final int isUnionVideo;
-  late final int rankScore;
 
   Result.fromJson(Map<String, dynamic> json) {
-    type = json['type'];
-    id = json['id'];
     author = json['author'];
     mid = json['mid'];
     typeid = json['typeid'];
     typename = json['typename'];
-    arcurl = json['arcurl'];
     aid = json['aid'];
     bvid = json['bvid'];
     title = json['title'];
-    description = json['description'];
-    arcrank = json['arcrank'];
     pic = json['pic'];
     play = json['play'];
-    videoReview = json['video_review'];
-    favorites = json['favorites'];
-    tag = json['tag'];
-    review = json['review'];
-    pubdate = json['pubdate'];
-    senddate = json['senddate'];
     duration = json['duration'];
-    badgepay = json['badgepay'];
-    hitColumns = (json['hit_columns'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [];
-
-    viewType = json['view_type'];
-    isPay = json['is_pay'];
-    isUnionVideo = json['is_union_video'];
-    rankScore = json['rank_score'];
   }
 }
