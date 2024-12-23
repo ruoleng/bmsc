@@ -338,7 +338,7 @@ class FavScreenState extends State<FavScreen> {
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 24.0,
                             ),
-                            leading: const Icon(Icons.recommend,
+                            leading: const Icon(Icons.star,
                                 color: Colors.orange),
                             title: const Text('每日推荐',
                                 style: TextStyle(fontWeight: FontWeight.w500)),

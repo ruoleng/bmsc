@@ -390,6 +390,24 @@ class _DetailScreenState extends State<DetailScreen> {
                       return _nextButton();
                     },
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.queue_music),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) =>
+                            const PlaylistBottomSheet(),
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surface,
+                        isScrollControlled: true,
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              MediaQuery.of(context).size.height *
+                                  0.7,
+                        ),
+                      );
+                    },
+                  ),
                   StreamBuilder<SequenceState?>(
                     stream: globals.api.player.sequenceStateStream,
                     builder: (context, snapshot) {
@@ -406,24 +424,6 @@ class _DetailScreenState extends State<DetailScreen> {
                                     ),
                                   ),
                                 ),
-                      );
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.queue_music),
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        builder: (context) =>
-                            const PlaylistBottomSheet(),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surface,
-                        isScrollControlled: true,
-                        constraints: BoxConstraints(
-                          maxHeight:
-                              MediaQuery.of(context).size.height *
-                                  0.7,
-                        ),
                       );
                     },
                   ),
