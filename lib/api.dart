@@ -741,7 +741,7 @@ class API {
 
   Future<List<LazyAudioSource>?> getAudioSources(String bvid) async {
     _logger.info('Fetching audio sources for BVID: $bvid');
-    final vid = await getVidDetail(bvid);
+    final vid = await getVidDetail(bvid: bvid);
     if (vid == null) {
       _logger.warning('Failed to get video details for BVID: $bvid');
       return null;
@@ -808,45 +808,54 @@ class API {
     return CommentData.fromJson(response.data['data']);
   }
 
-  Future<VidResult?> getVidDetail(String bvid) async {
-    final response = await dio.get(
-      'https://api.bilibili.com/x/web-interface/view',
-      queryParameters: {'bvid': bvid},
-    );
-    if (response.data['code'] != 0) {
+  Future<VidResult?> getVidDetail({String? bvid, String? aid}) async {
+    assert(bvid != null || aid != null, 'Either bvid or aid must be provided');
+    assert(!(bvid != null && aid != null), 'Cannot provide both bvid and aid');
+    try {
+      final response = await dio.get(
+        'https://api.bilibili.com/x/web-interface/view',
+        queryParameters: {
+          'bvid': bvid,
+          'aid': aid,
+        },
+      );
+      _logger
+          .info('called getVidDetail with url: ${response.requestOptions.uri}');
+      if (response.data['code'] != 0) {
+        return null;
+      }
+      final ret = VidResult.fromJson(response.data['data']);
+      await CacheManager.cacheMetas([
+        Meta(
+          bvid: ret.bvid,
+          aid: ret.aid,
+          title: ret.title,
+          artist: ret.owner.name,
+          mid: ret.owner.mid,
+          duration: ret.duration,
+          parts: ret.videos,
+          artUri: ret.pic,
+        )
+      ]);
+      await CacheManager.cacheEntities(ret.pages
+          .map((x) => Entity(
+                bvid: ret.bvid,
+                aid: ret.aid,
+                cid: x.cid,
+                duration: x.duration,
+                part: x.page,
+                artist: ret.owner.name,
+                artUri: ret.pic,
+                partTitle: x.part,
+                bvidTitle: ret.title,
+                excluded: 0,
+              ))
+          .toList());
+      return ret;
+    } catch (e) {
+      _logger.severe('Error getting video detail: $e');
       return null;
     }
-    _logger
-        .info('called getVidDetail with url: ${response.requestOptions.uri}');
-
-    await CacheManager.cacheMetas([
-      Meta(
-        bvid: bvid,
-        title: response.data['data']['title'],
-        artist: response.data['data']['owner']['name'],
-        mid: response.data['data']['owner']['mid'],
-        aid: response.data['data']['aid'],
-        duration: response.data['data']['duration'],
-        parts: response.data['data']['videos'],
-        artUri: response.data['data']['pic'],
-      )
-    ]);
-    final ret = VidResult.fromJson(response.data['data']);
-    await CacheManager.cacheEntities(ret.pages
-        .map((x) => Entity(
-              bvid: bvid,
-              aid: ret.aid,
-              cid: x.cid,
-              duration: x.duration,
-              part: x.page,
-              artist: ret.owner.name,
-              artUri: ret.pic,
-              partTitle: x.part,
-              bvidTitle: ret.title,
-              excluded: 0,
-            ))
-        .toList());
-    return ret;
   }
 
   Future<TagResult?> getTags(String bvid) async {

@@ -37,7 +37,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
     if (es.isEmpty) {
       _logger
           .info('entities of ${widget.bvid} not in cache, fetching from API');
-      await globals.api.getVidDetail(widget.bvid);
+      await globals.api.getVidDetail(bvid: widget.bvid);
       es = await CacheManager.getEntities(widget.bvid);
     }
     if (es.isNotEmpty) {
