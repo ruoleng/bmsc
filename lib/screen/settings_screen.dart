@@ -1,4 +1,4 @@
-import 'package:bmsc/cache_manager.dart';
+import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/screen/about_screen.dart';
 import 'package:bmsc/screen/cache_screen.dart';
 import 'package:bmsc/screen/login_screen.dart';
@@ -37,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     logger.info('user logout');
     final bs = await BilibiliService.instance;
     await bs.logout();
-    await CacheManager.cacheFavList([]);
+    await DatabaseManager.cacheFavList([]);
     if (mounted) {
       setState(() {
         _isLoggedIn = false;

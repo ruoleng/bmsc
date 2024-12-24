@@ -1,4 +1,4 @@
-import 'package:bmsc/cache_manager.dart';
+import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/model/fav.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -47,8 +47,8 @@ class FavScreenState extends State<FavScreen> {
     if (!mounted || !signedin) return;
 
     if (local) {
-      var cachedFavs = await CacheManager.getCachedFavList();
-      var cachedCollectedFavs = await CacheManager.getCachedCollectedFavList();
+      var cachedFavs = await DatabaseManager.getCachedFavList();
+      var cachedCollectedFavs = await DatabaseManager.getCachedCollectedFavList();
 
       if (cachedFavs.isNotEmpty || cachedCollectedFavs.isNotEmpty) {
         if (!mounted) return;
@@ -441,7 +441,7 @@ class FavScreenState extends State<FavScreen> {
                                       title: const Text('添加到播放列表'),
                                       onTap: () async {
                                         Navigator.pop(context);
-                                        final bvids = await CacheManager
+                                        final bvids = await DatabaseManager
                                             .getCachedFavBvids(fav.id);
                                         await AudioService.instance
                                             .then((x) => x.playByBvids(bvids));

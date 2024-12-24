@@ -14,11 +14,11 @@ import '../model/meta.dart';
 import 'dart:math' as math;
 import 'package:bmsc/util/logger.dart';
 
-final _logger = LoggerUtils.getLogger('CacheManager');
+final _logger = LoggerUtils.getLogger('DatabaseManager');
 
 const String _dbName = 'AudioCache.db';
 
-class CacheManager {
+class DatabaseManager {
   static Database? _database;
   static const String cacheTable = 'audio_cache';
   static const String metaTable = 'meta_cache';
@@ -628,8 +628,8 @@ class CacheManager {
   }
 
   static Future<List<Meta>> getCachedCollectionMetas(int mid) async {
-    final bvids = await CacheManager.getCachedCollectionBvids(mid);
-    final metas = await CacheManager.getMetas(bvids);
+    final bvids = await DatabaseManager.getCachedCollectionBvids(mid);
+    final metas = await DatabaseManager.getMetas(bvids);
     return metas;
   }
 
@@ -733,8 +733,8 @@ class CacheManager {
   }
 
   static Future<List<Meta>> getCachedFavMetas(int mid) async {
-    final bvids = await CacheManager.getCachedFavBvids(mid);
-    final metas = await CacheManager.getMetas(bvids);
+    final bvids = await DatabaseManager.getCachedFavBvids(mid);
+    final metas = await DatabaseManager.getMetas(bvids);
     return metas;
   }
 }

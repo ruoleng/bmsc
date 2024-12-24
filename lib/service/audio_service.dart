@@ -1,5 +1,5 @@
 import 'package:audio_session/audio_session.dart';
-import 'package:bmsc/cache_manager.dart';
+import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:just_audio/just_audio.dart';
@@ -116,7 +116,7 @@ class AudioService {
     }
     if (extras['dummy'] != true) {
       if (extras['bvid'] != null && extras['cid'] != null) {
-        await CacheManager.updatePlayStats(extras['bvid'], extras['cid']);
+        await DatabaseManager.updatePlayStats(extras['bvid'], extras['cid']);
         _logger.info(
             'update play stats for bvid: ${extras['bvid']} cid: ${extras['cid']}');
       }
@@ -131,10 +131,10 @@ class AudioService {
           .getAudioSources(currentSource.tag.id);
     } catch (e) {
       _logger.warning('Failed to get audio sources: $e');
-      srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
+      srcs = await DatabaseManager.getCachedAudioList(currentSource.tag.id);
     }
     final excludedCids =
-        await CacheManager.getExcludedParts(currentSource.tag.id);
+        await DatabaseManager.getExcludedParts(currentSource.tag.id);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
@@ -171,7 +171,7 @@ class AudioService {
       _logger.warning('No audio sources found for BVID: $bvid');
       return;
     }
-    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
@@ -188,7 +188,7 @@ class AudioService {
     if (bvids.isEmpty) {
       return;
     }
-    final metas = await CacheManager.getMetas(bvids);
+    final metas = await DatabaseManager.getMetas(bvids);
     final silenceUri = Uri(scheme: 'asset', path: '/assets/silent.m4a');
     final srcs = await Future.wait(metas.map((x) async {
       _logger.info('uri: ${x.artUri}');
@@ -213,7 +213,7 @@ class AudioService {
 
   Future<void> playCachedAudio(String bvid, int cid) async {
     await player.pause();
-    final cachedSource = await CacheManager.getCachedAudio(bvid, cid);
+    final cachedSource = await DatabaseManager.getCachedAudio(bvid, cid);
     if (cachedSource == null) {
       return;
     }
@@ -227,7 +227,7 @@ class AudioService {
   }
 
   Future<void> addToPlaylistCachedAudio(String bvid, int cid) async {
-    final cachedSource = await CacheManager.getCachedAudio(bvid, cid);
+    final cachedSource = await DatabaseManager.getCachedAudio(bvid, cid);
     if (cachedSource == null) {
       return;
     }
@@ -238,7 +238,7 @@ class AudioService {
   Future<void> appendPlaylist(String bvid,
       {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     final srcs = await (await BilibiliService.instance).getAudioSources(bvid);
-    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
@@ -251,8 +251,8 @@ class AudioService {
 
   Future<void> appendCachedPlaylist(String bvid,
       {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
-    final srcs = await CacheManager.getCachedAudioList(bvid);
-    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    final srcs = await DatabaseManager.getCachedAudioList(bvid);
+    final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }

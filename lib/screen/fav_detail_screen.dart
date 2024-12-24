@@ -4,7 +4,7 @@ import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/model/fav.dart';
 import '../component/track_tile.dart';
-import 'package:bmsc/cache_manager.dart';
+import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/component/excluded_parts_dialog.dart';
 import '../component/playing_card.dart';
 import 'package:bmsc/model/meta.dart';
@@ -38,8 +38,8 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
   Future<void> _loadInitialData() async {
     _logger.info('Loading initial data for fav ${widget.fav.id}');
     final cachedData = widget.isCollected
-        ? await CacheManager.getCachedCollectionMetas(widget.fav.id)
-        : await CacheManager.getCachedFavMetas(widget.fav.id);
+        ? await DatabaseManager.getCachedCollectionMetas(widget.fav.id)
+        : await DatabaseManager.getCachedFavMetas(widget.fav.id);
     if (cachedData.isNotEmpty) {
       _logger.info('Loaded ${cachedData.length} items from cache');
       setState(() {
@@ -116,8 +116,8 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
 
     return FutureBuilder<(List<int>, int)>(
         future: Future.wait([
-          CacheManager.getExcludedParts(favInfo[index].bvid),
-          CacheManager.cachedCount(favInfo[index].bvid),
+          DatabaseManager.getExcludedParts(favInfo[index].bvid),
+          DatabaseManager.cachedCount(favInfo[index].bvid),
         ]).then((results) => (results[0] as List<int>, results[1] as int)),
         builder: (context, snapshot) {
           final excludedCount = snapshot.data?.$1.length ?? 0;
@@ -139,9 +139,9 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                   _logger.info(
                       'Playing fav list ${widget.fav.id} from index $index');
                   final bvids = widget.isCollected
-                      ? await CacheManager.getCachedCollectionBvids(
+                      ? await DatabaseManager.getCachedCollectionBvids(
                           widget.fav.id)
-                      : await CacheManager.getCachedFavBvids(widget.fav.id);
+                      : await DatabaseManager.getCachedFavBvids(widget.fav.id);
                   await AudioService.instance
                       .then((x) => x.playByBvids(bvids, index: index));
                 } catch (e, stackTrace) {

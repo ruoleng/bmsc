@@ -2,7 +2,7 @@ import 'package:bmsc/service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
-import '../cache_manager.dart';
+import '../database_manager.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 
 class PlaylistBottomSheet extends StatefulWidget {
@@ -292,7 +292,7 @@ class _PlaylistBottomSheetState extends State<PlaylistBottomSheet> {
                                               const EdgeInsets.only(right: 8),
                                           child: InkWell(
                                             onTap: () {
-                                              CacheManager.addExcludedPart(
+                                              DatabaseManager.addExcludedPart(
                                                   item.extras['bvid'] as String,
                                                   item.extras['cid'] as int);
                                               service

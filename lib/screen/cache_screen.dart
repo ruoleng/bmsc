@@ -3,7 +3,7 @@ import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
-import '../cache_manager.dart';
+import '../database_manager.dart';
 import 'dart:io';
 
 final _logger = LoggerUtils.getLogger('CacheScreen');
@@ -58,16 +58,16 @@ class _CacheScreenState extends State<CacheScreen> {
   }
 
   Future<void> loadCachedFiles() async {
-    final db = await CacheManager.database;
+    final db = await DatabaseManager.database;
     final dbResults = await db.query(
-      CacheManager.cacheTable,
+      DatabaseManager.cacheTable,
       orderBy: 'createdAt DESC',
     );
     _logger.info('loadCachedFiles: $dbResults');
 
     final results = (await Future.wait(dbResults.map((x) async {
       var entity = (await db.query(
-        CacheManager.entityTable,
+        DatabaseManager.entityTable,
         where: 'bvid = ? AND cid = ?',
         whereArgs: [x['bvid'], x['cid']],
       ))
@@ -117,9 +117,9 @@ class _CacheScreenState extends State<CacheScreen> {
         await file.delete();
       }
 
-      final db = await CacheManager.database;
+      final db = await DatabaseManager.database;
       await db.delete(
-        CacheManager.cacheTable,
+        DatabaseManager.cacheTable,
         where: 'bvid = ? AND cid = ?',
         whereArgs: [bvid, cid],
       );

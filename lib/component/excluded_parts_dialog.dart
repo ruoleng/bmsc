@@ -1,7 +1,7 @@
 import 'package:bmsc/model/entity.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
-import 'package:bmsc/cache_manager.dart';
+import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/util/logger.dart';
 
 final _logger = LoggerUtils.getLogger('ExcludedPartsDialog');
@@ -33,12 +33,12 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
   }
 
   Future<void> _loadExcludedParts() async {
-    var es = await CacheManager.getEntities(widget.bvid);
+    var es = await DatabaseManager.getEntities(widget.bvid);
     if (es.isEmpty) {
       _logger
           .info('entities of ${widget.bvid} not in cache, fetching from API');
       await (await BilibiliService.instance).getVidDetail(bvid: widget.bvid);
-      es = await CacheManager.getEntities(widget.bvid);
+      es = await DatabaseManager.getEntities(widget.bvid);
     }
     if (es.isNotEmpty) {
       setState(() {
@@ -75,9 +75,9 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
     for (var i = 0; i < modified.length; i++) {
       if (!modified[i]) continue;
       if (entities[i].excluded == 1) {
-        await CacheManager.removeExcludedPart(widget.bvid, entities[i].cid);
+        await DatabaseManager.removeExcludedPart(widget.bvid, entities[i].cid);
       } else {
-        await CacheManager.addExcludedPart(widget.bvid, entities[i].cid);
+        await DatabaseManager.addExcludedPart(widget.bvid, entities[i].cid);
       }
     }
   }

@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:bmsc/cache_manager.dart';
+import 'package:bmsc/database_manager.dart';
 import 'dart:convert';
 import 'package:bmsc/model/playlist_data.dart';
 import 'package:bmsc/model/tag.dart';
@@ -182,7 +182,7 @@ class API {
     }
     if (extras['dummy'] != true) {
       if (extras['bvid'] != null && extras['cid'] != null) {
-        await CacheManager.updatePlayStats(extras['bvid'], extras['cid']);
+        await DatabaseManager.updatePlayStats(extras['bvid'], extras['cid']);
         _logger.info(
             'update play stats for bvid: ${extras['bvid']} cid: ${extras['cid']}');
       }
@@ -196,10 +196,10 @@ class API {
       srcs = await getAudioSources(currentSource.tag.id);
     } catch (e) {
       _logger.warning('Failed to get audio sources: $e');
-      srcs = await CacheManager.getCachedAudioList(currentSource.tag.id);
+      srcs = await DatabaseManager.getCachedAudioList(currentSource.tag.id);
     }
     final excludedCids =
-        await CacheManager.getExcludedParts(currentSource.tag.id);
+        await DatabaseManager.getExcludedParts(currentSource.tag.id);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
@@ -247,7 +247,7 @@ class API {
       return null;
     }
     final ret = UserUploadResult.fromJson(response.data['data']);
-    await CacheManager.cacheMetas(ret.list.vlist.map((x) {
+    await DatabaseManager.cacheMetas(ret.list.vlist.map((x) {
       final durations = x.length.split(':').map(int.parse).toList();
       return Meta(
         bvid: x.bvid,
@@ -318,7 +318,7 @@ class API {
   }
 
   Future<void> playFavList(int mid, {int index = 0}) async {
-    final bvids = await CacheManager.getCachedFavBvids(mid);
+    final bvids = await DatabaseManager.getCachedFavBvids(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -326,7 +326,7 @@ class API {
   }
 
   Future<void> playCollectedFavList(int mid, {int index = 0}) async {
-    final bvids = await CacheManager.getCachedCollectionBvids(mid);
+    final bvids = await DatabaseManager.getCachedCollectionBvids(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -334,7 +334,7 @@ class API {
   }
 
   Future<void> addFavListToPlaylist(int mid) async {
-    final bvids = await CacheManager.getCachedFavBvids(mid);
+    final bvids = await DatabaseManager.getCachedFavBvids(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -342,7 +342,7 @@ class API {
   }
 
   Future<void> addCollectedFavListToPlaylist(int mid) async {
-    final bvids = await CacheManager.getCachedCollectionBvids(mid);
+    final bvids = await DatabaseManager.getCachedCollectionBvids(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -354,7 +354,7 @@ class API {
       return;
     }
     final srcs = await Future.wait(bvids.map((x) async {
-      final meta = await CacheManager.getMeta(x);
+      final meta = await DatabaseManager.getMeta(x);
       return AudioSource.uri(Uri.parse('asset:///assets/silent.m4a'),
           tag: MediaItem(
               id: x,
@@ -378,7 +378,7 @@ class API {
       return;
     }
     final srcs = await Future.wait(bvids.map((x) async {
-      final meta = await CacheManager.getMeta(x);
+      final meta = await DatabaseManager.getMeta(x);
       return AudioSource.uri(Uri.parse('asset:///assets/silent.m4a'),
           tag: MediaItem(
               id: x,
@@ -396,7 +396,7 @@ class API {
   Future<void> appendPlaylist(String bvid,
       {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
     final srcs = await getAudioSources(bvid);
-    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
@@ -409,8 +409,8 @@ class API {
 
   Future<void> appendCachedPlaylist(String bvid,
       {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
-    final srcs = await CacheManager.getCachedAudioList(bvid);
-    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    final srcs = await DatabaseManager.getCachedAudioList(bvid);
+    final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
@@ -422,7 +422,7 @@ class API {
   }
 
   Future<void> addToPlaylistCachedAudio(String bvid, int cid) async {
-    final cachedSource = await CacheManager.getCachedAudio(bvid, cid);
+    final cachedSource = await DatabaseManager.getCachedAudio(bvid, cid);
     if (cachedSource == null) {
       return;
     }
@@ -432,7 +432,7 @@ class API {
 
   Future<void> playCachedAudio(String bvid, int cid) async {
     await player.pause();
-    final cachedSource = await CacheManager.getCachedAudio(bvid, cid);
+    final cachedSource = await DatabaseManager.getCachedAudio(bvid, cid);
     if (cachedSource == null) {
       return;
     }
@@ -453,7 +453,7 @@ class API {
       _logger.warning('No audio sources found for BVID: $bvid');
       return;
     }
-    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
@@ -468,8 +468,8 @@ class API {
 
   Future<void> playCachedBvid(String bvid) async {
     await player.pause();
-    final srcs = await CacheManager.getCachedAudioList(bvid);
-    final excludedCids = await CacheManager.getExcludedParts(bvid);
+    final srcs = await DatabaseManager.getCachedAudioList(bvid);
+    final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
@@ -566,7 +566,7 @@ class API {
     }
     final ret = FavResult.fromJson(response.data['data']);
     if (rid == null) {
-      await CacheManager.cacheFavList(ret.list);
+      await DatabaseManager.cacheFavList(ret.list);
     }
     return ret.list;
   }
@@ -595,19 +595,19 @@ class API {
           .map((x) => Fav.fromJson(x))
           .toList());
     }
-    await CacheManager.cacheCollectedFavList(ret);
+    await DatabaseManager.cacheCollectedFavList(ret);
     return ret;
   }
 
   Future<List<Meta>> getCachedFavListVideo(int mid) async {
-    final bvids = await CacheManager.getCachedFavBvids(mid);
-    final metas = await CacheManager.getMetas(bvids);
+    final bvids = await DatabaseManager.getCachedFavBvids(mid);
+    final metas = await DatabaseManager.getMetas(bvids);
     return metas;
   }
 
   Future<List<Meta>> getCachedCollectedFavListVideo(int mid) async {
-    final bvids = await CacheManager.getCachedCollectionBvids(mid);
-    final metas = await CacheManager.getMetas(bvids);
+    final bvids = await DatabaseManager.getCachedCollectionBvids(mid);
+    final metas = await DatabaseManager.getMetas(bvids);
     return metas;
   }
 
@@ -638,8 +638,8 @@ class API {
           .toList());
       ++pn;
     }
-    await CacheManager.cacheMetas(ret);
-    await CacheManager.cacheCollectedFavListVideo(
+    await DatabaseManager.cacheMetas(ret);
+    await DatabaseManager.cacheCollectedFavListVideo(
         ret.map((x) => x.bvid).toList(), mid);
     return ret;
   }
@@ -672,8 +672,8 @@ class API {
       hasMore = response.data['data']['has_more'] as bool;
       pn++;
     }
-    await CacheManager.cacheMetas(ret);
-    await CacheManager.cacheFavListVideo(ret.map((x) => x.bvid).toList(), mid);
+    await DatabaseManager.cacheMetas(ret);
+    await DatabaseManager.cacheFavListVideo(ret.map((x) => x.bvid).toList(), mid);
     return ret;
   }
 
@@ -753,7 +753,7 @@ class API {
       return null;
     }
     return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
-      final cachedSource = await CacheManager.getCachedAudio(bvid, x.cid);
+      final cachedSource = await DatabaseManager.getCachedAudio(bvid, x.cid);
       if (cachedSource != null) {
         return cachedSource;
       }
@@ -831,7 +831,7 @@ class API {
         return null;
       }
       final ret = VidResult.fromJson(response.data['data']);
-      await CacheManager.cacheMetas([
+      await DatabaseManager.cacheMetas([
         Meta(
           bvid: ret.bvid,
           aid: ret.aid,
@@ -843,7 +843,7 @@ class API {
           artUri: ret.pic,
         )
       ]);
-      await CacheManager.cacheEntities(ret.pages
+      await DatabaseManager.cacheEntities(ret.pages
           .map((x) => Entity(
                 bvid: ret.bvid,
                 aid: ret.aid,
@@ -1267,7 +1267,7 @@ class API {
       }
     }
     await prefs.setString('recommend_history', jsonEncode(history.toList()));
-    await CacheManager.cacheMetas(recommendedVideos);
+    await DatabaseManager.cacheMetas(recommendedVideos);
     return recommendedVideos;
   }
 

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:bmsc/api/bilibili.dart';
 import 'package:bmsc/audio/lazy_audio_source.dart';
-import 'package:bmsc/cache_manager.dart';
+import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/model/comment.dart';
 import 'package:bmsc/model/dynamic.dart';
 import 'package:bmsc/model/entity.dart';
@@ -70,7 +70,7 @@ class BilibiliService {
   Future<List<Fav>?> getFavs(int mid, {int? rid}) async {
     final ret = await _bilibiliAPI.getFavs(mid, rid: rid);
     if (ret != null) {
-      CacheManager.cacheFavList(ret);
+      DatabaseManager.cacheFavList(ret);
     }
     return ret;
   }
@@ -78,7 +78,7 @@ class BilibiliService {
   Future<List<Fav>?> getCollection(int mid) async {
     final ret = await _bilibiliAPI.getCollection(mid);
     if (ret != null) {
-      CacheManager.cacheCollectedFavList(ret);
+      DatabaseManager.cacheCollectedFavList(ret);
     }
     return ret;
   }
@@ -86,8 +86,8 @@ class BilibiliService {
   Future<List<Meta>?> getCollectionMetas(int mid) async {
     final ret = await _bilibiliAPI.getCollectionMetas(mid);
     if (ret != null) {
-      CacheManager.cacheMetas(ret);
-      CacheManager.cacheCollectedFavListVideo(
+      DatabaseManager.cacheMetas(ret);
+      DatabaseManager.cacheCollectedFavListVideo(
           ret.map((x) => x.bvid).toList(), mid);
     }
     return ret;
@@ -96,8 +96,8 @@ class BilibiliService {
   Future<List<Meta>?> getFavMetas(int mid) async {
     final ret = await _bilibiliAPI.getFavMetas(mid);
     if (ret != null) {
-      CacheManager.cacheMetas(ret);
-      CacheManager.cacheFavListVideo(ret.map((x) => x.bvid).toList(), mid);
+      DatabaseManager.cacheMetas(ret);
+      DatabaseManager.cacheFavListVideo(ret.map((x) => x.bvid).toList(), mid);
     }
     return ret;
   }
@@ -125,7 +125,7 @@ class BilibiliService {
   Future<VidResult?> getVidDetail({String? bvid, String? aid}) async {
     final ret = await _bilibiliAPI.getVidDetail(bvid: bvid, aid: aid);
     if (ret != null) {
-      CacheManager.cacheMetas([
+      DatabaseManager.cacheMetas([
         Meta(
           bvid: ret.bvid,
           aid: ret.aid,
@@ -137,7 +137,7 @@ class BilibiliService {
           artUri: ret.pic,
         )
       ]);
-      await CacheManager.cacheEntities(ret.pages
+      await DatabaseManager.cacheEntities(ret.pages
           .map((x) => Entity(
                 bvid: ret.bvid,
                 aid: ret.aid,
@@ -230,7 +230,7 @@ class BilibiliService {
       return null;
     }
     return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
-      final cachedSource = await CacheManager.getCachedAudio(bvid, x.cid);
+      final cachedSource = await DatabaseManager.getCachedAudio(bvid, x.cid);
       if (cachedSource != null) {
         return cachedSource;
       }
@@ -288,7 +288,7 @@ class BilibiliService {
       }
     }
     await prefs.setString('recommend_history', jsonEncode(history.toList()));
-    await CacheManager.cacheMetas(recommendedVideos);
+    await DatabaseManager.cacheMetas(recommendedVideos);
     return recommendedVideos;
   }
 
