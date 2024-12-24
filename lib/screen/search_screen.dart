@@ -1,13 +1,13 @@
 import 'package:bmsc/screen/user_detail_screen.dart';
-import 'package:bmsc/util/shared_preferences_service.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/bilibili_service.dart';
+import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
-import '../globals.dart' as globals;
 import '../model/search.dart';
 import '../util/string.dart';
 import '../component/playing_card.dart';
-import 'package:just_audio/just_audio.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 
@@ -75,10 +75,11 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      final suggestions = await globals.api.getSearchSuggestions(value);
+      final suggestions =
+          await (await BilibiliService.instance).getSearchSuggestions(value);
       if (!mounted) return;
       setState(() {
-        _suggestions = suggestions;
+        _suggestions = suggestions ?? [];
       });
     });
   }
@@ -122,15 +123,7 @@ class _SearchScreenState extends State<SearchScreen> {
               : (vidList.isEmpty
                   ? const Center(child: Text('输入关键词开始搜索'))
                   : _listView()),
-      bottomNavigationBar: StreamBuilder<SequenceState?>(
-        stream: globals.api.player.sequenceStateStream,
-        builder: (_, snapshot) {
-          final src = snapshot.data?.sequence;
-          return (src == null || src.isEmpty)
-              ? const SizedBox()
-              : const PlayingCard();
-        },
-      ),
+      bottomNavigationBar: const PlayingCard(),
     );
   }
 
@@ -171,11 +164,11 @@ class _SearchScreenState extends State<SearchScreen> {
       author: vid.author,
       len: duration,
       view: unit(vid.play),
-      onTap: () => globals.api.playByBvid(vid.bvid),
-      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(vid.bvid,
-          insertIndex: globals.api.playlist.length == 0
-              ? 0
-              : globals.api.player.currentIndex! + 1),
+      onTap: () => AudioService.instance.then((x) => x.playByBvid(vid.bvid)),
+      onAddToPlaylistButtonPressed: () => AudioService.instance.then((x) =>
+          x.appendPlaylist(vid.bvid,
+              insertIndex:
+                  x.playlist.length == 0 ? 0 : x.player.currentIndex! + 1)),
       onLongPress: () async {
         if (!context.mounted) return;
         showDialog(
@@ -302,7 +295,8 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!_hasMore) {
       return;
     }
-    final ret = await globals.api.search(_curSearch, _curPage);
+    final ret =
+        await (await BilibiliService.instance).search(_curSearch, _curPage);
     if (ret != null) {
       setState(() {
         _hasMore = ret.page < ret.numPages;

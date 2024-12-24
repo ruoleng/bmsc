@@ -64,7 +64,7 @@ class TrackTile extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: SizedBox(
-                      width: 85,
+                      width: 76,
                       height: 48,
                       child: pic == null || pic == ""
                           ? Container(
@@ -78,7 +78,7 @@ class TrackTile extends StatelessWidget {
                               ),
                             )
                           : CachedNetworkImage(
-                              imageUrl: pic!,
+                              imageUrl: "${pic!}@256w_144h_1c",
                               fit: BoxFit.cover,
                               placeholder: (_, __) => Container(
                                 color: Theme.of(context)

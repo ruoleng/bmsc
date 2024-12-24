@@ -1,6 +1,7 @@
 import 'package:bmsc/model/fav.dart';
+import 'package:bmsc/service/bilibili_service.dart';
+import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
-import 'package:bmsc/globals.dart' as globals;
 import 'package:bmsc/component/select_favlist_dialog.dart';
 
 class SelectMultiFavlistDialog extends StatefulWidget {
@@ -25,12 +26,13 @@ class _SelectMultiFavlistDialogState extends State<SelectMultiFavlistDialog> {
   }
 
   void _loadFavs() async {
-    final uid = await globals.api.getStoredUID() ?? 0;
-    final f = await globals.api.getFavs(uid, rid: widget.aid) ?? [];
-    final df = await globals.api.getDefaultFavFolder();
+    final bs = await BilibiliService.instance;
+    final uid = bs.myInfo?.mid ?? 0;
+    final f = await bs.getFavs(uid, rid: widget.aid) ?? [];
+    final df = await SharedPreferencesService.getDefaultFavFolder();
     setState(() {
       favs = f;
-      defaultFolderId = df?['id'] ?? 0;
+      defaultFolderId = df?.$1 ?? 0;
     });
   }
 

@@ -1,7 +1,7 @@
 import 'package:bmsc/model/entity.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/cache_manager.dart';
-import 'package:bmsc/globals.dart' as globals;
 import 'package:bmsc/util/logger.dart';
 
 final _logger = LoggerUtils.getLogger('ExcludedPartsDialog');
@@ -37,7 +37,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
     if (es.isEmpty) {
       _logger
           .info('entities of ${widget.bvid} not in cache, fetching from API');
-      await globals.api.getVidDetail(bvid: widget.bvid);
+      await (await BilibiliService.instance).getVidDetail(bvid: widget.bvid);
       es = await CacheManager.getEntities(widget.bvid);
     }
     if (es.isNotEmpty) {

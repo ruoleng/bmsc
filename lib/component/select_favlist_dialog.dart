@@ -1,6 +1,6 @@
 import 'package:bmsc/model/fav.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
-import 'package:bmsc/globals.dart' as globals;
 
 class SelectFavlistDialog extends StatefulWidget {
   const SelectFavlistDialog({super.key});
@@ -19,8 +19,9 @@ class _SelectFavlistDialogState extends State<SelectFavlistDialog> {
   }
 
   Future<void> _loadFavs() async {
-    final uid = await globals.api.getStoredUID() ?? 0;
-    final f = await globals.api.getFavs(uid) ?? [];
+    final bs = await BilibiliService.instance;
+    final uid = bs.myInfo?.mid ?? 0;
+    final f = await bs.getFavs(uid) ?? [];
     setState(() {
       favs = f;
     });
@@ -67,7 +68,7 @@ Widget createFavFolderListTile(BuildContext context, bool exitOnTap,
     leading: const Icon(Icons.add),
     title: const Text('新建收藏夹'),
     onTap: () async {
-      final result = await showDialog<Map<String, dynamic>>(
+      final result = await showDialog<(String, bool)>(
         context: context,
         builder: (BuildContext context) {
           final nameController = TextEditingController();
@@ -108,10 +109,7 @@ Widget createFavFolderListTile(BuildContext context, bool exitOnTap,
                   TextButton(
                     onPressed: () {
                       if (nameController.text.isEmpty) return;
-                      Navigator.pop(context, {
-                        'name': nameController.text,
-                        'privacy': isPrivate,
-                      });
+                      Navigator.pop(context, (nameController.text, isPrivate));
                     },
                     child: const Text('确定'),
                   ),
@@ -123,9 +121,10 @@ Widget createFavFolderListTile(BuildContext context, bool exitOnTap,
       );
 
       if (result != null) {
-        final folder = await globals.api.createFavFolder(
-          result['name'],
-          privacy: result['privacy'],
+        final bs = await BilibiliService.instance;
+        final folder = await bs.createFavFolder(
+          result.$1,
+          hide: result.$2,
         );
 
         if (folder != null && context.mounted) {

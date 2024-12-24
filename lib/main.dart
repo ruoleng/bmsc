@@ -4,18 +4,18 @@ import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
-import 'package:bmsc/util/shared_preferences_service.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/bilibili_service.dart';
+import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/update.dart';
 import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:bmsc/screen/search_screen.dart';
 import 'package:flutter/services.dart';
 
 import 'component/playing_card.dart';
-import 'globals.dart' as globals;
 import 'package:flutter/foundation.dart';
 import 'util/error_handler.dart';
 import 'screen/about_screen.dart';
@@ -28,11 +28,16 @@ import 'util/string.dart';
 final _logger = LoggerUtils.getLogger('main');
 
 Future<void> main() async {
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
+    androidNotificationChannelName: 'Audio Playback',
+    androidNotificationOngoing: true,
+  );
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeProvider.instance.init();
-  runApp(const MyApp());
   _setupErrorHandlers();
-  _initializeBackgroundServices();
+  await _initializeBackgroundServices();
+  runApp(const MyApp());
 }
 
 void _setupErrorHandlers() {
@@ -49,13 +54,9 @@ void _setupErrorHandlers() {
 
 Future<void> _initializeBackgroundServices() async {
   LoggerUtils.init();
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
-    androidNotificationChannelName: 'Audio Playback',
-    androidNotificationOngoing: true,
-  );
-  globals.api.init();
-  globals.api.initAudioSession();
+  await BilibiliService.instance;
+  await AudioService.instance;
+  
 }
 
 class MyApp extends StatelessWidget {
@@ -74,15 +75,7 @@ class MyApp extends StatelessWidget {
           home: Builder(builder: (context) {
             return Scaffold(
               body: MyHomePage(title: 'BiliMusic'),
-              bottomNavigationBar: StreamBuilder<SequenceState?>(
-                stream: globals.api.player.sequenceStateStream,
-                builder: (_, snapshot) {
-                  final src = snapshot.data?.sequence;
-                  return (src == null || src.isEmpty)
-                      ? const SizedBox()
-                      : const PlayingCard();
-                },
-              ),
+              bottomNavigationBar: const PlayingCard(),
             );
           }),
         );
@@ -169,7 +162,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               view: unit(vidDetail.stat.view),
               onTap: () {
                 Navigator.pop(context);
-                globals.api.playByBvid(vidDetail.bvid);
+                AudioService.instance.then((x) => x.playByBvid(vidDetail.bvid));
               })),
     );
   }
@@ -222,9 +215,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               MaterialPageRoute<bool>(
                 builder: (_) => const SettingsScreen(),
               ),
-            ).then((shouldRefresh) {
+            ).then((shouldRefresh) async {
               if (shouldRefresh == true) {
-                if (globals.api.uid == 0) {
+                if ((await BilibiliService.instance).myInfo?.mid == 0) {
                   _favScreenState?.setState(() {
                     _favScreenState?.signedin = false;
                   });

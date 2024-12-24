@@ -1,10 +1,12 @@
 import 'package:bmsc/component/playing_card.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/util/logger.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import '../component/track_tile.dart';
-import '../globals.dart' as globals;
 import '../cache_manager.dart';
 import 'dart:io';
+
+final _logger = LoggerUtils.getLogger('CacheScreen');
 
 const downloadPath = '/storage/emulated/0/Download/BMSC';
 
@@ -58,9 +60,10 @@ class _CacheScreenState extends State<CacheScreen> {
   Future<void> loadCachedFiles() async {
     final db = await CacheManager.database;
     final dbResults = await db.query(
-      CacheManager.tableName,
+      CacheManager.cacheTable,
       orderBy: 'createdAt DESC',
     );
+    _logger.info('loadCachedFiles: $dbResults');
 
     final results = (await Future.wait(dbResults.map((x) async {
       var entity = (await db.query(
@@ -92,7 +95,7 @@ class _CacheScreenState extends State<CacheScreen> {
 
     setState(() {
       cachedFiles = results;
-      filteredFiles = results; // Initialize filtered list with all files
+      filteredFiles = results;
       isLoading = false;
     });
   }
@@ -116,7 +119,7 @@ class _CacheScreenState extends State<CacheScreen> {
 
       final db = await CacheManager.database;
       await db.delete(
-        CacheManager.tableName,
+        CacheManager.cacheTable,
         where: 'bvid = ? AND cid = ?',
         whereArgs: [bvid, cid],
       );
@@ -198,7 +201,7 @@ class _CacheScreenState extends State<CacheScreen> {
       } else {
         selectedItems.add(id);
       }
-      
+
       if (selectedItems.isEmpty) {
         isSelectionMode = false;
       }
@@ -209,12 +212,12 @@ class _CacheScreenState extends State<CacheScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: isSelectionMode 
-          ? IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: _toggleSelectionMode,
-            )
-          : null,
+        leading: isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _toggleSelectionMode,
+              )
+            : null,
         title: isSelectionMode
             ? Text('已选择 ${selectedItems.length} 项')
             : (isSearching
@@ -263,65 +266,76 @@ class _CacheScreenState extends State<CacheScreen> {
           ] else ...[
             IconButton(
               icon: const Icon(Icons.save),
-              onPressed: selectedItems.isEmpty ? null : () {
-                final ctx = context;
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('保存到本地'),
-                    content: Text('确定要保存这 ${selectedItems.length} 个缓存文件到本地下载目录吗？'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('取消'),
-                      ),
-                      FilledButton(
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          for (var file in filteredFiles.where(
-                              (f) => selectedItems.contains('${f['bvid']}_${f['cid']}'))) {
-                            await saveToDownloads(file);
-                          }
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('已将${selectedItems.length}个文件保存到 $downloadPath')),
-                            );
-                          }
-                          _toggleSelectionMode();
-                        },
-                        child: const Text('确定'),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              onPressed: selectedItems.isEmpty
+                  ? null
+                  : () {
+                      final ctx = context;
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('保存到本地'),
+                          content: Text(
+                              '确定要保存这 ${selectedItems.length} 个缓存文件到本地下载目录吗？'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('取消'),
+                            ),
+                            FilledButton(
+                              onPressed: () async {
+                                Navigator.pop(context);
+                                for (var file in filteredFiles.where((f) =>
+                                    selectedItems.contains(
+                                        '${f['bvid']}_${f['cid']}'))) {
+                                  await saveToDownloads(file);
+                                }
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            '已将${selectedItems.length}个文件保存到 $downloadPath')),
+                                  );
+                                }
+                                _toggleSelectionMode();
+                              },
+                              child: const Text('确定'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
             ),
             IconButton(
               icon: const Icon(Icons.delete),
-              onPressed: selectedItems.isEmpty ? null : () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('删除缓存'),
-                    content: Text('确定要删除这 ${selectedItems.length} 个缓存文件吗？'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('取消'),
-                      ),
-                      FilledButton(
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          await deleteCaches(filteredFiles.where(
-                              (f) => selectedItems.contains('${f['bvid']}_${f['cid']}')).toList());
-                          _toggleSelectionMode();
-                        },
-                        child: const Text('确定'),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              onPressed: selectedItems.isEmpty
+                  ? null
+                  : () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('删除缓存'),
+                          content:
+                              Text('确定要删除这 ${selectedItems.length} 个缓存文件吗？'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('取消'),
+                            ),
+                            FilledButton(
+                              onPressed: () async {
+                                Navigator.pop(context);
+                                await deleteCaches(filteredFiles
+                                    .where((f) => selectedItems
+                                        .contains('${f['bvid']}_${f['cid']}'))
+                                    .toList());
+                                _toggleSelectionMode();
+                              },
+                              child: const Text('确定'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
             ),
           ],
         ],
@@ -368,10 +382,12 @@ class _CacheScreenState extends State<CacheScreen> {
                           selected: selectedItems.contains(id),
                           onTap: isSelectionMode
                               ? () => _toggleItemSelection(id)
-                              : () => globals.api.playCachedAudio(file['bvid'], file['cid']),
-                          onAddToPlaylistButtonPressed: () => globals.api
-                              .addToPlaylistCachedAudio(
-                                  file['bvid'], file['cid']),
+                              : () => AudioService.instance.then((x) =>
+                                  x.playCachedAudio(file['bvid'], file['cid'])),
+                          onAddToPlaylistButtonPressed: () => AudioService
+                              .instance
+                              .then((x) => x.addToPlaylistCachedAudio(
+                                  file['bvid'], file['cid'])),
                           onLongPress: isSelectionMode
                               ? null
                               : () {
@@ -384,15 +400,7 @@ class _CacheScreenState extends State<CacheScreen> {
                       },
                     ),
             ),
-      bottomNavigationBar: StreamBuilder<SequenceState?>(
-        stream: globals.api.player.sequenceStateStream,
-        builder: (_, snapshot) {
-          final src = snapshot.data?.sequence;
-          return (src == null || src.isEmpty)
-              ? const SizedBox()
-              : const PlayingCard();
-        },
-      ),
+      bottomNavigationBar: const PlayingCard(),
     );
   }
 }

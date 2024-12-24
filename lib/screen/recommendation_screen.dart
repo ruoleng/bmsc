@@ -2,14 +2,15 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:bmsc/component/playing_card.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../component/track_tile.dart';
-import '../globals.dart' as globals;
 import '../model/meta.dart';
 import '../util/logger.dart';
 
-import '../util/shared_preferences_service.dart';
+import '../service/shared_preferences_service.dart';
 
 class RecommendationScreen extends StatefulWidget {
   const RecommendationScreen({super.key});
@@ -32,18 +33,17 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   }
 
   Future<void> _loadDefaultFolderName() async {
-    final folder = await globals.api.getDefaultFavFolder();
+    final folder = await SharedPreferencesService.getDefaultFavFolder();
     if (mounted && folder != null) {
       setState(() {
-        defaultFolderName = folder['name'];
+        defaultFolderName = folder.$2;
       });
     }
   }
 
   Future<void> _showFolderSelectionDialog() async {
-    final favs =
-        (await globals.api.getFavs(await globals.api.getStoredUID() ?? 0)) ??
-            [];
+    final bs = await BilibiliService.instance;
+    final favs = (await bs.getFavs(bs.myInfo?.mid ?? 0)) ?? [];
     if (!mounted) return;
 
     await showDialog(
@@ -60,8 +60,8 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
               title: Text(favs[index].title),
               subtitle: Text('${favs[index].mediaCount} 个视频'),
               onTap: () async {
-                await globals.api
-                    .setDefaultFavFolder(favs[index].id, favs[index].title);
+                await SharedPreferencesService.setDefaultFavFolder(
+                    favs[index].id, favs[index].title);
 
                 if (context.mounted) {
                   setState(() => defaultFolderName = favs[index].title);
@@ -86,7 +86,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     _logger.info('Loading recommendations (force: $force)');
     setState(() => isLoading = true);
 
-    final defaultFolder = await globals.api.getDefaultFavFolder();
+    final defaultFolder = await SharedPreferencesService.getDefaultFavFolder();
     if (defaultFolder == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -97,7 +97,8 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
       return;
     }
 
-    final recs = await globals.api.getDailyRecommendations(force: force);
+    final recs = await BilibiliService.instance
+        .then((x) => x.getDailyRecommendations(force: force));
     if (mounted) {
       if (recs != null) {
         _logger.info('Loaded ${recs.length} recommendations');
@@ -113,7 +114,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
 
   Future<void> _regenerateRecommendation(int index) async {
     _logger.info('Regenerating recommendation at index $index');
-    final defaultFolder = await globals.api.getDefaultFavFolder();
+    final defaultFolder = await SharedPreferencesService.getDefaultFavFolder();
     if (defaultFolder == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -124,7 +125,8 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     }
 
     // 获取收藏夹中的视频
-    final favVideos = await globals.api.getFavMetas(defaultFolder['id']);
+    final favVideos = await BilibiliService.instance
+        .then((x) => x.getFavMetas(defaultFolder.$1));
     if (favVideos == null || favVideos.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -139,7 +141,8 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     _logger.info('Selected video for recommendation: ${selectedVideo.bvid}');
 
     // 获取相关推荐
-    final relatedVideos = await globals.api.getRecommendations([selectedVideo]);
+    final relatedVideos = await BilibiliService.instance
+        .then((x) => x.getRecommendations([selectedVideo]));
     if (relatedVideos == null || relatedVideos.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -257,11 +260,11 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                                   onTap: () async {
                                     Navigator.pop(context);
                                     try {
-                                      await globals.api
-                                          .appendPlaylist(video.bvid);
+                                      await AudioService.instance.then(
+                                          (x) => x.appendPlaylist(video.bvid));
                                     } catch (e) {
-                                      await globals.api
-                                          .appendCachedPlaylist(video.bvid);
+                                      await AudioService.instance.then((x) =>
+                                          x.appendCachedPlaylist(video.bvid));
                                     }
                                   },
                                 ),
@@ -278,26 +281,19 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                         len:
                             '${video.duration ~/ 60}:${(video.duration % 60).toString().padLeft(2, '0')}',
                         onTap: () {
-                          globals.api.playByBvids(
+                          AudioService.instance.then((x) => x.playByBvids(
                               recommendations.map((v) => v.bvid).toList(),
-                              index: index);
+                              index: index));
                         },
                         onAddToPlaylistButtonPressed: () async {
-                          await globals.api.addBvidsToPlaylist([video.bvid]);
+                          await AudioService.instance
+                              .then((x) => x.appendPlaylist(video.bvid));
                         },
                       ),
                     );
                   },
                 ),
-      bottomNavigationBar: StreamBuilder<SequenceState?>(
-        stream: globals.api.player.sequenceStateStream,
-        builder: (_, snapshot) {
-          final src = snapshot.data?.sequence;
-          return (src == null || src.isEmpty)
-              ? const SizedBox()
-              : const PlayingCard();
-        },
-      ),
+      bottomNavigationBar: const PlayingCard(),
     );
   }
 }

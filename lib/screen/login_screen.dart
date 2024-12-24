@@ -1,5 +1,5 @@
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
-import 'package:bmsc/globals.dart' as globals;
 import 'package:bmsc/util/logger.dart';
 import 'package:gt3_flutter_plugin/gt3_flutter_plugin.dart';
 
@@ -36,7 +36,8 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final captcha = await globals.api.getLoginCaptcha();
+      final captcha =
+          await BilibiliService.instance.then((x) => x.getLoginCaptcha());
       if (captcha == null) {
         throw Exception('Failed to get login captcha');
       }
@@ -53,20 +54,20 @@ class _LoginScreenState extends State<LoginScreen> {
         try {
           logger.info('Geetest verification result: $result');
           result = Map<String, dynamic>.from(result['result']);
-          final (loginSuccess, loginError) = await globals.api.login(
-            username: _usernameController.text,
-            password: _passwordController.text,
-            geetestResult: {
-              'token': captcha['token']!,
-              'challenge': result['geetest_challenge'],
-              'validate': result['geetest_validate'],
-              'seccode': result['geetest_seccode'],
-            },
-          );
+          final (loginSuccess, loginError) =
+              await BilibiliService.instance.then((x) => x.passwordLogin(
+                    _usernameController.text,
+                    _passwordController.text,
+                    {
+                      'token': captcha['token']!,
+                      'challenge': result['geetest_challenge'],
+                      'validate': result['geetest_validate'],
+                      'seccode': result['geetest_seccode'],
+                    },
+                  ));
 
           if (loginSuccess) {
-            await globals.api.getUID();
-            await globals.api.getUsername();
+            await BilibiliService.instance.then((x) => x.refreshMyInfo());
             if (context.mounted) {
               Navigator.pop(context, true);
             }
@@ -103,7 +104,8 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final captcha = await globals.api.getLoginCaptcha();
+      final captcha =
+          await BilibiliService.instance.then((x) => x.getLoginCaptcha());
       if (captcha == null) {
         throw Exception('Failed to get login captcha');
       }
@@ -120,15 +122,16 @@ class _LoginScreenState extends State<LoginScreen> {
           try {
             logger.info('Geetest verification result: $result');
             result = Map<String, dynamic>.from(result['result']);
-            final (captchaKey, error) = await globals.api.getSmsCaptcha(
-              tel: int.parse(_phoneController.text),
-              geetestResult: {
-                'token': captcha['token']!,
-                'challenge': result['geetest_challenge'],
-                'validate': result['geetest_validate'],
-                'seccode': result['geetest_seccode'],
-              },
-            );
+            final (captchaKey, error) =
+                await BilibiliService.instance.then((x) => x.getSmsLoginCaptcha(
+                      int.parse(_phoneController.text),
+                      {
+                        'token': captcha['token']!,
+                        'challenge': result['geetest_challenge'],
+                        'validate': result['geetest_validate'],
+                        'seccode': result['geetest_seccode'],
+                      },
+                    ));
 
             if (error != null) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -178,15 +181,15 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final (loginSuccess, loginError) = await globals.api.smslogin(
-        tel: int.parse(_phoneController.text),
-        code: _smsCodeController.text,
-        captchaKey: _captchaKey!,
-      );
+      final (loginSuccess, loginError) =
+          await BilibiliService.instance.then((x) => x.smsLogin(
+                int.parse(_phoneController.text),
+                _smsCodeController.text,
+                _captchaKey!,
+              ));
 
       if (loginSuccess) {
-        await globals.api.getUID();
-        await globals.api.getUsername();
+        await BilibiliService.instance.then((x) => x.refreshMyInfo());
         if (context.mounted) {
           Navigator.pop(context, true);
         }

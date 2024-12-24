@@ -1,11 +1,11 @@
 import 'package:bmsc/screen/user_detail_screen.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
-import '../globals.dart' as globals;
 import '../model/history.dart';
 import '../util/string.dart';
 import '../component/playing_card.dart';
-import 'package:just_audio/just_audio.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -25,26 +25,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _checkLogin() async {
-    final uid = await globals.api.getStoredUID();
+    final info = await BilibiliService.instance.then((x) => x.myInfo);
     setState(() {
-      login = uid != null && uid != 0;
+      login = info != null && info.mid != 0;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text('历史记录')),
-        body: login ? hisListView() : const Center(child: Text('请先登录')),
-        bottomNavigationBar: StreamBuilder<SequenceState?>(
-          stream: globals.api.player.sequenceStateStream,
-          builder: (_, snapshot) {
-            final src = snapshot.data?.sequence;
-            return (src == null || src.isEmpty)
-                ? const SizedBox()
-                : const PlayingCard();
-          },
-        ));
+      appBar: AppBar(title: const Text('历史记录')),
+      body: login ? hisListView() : const Center(child: Text('请先登录')),
+      bottomNavigationBar: const PlayingCard(),
+    );
   }
 
   hisListView() {
@@ -68,7 +61,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   int viewat = 0;
   loadMore() async {
-    final detail = await globals.api.getHistory(viewat);
+    final detail =
+        await BilibiliService.instance.then((x) => x.getHistory(viewat));
     if (detail == null) {
       return;
     }
@@ -89,12 +83,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       author: hisList[index].authorName,
       len: duration,
       view: time(hisList[index].viewAt * 1000000),
-      onTap: () => globals.api.playByBvid(hisList[index].history.bvid),
-      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(
-          hisList[index].history.bvid,
-          insertIndex: globals.api.playlist.length == 0
-              ? 0
-              : globals.api.player.currentIndex! + 1),
+      onTap: () => AudioService.instance
+          .then((x) => x.playByBvid(hisList[index].history.bvid)),
+      onAddToPlaylistButtonPressed: () => AudioService.instance.then((x) =>
+          x.appendPlaylist(hisList[index].history.bvid,
+              insertIndex:
+                  x.playlist.length == 0 ? 0 : x.player.currentIndex! + 1)),
       onLongPress: () async {
         if (!context.mounted) return;
         showDialog(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'util/shared_preferences_service.dart';
+import 'service/shared_preferences_service.dart';
 
 class ThemeProvider extends ChangeNotifier {
   static final ThemeProvider _instance = ThemeProvider._internal();

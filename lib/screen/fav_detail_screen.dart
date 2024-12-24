@@ -1,12 +1,12 @@
 import 'package:bmsc/screen/user_detail_screen.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/model/fav.dart';
 import '../component/track_tile.dart';
-import '../globals.dart' as globals;
 import 'package:bmsc/cache_manager.dart';
 import 'package:bmsc/component/excluded_parts_dialog.dart';
 import '../component/playing_card.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:bmsc/model/meta.dart';
 import 'package:bmsc/util/logger.dart';
 
@@ -38,8 +38,8 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
   Future<void> _loadInitialData() async {
     _logger.info('Loading initial data for fav ${widget.fav.id}');
     final cachedData = widget.isCollected
-        ? await globals.api.getCachedCollectedFavListVideo(widget.fav.id)
-        : await globals.api.getCachedFavListVideo(widget.fav.id);
+        ? await CacheManager.getCachedCollectionMetas(widget.fav.id)
+        : await CacheManager.getCachedFavMetas(widget.fav.id);
     if (cachedData.isNotEmpty) {
       _logger.info('Loaded ${cachedData.length} items from cache');
       setState(() {
@@ -63,8 +63,10 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
 
     try {
       final metas = widget.isCollected
-          ? await globals.api.getCollectedFavMetas(widget.fav.id)
-          : await globals.api.getFavMetas(widget.fav.id);
+          ? await BilibiliService.instance
+              .then((x) => x.getCollectionMetas(widget.fav.id))
+          : await BilibiliService.instance
+              .then((x) => x.getFavMetas(widget.fav.id));
       if (metas != null) {
         _logger.info('Loaded ${metas.length} metas from network');
         setState(() {
@@ -94,40 +96,6 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.fav.title),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: FilledButton.tonal(
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: Icon(Icons.play_arrow, size: 18),
-                  ),
-                  Text(
-                    '播放全部',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              onPressed: () async {
-                await (widget.isCollected
-                    ? globals.api.playCollectedFavList(widget.fav.id)
-                    : globals.api.playFavList(widget.fav.id));
-              },
-            ),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
@@ -137,15 +105,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
           itemBuilder: (context, index) => favDetailListTileView(index),
         ),
       ),
-      bottomNavigationBar: StreamBuilder<SequenceState?>(
-        stream: globals.api.player.sequenceStateStream,
-        builder: (_, snapshot) {
-          final src = snapshot.data?.sequence;
-          return (src == null || src.isEmpty)
-              ? const SizedBox()
-              : const PlayingCard();
-        },
-      ),
+      bottomNavigationBar: const PlayingCard(),
     );
   }
 
@@ -178,7 +138,12 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                 try {
                   _logger.info(
                       'Playing fav list ${widget.fav.id} from index $index');
-                  await globals.api.playFavList(widget.fav.id, index: index);
+                  final bvids = widget.isCollected
+                      ? await CacheManager.getCachedCollectionBvids(
+                          widget.fav.id)
+                      : await CacheManager.getCachedFavBvids(widget.fav.id);
+                  await AudioService.instance
+                      .then((x) => x.playByBvids(bvids, index: index));
                 } catch (e, stackTrace) {
                   _logger.severe('Error playing fav list', e, stackTrace);
                 }
@@ -186,15 +151,17 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
               onAddToPlaylistButtonPressed: () async {
                 try {
                   _logger.info('Adding ${favInfo[index].bvid} to playlist');
-                  await globals.api.appendPlaylist(favInfo[index].bvid,
-                      insertIndex: globals.api.playlist.length == 0
+                  await AudioService.instance.then((x) => x.appendPlaylist(
+                      favInfo[index].bvid,
+                      insertIndex: x.playlist.length == 0
                           ? 0
-                          : globals.api.player.currentIndex! + 1);
+                          : x.player.currentIndex! + 1));
                 } catch (e) {
                   _logger.warning(
                       'Failed to append to playlist, trying cached playlist',
                       e);
-                  await globals.api.appendCachedPlaylist(favInfo[index].bvid);
+                  await AudioService.instance
+                      .then((x) => x.appendCachedPlaylist(favInfo[index].bvid));
                 }
               },
               onLongPress: () async {
@@ -242,11 +209,12 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                           title: const Text('取消收藏'),
                           onTap: () async {
                             Navigator.pop(dialogContext);
-                            final success = await globals.api.favoriteVideo(
-                                  favInfo[index].aid,
-                                  [],
-                                  [widget.fav.id],
-                                ) ??
+                            final success = await BilibiliService.instance
+                                    .then((x) => x.favoriteVideo(
+                                          favInfo[index].aid,
+                                          [],
+                                          [widget.fav.id],
+                                        )) ??
                                 false;
 
                             if (!context.mounted) return;

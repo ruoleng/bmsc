@@ -1,6 +1,6 @@
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:dio/dio.dart';
-import 'package:bmsc/globals.dart' as globals;
 
 import '../model/vid.dart';
 
@@ -32,23 +32,23 @@ Future<VidResult?> getVidDetailFromUrl(String text) async {
   VidResult? vidDetail;
   String? bvid;
 
-    final urlMatch = RegExp(r'https?://b23\.tv/[a-zA-Z0-9]+').firstMatch(text);
-    if (urlMatch != null) {
-      final url = urlMatch.group(0)!;
-      _logger.info('b23.tv url detected, trying to get redirect url: $url');
-      text = await getRedirectUrl(url);
-    }
+  final urlMatch = RegExp(r'https?://b23\.tv/[a-zA-Z0-9]+').firstMatch(text);
+  if (urlMatch != null) {
+    final url = urlMatch.group(0)!;
+    _logger.info('b23.tv url detected, trying to get redirect url: $url');
+    text = await getRedirectUrl(url);
+  }
 
-    final bvMatch = RegExp(r'[Bb][Vv][a-zA-Z0-9]{10}').firstMatch(text);
-    if (bvMatch != null) {
-      bvid = bvMatch.group(0)!;
-      vidDetail = await globals.api.getVidDetail(bvid: bvid);
-    }
+  final bvMatch = RegExp(r'[Bb][Vv][a-zA-Z0-9]{10}').firstMatch(text);
+  if (bvMatch != null) {
+    bvid = bvMatch.group(0)!;
+    vidDetail = await (await BilibiliService.instance).getVidDetail(bvid: bvid);
+  }
 
-    final avMatch = RegExp(r'[Aa][Vv]([0-9]+)').firstMatch(text);
-    if (avMatch != null) {
-      final aid = avMatch.group(1)!;
-    vidDetail = await globals.api.getVidDetail(aid: aid);
+  final avMatch = RegExp(r'[Aa][Vv]([0-9]+)').firstMatch(text);
+  if (avMatch != null) {
+    final aid = avMatch.group(1)!;
+    vidDetail = await (await BilibiliService.instance).getVidDetail(aid: aid);
   }
   return vidDetail;
 }

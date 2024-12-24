@@ -1,5 +1,5 @@
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
-import '../globals.dart' as globals;
 import '../model/comment.dart';
 import '../theme.dart';
 
@@ -43,11 +43,12 @@ class _CommentScreenState extends State<CommentScreen> {
 
     setState(() => _isLoading = true);
     CommentData? commentData;
+    final bs = await BilibiliService.instance;
     if (widget.aid != null) {
-      commentData = await globals.api.getComment(widget.aid!, _currentPage);
+      commentData = await bs.getComment(widget.aid!, _currentPage);
     } else if (widget.oid != null && widget.root != null) {
-      commentData = await globals.api
-          .getCommentsOfComment(widget.oid!, widget.root!, _currentPage);
+      commentData = await bs.getCommentsOfComment(
+          widget.oid!, widget.root!, _currentPage);
     }
 
     setState(() {
@@ -139,7 +140,8 @@ class _CommentScreenState extends State<CommentScreen> {
                   Text(
                     comment.content?.message ?? '',
                     style: TextStyle(
-                      fontSize: ThemeProvider.instance.commentFontSize.toDouble(),
+                      fontSize:
+                          ThemeProvider.instance.commentFontSize.toDouble(),
                     ),
                   ),
                   if (comment.count > 0)

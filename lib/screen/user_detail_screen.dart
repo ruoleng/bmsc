@@ -1,8 +1,9 @@
 import 'package:bmsc/model/user_card.dart';
 import 'package:bmsc/model/user_upload.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/util/string.dart';
 import 'package:flutter/material.dart';
-import 'package:bmsc/globals.dart' as globals;
 
 import '../component/track_tile.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -33,7 +34,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     if (!hasMore) {
       return;
     }
-    final rst = await globals.api.getUserUploads(widget.mid, pn);
+    final rst =
+        await (await BilibiliService.instance).getUserUploads(widget.mid, pn);
     if (rst == null) {
       return;
     }
@@ -45,7 +47,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   }
 
   loadUserInfo() async {
-    info = await globals.api.getUserInfo(widget.mid);
+    info = await (await BilibiliService.instance).getUserInfo(widget.mid);
     setState(() {});
   }
 
@@ -131,7 +133,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                       ),
                       onPressed: () async {
                         final bvids = vidList.map((x) => x.bvid).toList();
-                        await globals.api.playByBvids(bvids);
+                        await AudioService.instance
+                            .then((x) => x.playByBvids(bvids));
                       },
                     ),
                   )
@@ -161,7 +164,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       author: vidList[index].author,
       len: vidList[index].length,
       view: unit(vidList[index].play),
-      onTap: () => globals.api.playByBvid(vidList[index].bvid),
+      onTap: () =>
+          AudioService.instance.then((x) => x.playByBvid(vidList[index].bvid)),
     );
   }
 }

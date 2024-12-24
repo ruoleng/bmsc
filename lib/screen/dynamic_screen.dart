@@ -1,10 +1,10 @@
 import 'package:bmsc/screen/user_detail_screen.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
-import '../globals.dart' as globals;
 import '../model/dynamic.dart';
 import '../component/playing_card.dart';
-import 'package:just_audio/just_audio.dart';
 
 class DynamicScreen extends StatefulWidget {
   const DynamicScreen({super.key});
@@ -24,9 +24,9 @@ class _DynamicScreenState extends State<DynamicScreen> {
   }
 
   void _checkLogin() async {
-    final uid = await globals.api.getStoredUID();
+    final info = await BilibiliService.instance.then((x) => x.myInfo);
     setState(() {
-      login = uid != null && uid != 0;
+      login = info != null && info.mid != 0;
     });
   }
 
@@ -35,15 +35,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('动态')),
       body: login ? dynListView() : const Center(child: Text('请先登录')),
-      bottomNavigationBar: StreamBuilder<SequenceState?>(
-        stream: globals.api.player.sequenceStateStream,
-        builder: (_, snapshot) {
-          final src = snapshot.data?.sequence;
-          return (src == null || src.isEmpty)
-              ? const SizedBox()
-              : const PlayingCard();
-        },
-      ),
+      bottomNavigationBar: const PlayingCard(),
     );
   }
 
@@ -68,7 +60,8 @@ class _DynamicScreenState extends State<DynamicScreen> {
 
   String? offset;
   loadMore() async {
-    final detail = await globals.api.getDynamics(offset);
+    final detail =
+        await BilibiliService.instance.then((x) => x.getDynamics(offset));
     if (detail == null) {
       return;
     }
@@ -87,13 +80,12 @@ class _DynamicScreenState extends State<DynamicScreen> {
       len: dynList[index].moduleDynamic.major.archive.durationText,
       view: dynList[index].moduleDynamic.major.archive.stat.play,
       time: dynList[index].moduleAuthor.pubTime,
-      onTap: () => globals.api
-          .playByBvid(dynList[index].moduleDynamic.major.archive.bvid),
-      onAddToPlaylistButtonPressed: () => globals.api.appendPlaylist(
-          dynList[index].moduleDynamic.major.archive.bvid,
-          insertIndex: globals.api.playlist.length == 0
-              ? 0
-              : globals.api.player.currentIndex! + 1),
+      onTap: () => AudioService.instance.then(
+          (x) => x.playByBvid(dynList[index].moduleDynamic.major.archive.bvid)),
+      onAddToPlaylistButtonPressed: () => AudioService.instance.then((x) =>
+          x.appendPlaylist(dynList[index].moduleDynamic.major.archive.bvid,
+              insertIndex:
+                  x.playlist.length == 0 ? 0 : x.player.currentIndex! + 1)),
       onLongPress: () async {
         if (!context.mounted) return;
         showDialog(

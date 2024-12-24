@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:bmsc/audio/lazy_audio_source.dart';
 import 'package:bmsc/model/entity.dart';
-import 'package:bmsc/util/shared_preferences_service.dart';
+import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:audio_service/audio_service.dart';
@@ -20,7 +20,7 @@ const String _dbName = 'AudioCache.db';
 
 class CacheManager {
   static Database? _database;
-  static const String tableName = 'audio_cache';
+  static const String cacheTable = 'audio_cache';
   static const String metaTable = 'meta_cache';
   static const String favListVideoTable = 'fav_list_video';
   static const String collectedFavListVideoTable = 'collected_fav_list_video';
@@ -45,7 +45,7 @@ class CacheManager {
         onCreate: (db, version) async {
           _logger.info('Creating new database tables...');
           await db.execute('''
-          CREATE TABLE $tableName (
+          CREATE TABLE $cacheTable (
             bvid TEXT,
             cid INTEGER,
             filePath TEXT,
@@ -139,11 +139,11 @@ class CacheManager {
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           _logger.info('Upgrading database from v$oldVersion to v$newVersion');
-          
+
           if (oldVersion == 1) {
             await db.transaction((txn) async {
               await txn.execute('''
-                CREATE TABLE ${tableName}_new (
+                CREATE TABLE ${cacheTable}_new (
                   bvid TEXT,
                   cid INTEGER,
                   filePath TEXT,
@@ -154,16 +154,16 @@ class CacheManager {
                   PRIMARY KEY (bvid, cid)
                 )
               ''');
-              
+
               await txn.execute('''
-                INSERT INTO ${tableName}_new (bvid, cid, filePath, createdAt)
+                INSERT INTO ${cacheTable}_new (bvid, cid, filePath, createdAt)
                 SELECT bvid, cid, filePath, createdAt
-                FROM $tableName
+                FROM $cacheTable
               ''');
 
-              final rows = await txn.query('${tableName}_new');
+              final rows = await txn.query('${cacheTable}_new');
               final batch = txn.batch();
-              
+
               for (final row in rows) {
                 final filePath = row['filePath'] as String;
                 final file = File(filePath);
@@ -177,7 +177,7 @@ class CacheManager {
                 }
 
                 batch.update(
-                  '${tableName}_new',
+                  '${cacheTable}_new',
                   {
                     'fileSize': fileSize,
                     'playCount': 0,
@@ -189,8 +189,9 @@ class CacheManager {
               }
 
               await batch.commit();
-              await txn.execute('DROP TABLE $tableName');
-              await txn.execute('ALTER TABLE ${tableName}_new RENAME TO $tableName');
+              await txn.execute('DROP TABLE $cacheTable');
+              await txn.execute(
+                  'ALTER TABLE ${cacheTable}_new RENAME TO $cacheTable');
             });
           }
         },
@@ -320,7 +321,7 @@ class CacheManager {
   static Future<int> cachedCount(String bvid) async {
     final db = await database;
     final results = await db.query(
-      tableName,
+      cacheTable,
       where: "bvid = ?",
       whereArgs: [bvid],
     );
@@ -330,7 +331,7 @@ class CacheManager {
   static Future<bool> isCached(String bvid, int cid) async {
     final db = await database;
     final results = await db.query(
-      tableName,
+      cacheTable,
       where: "bvid = ? AND cid = ?",
       whereArgs: [bvid, cid],
     );
@@ -345,7 +346,7 @@ class CacheManager {
 
     final db = await database;
     final results = await db.query(
-      tableName,
+      cacheTable,
       where: "bvid = ?",
       whereArgs: [bvid],
     );
@@ -386,7 +387,7 @@ class CacheManager {
       }
       final db = await database;
       final results = await db.query(
-        tableName,
+        cacheTable,
         where: "bvid = ? AND cid = ?",
         whereArgs: [bvid, cid],
       );
@@ -429,13 +430,12 @@ class CacheManager {
     return File(filePath);
   }
 
-  static Future<void> saveCacheMetadata(
-      String bvid, int cid, File file) async {
+  static Future<void> saveCacheMetadata(String bvid, int cid, File file) async {
     try {
       final db = await database;
       final now = DateTime.now().millisecondsSinceEpoch;
       int ret = await db.insert(
-          tableName,
+          cacheTable,
           {
             'bvid': bvid,
             'cid': cid,
@@ -458,19 +458,17 @@ class CacheManager {
   static Future<void> updatePlayStats(String bvid, int cid) async {
     final db = await database;
     await db.rawUpdate('''
-      UPDATE $tableName 
+      UPDATE $cacheTable 
       SET playCount = playCount + 1,
           lastPlayed = ?
       WHERE bvid = ? AND cid = ?
-      ''',
-      [DateTime.now().millisecondsSinceEpoch, bvid, cid]);
+      ''', [DateTime.now().millisecondsSinceEpoch, bvid, cid]);
   }
 
   static Future<int> getCacheTotalSize() async {
     final db = await database;
-    final result = await db.rawQuery(
-      'SELECT SUM(fileSize) as total FROM $tableName'
-    );
+    final result =
+        await db.rawQuery('SELECT SUM(fileSize) as total FROM $cacheTable');
     return (result.first['total'] as int?) ?? 0;
   }
 
@@ -478,7 +476,8 @@ class CacheManager {
     const double playCountWeight = 0.7;
     const double recencyWeight = 0.3;
     final currentSize = await getCacheTotalSize();
-    final maxCacheSize = await SharedPreferencesService.getCacheLimitSize() * 1024 * 1024;
+    final maxCacheSize =
+        await SharedPreferencesService.getCacheLimitSize() * 1024 * 1024;
     _logger.info('currentSize: $currentSize, maxCacheSize: $maxCacheSize');
     if (currentSize <= maxCacheSize) {
       return;
@@ -486,26 +485,26 @@ class CacheManager {
 
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
-    
+
     // 获取所有缓存文件信息并计算分数
-    final results = await db.query(tableName);
-    
+    final results = await db.query(cacheTable);
+
     // 计算最大播放次数用于归一化
-    final maxPlayCount = results.fold<int>(1, (max, row) => 
-      math.max(max, row['playCount'] as int));
-      
+    final maxPlayCount = results.fold<int>(
+        1, (max, row) => math.max(max, row['playCount'] as int));
+
     var files = results.map((row) {
       final playCount = row['playCount'] as int;
       final lastPlayed = row['lastPlayed'] as int;
       final daysAgo = (now - lastPlayed) / (24 * 60 * 60 * 1000);
-      
+
       // 计算归一化分数
       final playScore = playCount / maxPlayCount;
       final recencyScore = math.exp(-daysAgo / 7); // 使用指数衰减
-      
-      final score = (playScore * playCountWeight) + 
-                  (recencyScore * recencyWeight);
-                  
+
+      final score =
+          (playScore * playCountWeight) + (recencyScore * recencyWeight);
+
       return {
         'bvid': row['bvid'],
         'cid': row['cid'],
@@ -516,7 +515,8 @@ class CacheManager {
     }).toList();
 
     // 按分数升序排序(分数低的先删除)
-    files.sort((a, b) => (a['score'] as double).compareTo(b['score'] as double));
+    files
+        .sort((a, b) => (a['score'] as double).compareTo(b['score'] as double));
 
     // 删除文件直到缓存大小低于限制
     int removedSize = 0;
@@ -535,7 +535,7 @@ class CacheManager {
       }
 
       await db.delete(
-        tableName,
+        cacheTable,
         where: 'bvid = ? AND cid = ?',
         whereArgs: [file['bvid'], file['cid']],
       );
@@ -620,11 +620,17 @@ class CacheManager {
     _logger.info('cached ${bvids.length} collected fav list videos');
   }
 
-  static Future<List<String>> getCachedCollectedFavListVideo(int mid) async {
+  static Future<List<String>> getCachedCollectionBvids(int mid) async {
     final db = await database;
     final results = await db
         .query(collectedFavListVideoTable, where: 'mid = ?', whereArgs: [mid]);
     return results.map((row) => row['bvid'] as String).toList();
+  }
+
+  static Future<List<Meta>> getCachedCollectionMetas(int mid) async {
+    final bvids = await CacheManager.getCachedCollectionBvids(mid);
+    final metas = await CacheManager.getMetas(bvids);
+    return metas;
   }
 
   static Future<void> cacheFavDetail(int favId, List<Medias> medias) async {
@@ -719,10 +725,16 @@ class CacheManager {
     _logger.info('cached ${bvids.length} fav list videos');
   }
 
-  static Future<List<String>> getCachedFavListVideo(int mid) async {
+  static Future<List<String>> getCachedFavBvids(int mid) async {
     final db = await database;
     final results =
         await db.query(favListVideoTable, where: 'mid = ?', whereArgs: [mid]);
     return results.map((row) => row['bvid'] as String).toList();
+  }
+
+  static Future<List<Meta>> getCachedFavMetas(int mid) async {
+    final bvids = await CacheManager.getCachedFavBvids(mid);
+    final metas = await CacheManager.getMetas(bvids);
+    return metas;
   }
 }

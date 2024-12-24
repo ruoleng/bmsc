@@ -3,11 +3,10 @@ import 'package:bmsc/screen/about_screen.dart';
 import 'package:bmsc/screen/cache_screen.dart';
 import 'package:bmsc/screen/login_screen.dart';
 import 'package:bmsc/screen/playlist_search_screen.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
-import 'package:bmsc/globals.dart' as globals;
-import '../util/shared_preferences_service.dart';
+import '../service/shared_preferences_service.dart';
 import '../theme.dart';
-
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,8 +16,17 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _isLoggedIn = globals.api.uid != 0;
-  final String? _username = globals.api.username;
+  bool _isLoggedIn = false;
+  late final String? _username;
+
+  _SettingsScreenState() {
+    BilibiliService.instance.then((bs) {
+      setState(() {
+        _isLoggedIn = bs.myInfo != null && bs.myInfo!.mid != 0;
+        _username = bs.myInfo?.name;
+      });
+    });
+  }
 
   @override
   void initState() {
@@ -27,13 +35,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _logout() async {
     logger.info('user logout');
-    await globals.api.resetCookies();
-    globals.api.uid = 0;
-    globals.api.username = null;
+    final bs = await BilibiliService.instance;
+    await bs.logout();
     await CacheManager.cacheFavList([]);
-    final prefs = await SharedPreferencesService.instance;
-    await prefs.setInt('uid', 0);
-    await prefs.setString('username', '');
     if (mounted) {
       setState(() {
         _isLoggedIn = false;
@@ -135,10 +139,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             leading: const Icon(Icons.folder_outlined),
             onTap: () async {
-              var currentLimit = await SharedPreferencesService.getCacheLimitSize();
-              final controller = TextEditingController(
-                text: currentLimit.toString()
-              );
+              var currentLimit =
+                  await SharedPreferencesService.getCacheLimitSize();
+              final controller =
+                  TextEditingController(text: currentLimit.toString());
               if (!context.mounted) return;
               showDialog(
                 context: context,
@@ -170,7 +174,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         final newValue = int.tryParse(controller.text);
                         if (newValue != null) {
                           currentLimit = newValue;
-                          await SharedPreferencesService.setCacheLimitSize(currentLimit);
+                          await SharedPreferencesService.setCacheLimitSize(
+                              currentLimit);
                           if (context.mounted) {
                             Navigator.pop(context);
                             setState(() {});
@@ -195,17 +200,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-
           ListTile(
             title: const Text('主题模式'),
             leading: const Icon(Icons.palette),
-            subtitle: Text(
-              switch (ThemeProvider.instance.themeMode) {
-                ThemeMode.light => '浅色',
-                ThemeMode.dark => '深色',
-                ThemeMode.system => '跟随系统',
-              }
-            ),
+            subtitle: Text(switch (ThemeProvider.instance.themeMode) {
+              ThemeMode.light => '浅色',
+              ThemeMode.dark => '深色',
+              ThemeMode.system => '跟随系统',
+            }),
             onTap: () {
               showDialog(
                 context: context,
@@ -257,7 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
-           ListTile(
+          ListTile(
             title: const Text('评论字体大小'),
             subtitle: Text('${ThemeProvider.instance.commentFontSize}'),
             leading: const Icon(Icons.format_size),
@@ -272,12 +274,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       builder: (context, setState) => Column(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16.0),
                             child: Row(
                               children: [
-                                Text('12', 
+                                Text(
+                                  '12',
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.secondary,
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -295,9 +300,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     },
                                   ),
                                 ),
-                                Text('20',
+                                Text(
+                                  '20',
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.secondary,
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -410,7 +417,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-         
         ],
       ),
     );

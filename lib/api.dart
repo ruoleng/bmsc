@@ -22,7 +22,7 @@ import 'package:bmsc/model/playlist_data.dart';
 import 'package:bmsc/model/tag.dart';
 import 'package:bmsc/model/meta.dart';
 import 'model/entity.dart';
-import 'util/shared_preferences_service.dart';
+import 'service/shared_preferences_service.dart';
 
 class DurationState {
   const DurationState({
@@ -115,7 +115,9 @@ class API {
         if (state.playing == false) {
           return;
         }
+        _logger.info('processing state hijack dummy source for index: $index');
         await _hijackDummySource(index: index);
+        _logger.info('processing state hijack done');
       }
     });
     Rx.combineLatest2(
@@ -143,7 +145,10 @@ class API {
         final prefs = await SharedPreferencesService.instance;
         await prefs.setInt('currentIndex', index);
         if (player.playing) {
+          _logger
+              .info('currentIndexStream hijack dummy source for index: $index');
           await _hijackDummySource(index: index);
+          _logger.info('currentIndexStream hijack done');
         }
       }
     });
@@ -178,7 +183,8 @@ class API {
     if (extras['dummy'] != true) {
       if (extras['bvid'] != null && extras['cid'] != null) {
         await CacheManager.updatePlayStats(extras['bvid'], extras['cid']);
-        _logger.info('update play stats for bvid: ${extras['bvid']} cid: ${extras['cid']}');
+        _logger.info(
+            'update play stats for bvid: ${extras['bvid']} cid: ${extras['cid']}');
       }
       return;
     }
@@ -198,7 +204,8 @@ class API {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);
     }
     if (srcs == null) {
-      _logger.warning('No audio sources found for BVID: ${currentSource.tag.id}');
+      _logger
+          .warning('No audio sources found for BVID: ${currentSource.tag.id}');
       if (player.loopMode != LoopMode.one &&
           player.currentIndex != null &&
           player.currentIndex! < playlist.length - 1) {
@@ -219,7 +226,6 @@ class API {
       }
     });
     await player.play();
-    
   }
 
   Future<void> doAndSave(Future<void> Function() func) async {
@@ -312,7 +318,7 @@ class API {
   }
 
   Future<void> playFavList(int mid, {int index = 0}) async {
-    final bvids = await CacheManager.getCachedFavListVideo(mid);
+    final bvids = await CacheManager.getCachedFavBvids(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -320,7 +326,7 @@ class API {
   }
 
   Future<void> playCollectedFavList(int mid, {int index = 0}) async {
-    final bvids = await CacheManager.getCachedCollectedFavListVideo(mid);
+    final bvids = await CacheManager.getCachedCollectionBvids(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -328,7 +334,7 @@ class API {
   }
 
   Future<void> addFavListToPlaylist(int mid) async {
-    final bvids = await CacheManager.getCachedFavListVideo(mid);
+    final bvids = await CacheManager.getCachedFavBvids(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -336,7 +342,7 @@ class API {
   }
 
   Future<void> addCollectedFavListToPlaylist(int mid) async {
-    final bvids = await CacheManager.getCachedCollectedFavListVideo(mid);
+    final bvids = await CacheManager.getCachedCollectionBvids(mid);
     if (bvids.isEmpty) {
       return;
     }
@@ -594,13 +600,13 @@ class API {
   }
 
   Future<List<Meta>> getCachedFavListVideo(int mid) async {
-    final bvids = await CacheManager.getCachedFavListVideo(mid);
+    final bvids = await CacheManager.getCachedFavBvids(mid);
     final metas = await CacheManager.getMetas(bvids);
     return metas;
   }
 
   Future<List<Meta>> getCachedCollectedFavListVideo(int mid) async {
-    final bvids = await CacheManager.getCachedCollectedFavListVideo(mid);
+    final bvids = await CacheManager.getCachedCollectionBvids(mid);
     final metas = await CacheManager.getMetas(bvids);
     return metas;
   }
@@ -671,20 +677,20 @@ class API {
     return ret;
   }
 
-  Future<List<String>?> getFavBvids(int mid) async {
-    final response = await dio.get(
-        'https://api.bilibili.com/x/v3/fav/resource/ids',
-        queryParameters: {'media_id': mid});
-    _logger.info('called getFavBvids with url: ${response.requestOptions.uri}');
-    if (response.data['code'] != 0) {
-      return null;
-    }
-    List<String> ret = [];
-    for (final x in response.data['data']) {
-      ret.add(x['bv_id']);
-    }
-    return ret;
-  }
+  // Future<List<String>?> getFavBvids(int mid) async {
+  //   final response = await dio.get(
+  //       'https://api.bilibili.com/x/v3/fav/resource/ids',
+  //       queryParameters: {'media_id': mid});
+  //   _logger.info('called getFavBvids with url: ${response.requestOptions.uri}');
+  //   if (response.data['code'] != 0) {
+  //     return null;
+  //   }
+  //   List<String> ret = [];
+  //   for (final x in response.data['data']) {
+  //     ret.add(x['bv_id']);
+  //   }
+  //   return ret;
+  // }
 
   Future<SearchResult?> search(String value, int pn) async {
     try {

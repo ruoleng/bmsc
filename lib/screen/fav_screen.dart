@@ -1,9 +1,10 @@
+import 'package:bmsc/cache_manager.dart';
 import 'package:bmsc/model/fav.dart';
+import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
-import '../globals.dart' as globals;
-import '../util/shared_preferences_service.dart';
+import '../service/shared_preferences_service.dart';
 import 'fav_detail_screen.dart';
-import 'package:bmsc/cache_manager.dart' as cache_manager;
 import 'recommendation_screen.dart';
 import 'package:bmsc/util/logger.dart';
 
@@ -27,9 +28,9 @@ class FavScreenState extends State<FavScreen> {
   void initState() {
     super.initState();
     widget.onInit?.call(this);
-    globals.api.getStoredUID().then((uid) {
+    BilibiliService.instance.then((x) {
       setState(() {
-        signedin = uid != 0 && uid != null;
+        signedin = x.myInfo?.mid != null && x.myInfo?.mid != 0;
       });
       if (signedin) {
         loadFavorites(local: true);
@@ -46,9 +47,8 @@ class FavScreenState extends State<FavScreen> {
     if (!mounted || !signedin) return;
 
     if (local) {
-      var cachedFavs = await cache_manager.CacheManager.getCachedFavList();
-      var cachedCollectedFavs =
-          await cache_manager.CacheManager.getCachedCollectedFavList();
+      var cachedFavs = await CacheManager.getCachedFavList();
+      var cachedCollectedFavs = await CacheManager.getCachedCollectedFavList();
 
       if (cachedFavs.isNotEmpty || cachedCollectedFavs.isNotEmpty) {
         if (!mounted) return;
@@ -61,16 +61,16 @@ class FavScreenState extends State<FavScreen> {
       logger.info(
           'got ${cachedFavs.length} cached favs and ${cachedCollectedFavs.length} collected favs');
     } else {
-      globals.api.getStoredUID().then((uid) async {
+      BilibiliService.instance.then((x) async {
         if (!mounted) return;
-        if (uid == null) {
+        final uid = x.myInfo?.mid;
+        if (uid == null || uid == 0) {
           return;
         }
 
         try {
-          final ret = (await globals.api.getFavs(uid)) ?? [];
-          final collectedRet =
-              (await globals.api.getCollectedFavList(uid)) ?? [];
+          final ret = (await x.getFavs(uid)) ?? [];
+          final collectedRet = (await x.getCollection(uid)) ?? [];
 
           if (ret.isNotEmpty || collectedRet.isNotEmpty) {
             if (!mounted) return;
@@ -101,7 +101,7 @@ class FavScreenState extends State<FavScreen> {
     final nameController = TextEditingController();
     bool isPrivate = false;
 
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showDialog<(String, bool)>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -141,10 +141,10 @@ class FavScreenState extends State<FavScreen> {
                   );
                   return;
                 }
-                Navigator.pop(context, {
-                  'name': nameController.text.trim(),
-                  'privacy': isPrivate,
-                });
+                Navigator.pop(context, (
+                  nameController.text.trim(),
+                  isPrivate,
+                ));
               },
               child: const Text('创建'),
             ),
@@ -154,10 +154,11 @@ class FavScreenState extends State<FavScreen> {
     );
 
     if (result != null) {
-      final folderId = await globals.api.createFavFolder(
-        result['name'],
-        privacy: result['privacy'],
-      );
+      final folderId =
+          await BilibiliService.instance.then((x) => x.createFavFolder(
+                result.$1,
+                hide: result.$2,
+              ));
 
       if (folderId != null) {
         if (mounted) {
@@ -179,7 +180,7 @@ class FavScreenState extends State<FavScreen> {
   Future<void> _showEditFolderDialog(Fav fav) async {
     final nameController = TextEditingController(text: fav.title);
 
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -209,9 +210,7 @@ class FavScreenState extends State<FavScreen> {
                   );
                   return;
                 }
-                Navigator.pop(context, {
-                  'name': nameController.text.trim(),
-                });
+                Navigator.pop(context, nameController.text.trim());
               },
               child: const Text('保存'),
             ),
@@ -221,10 +220,11 @@ class FavScreenState extends State<FavScreen> {
     );
 
     if (result != null) {
-      final success = await globals.api.editFavFolder(
-        fav.id,
-        result['name'],
-      );
+      final success =
+          await BilibiliService.instance.then((x) => x.editFavFolder(
+                fav.id,
+                result,
+              ));
 
       if (success == true) {
         if (mounted) {
@@ -266,7 +266,8 @@ class FavScreenState extends State<FavScreen> {
     );
 
     if (confirmed == true) {
-      final success = await globals.api.deleteFavFolder(fav.id);
+      final success =
+          await BilibiliService.instance.then((x) => x.deleteFavFolder(fav.id));
       if (success == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -338,8 +339,7 @@ class FavScreenState extends State<FavScreen> {
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 24.0,
                             ),
-                            leading: const Icon(Icons.star,
-                                color: Colors.orange),
+                            leading: const Icon(Icons.star_border),
                             title: const Text('每日推荐',
                                 style: TextStyle(fontWeight: FontWeight.w500)),
                             subtitle: const Text('基于收藏夹的推荐'),
@@ -441,8 +441,10 @@ class FavScreenState extends State<FavScreen> {
                                       title: const Text('添加到播放列表'),
                                       onTap: () async {
                                         Navigator.pop(context);
-                                        await globals.api
-                                            .addFavListToPlaylist(fav.id);
+                                        final bvids = await CacheManager
+                                            .getCachedFavBvids(fav.id);
+                                        await AudioService.instance
+                                            .then((x) => x.playByBvids(bvids));
                                       },
                                     ),
                                     ListTile(
@@ -450,8 +452,9 @@ class FavScreenState extends State<FavScreen> {
                                       title: const Text('设为默认收藏夹'),
                                       onTap: () async {
                                         Navigator.pop(context);
-                                        await globals.api.setDefaultFavFolder(
-                                            fav.id, fav.title);
+                                        await SharedPreferencesService
+                                            .setDefaultFavFolder(
+                                                fav.id, fav.title);
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(

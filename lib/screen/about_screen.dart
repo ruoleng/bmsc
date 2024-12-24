@@ -97,14 +97,14 @@ class _AboutScreenState extends State<AboutScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '当前版本: $version',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  version,
+                  style: Theme.of(context).textTheme.labelMedium,
                 ),
                 if (hasNewVersion) ...[
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     icon: const Icon(Icons.system_update),
-                    label: const Text('有新版本可用'),
+                    label: const Text('新版本'),
                     onPressed: () {
                       if (releases != null) {
                         showUpdateDialog(context, releases!, version);

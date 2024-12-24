@@ -2,7 +2,7 @@ import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 
-import 'shared_preferences_service.dart';
+import '../service/shared_preferences_service.dart';
 
 class LoggerUtils {
   static const String _loggingEnabledKey = 'logging_enabled';

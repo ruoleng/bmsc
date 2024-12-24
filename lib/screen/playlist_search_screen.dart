@@ -1,10 +1,11 @@
 import 'dart:io';
+import 'package:bmsc/api/music_provider.dart';
 import 'package:bmsc/component/select_favlist_dialog.dart';
 import 'package:bmsc/model/fav.dart';
+import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../globals.dart' as globals;
 import '../model/search.dart';
 import '../util/string.dart';
 import 'dart:math';
@@ -527,11 +528,12 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     for (var i = 0; i < foundTracks.length; i++) {
       await _waitForSavingPause();
       final track = foundTracks[i];
-      final success = await globals.api.favoriteVideo(
-        track['aid'],
-        [folder.id],
-        [],
-      );
+      final success =
+          await BilibiliService.instance.then((x) => x.favoriteVideo(
+                track['aid'],
+                [folder.id],
+                [],
+              ));
       if (success == null) {
         showErrorSnackBar("收藏失败，已暂停");
         --i;
@@ -664,7 +666,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
       if (line.startsWith('netease:')) {
         final playlistId = line.split(':')[1].trim();
         _logger.info('Fetching Netease playlist: $playlistId');
-        final tracks = await globals.api.fetchNeteasePlaylistTracks(playlistId);
+        final tracks =
+            await MusicProvider.fetchNeteasePlaylistTracks(playlistId);
         if (tracks == null) {
           _logger.warning('Failed to fetch Netease playlist: $playlistId');
           showErrorSnackBar("获取歌单 netease:$playlistId 失败");
@@ -677,7 +680,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
         appendTracks.addAll(tracks);
       } else if (line.startsWith('tencent:')) {
         final playlistId = line.split(':')[1].trim();
-        final tracks = await globals.api.fetchTencentPlaylistTracks(playlistId);
+        final tracks =
+            await MusicProvider.fetchTencentPlaylistTracks(playlistId);
         if (tracks == null) {
           showErrorSnackBar("获取歌单 tencent:$playlistId 失败");
           continue;
@@ -688,7 +692,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
         appendTracks.addAll(tracks);
       } else if (line.startsWith('kugou:')) {
         final playlistId = line.split(':')[1].trim();
-        final tracks = await globals.api.fetchKuGouPlaylistTracks(playlistId);
+        final tracks = await MusicProvider.fetchKuGouPlaylistTracks(playlistId);
         if (tracks == null) {
           showErrorSnackBar("获取歌单 kugou:$playlistId 失败");
           continue;
@@ -851,7 +855,8 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
     final searchString = '$track - $artist';
     _logger.info('Searching for: $searchString (duration: ${duration}s)');
 
-    final searchResult = await globals.api.search(searchString, 1);
+    final searchResult =
+        await BilibiliService.instance.then((x) => x.search(searchString, 1));
     if (searchResult == null) {
       _logger.warning('Search API returned null for: $searchString');
       return [];
