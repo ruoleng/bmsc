@@ -12,6 +12,7 @@ import '../component/playing_card.dart';
 import '../util/widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:bmsc/screen/comment_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 class DetailScreen extends StatefulWidget {
   const DetailScreen({super.key});
@@ -103,6 +104,36 @@ class _DetailScreenState extends State<DetailScreen> {
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: const Text('正在播放'),
+          actions: [
+            FutureBuilder<AudioService>(
+                future: AudioService.instance,
+                builder: (_, snapshot) {
+                  final audioService = snapshot.data;
+                  if (audioService == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return StreamBuilder<SequenceState?>(
+                      stream: audioService.player.sequenceStateStream,
+                      builder: (context, snapshot) {
+                        final src = snapshot.data?.currentSource;
+                        return IconButton(
+                          icon: const Icon(Icons.share),
+                          onPressed: src == null
+                              ? null
+                              : () {
+                                  final bvid = src.tag.extras['bvid'];
+                                  final title = src.tag.title;
+                                  final url =
+                                      'https://www.bilibili.com/video/$bvid';
+                                  Share.share(
+                                    '$title\n$url',
+                                    subject: title,
+                                  );
+                                },
+                        );
+                      });
+                }),
+          ],
         ),
         body: FutureBuilder<AudioService>(
             future: AudioService.instance,
@@ -232,7 +263,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               Icons.repeat_one,
                               Icons.shuffle,
                             ];
-                            final labels = ["顺序播放", "歌单循环", "单曲循环", "随机播放"];
+                            final labels = ["顺序播放", "歌单循环", "单曲循环", "随���播放"];
                             final index = shuffleModeEnabled
                                 ? 3
                                 : LoopMode.values.indexOf(loopMode);

@@ -5,7 +5,6 @@ import 'package:bmsc/component/playing_card.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import '../component/track_tile.dart';
 import '../model/meta.dart';
 import '../util/logger.dart';

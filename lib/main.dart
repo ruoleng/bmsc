@@ -143,6 +143,12 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     VidResult? vidDetail = await getVidDetailFromUrl(text);
     if (vidDetail == null) return;
 
+    final as = await AudioService.instance;
+    if (as.player.sequenceState?.currentSource?.tag.extras['bvid'] == vidDetail.bvid) {
+      _logger.info('clipboard detected, but already playing');
+      return;
+    }
+
     int min = vidDetail.duration ~/ 60;
     int sec = vidDetail.duration % 60;
     final duration = "$min:${sec.toString().padLeft(2, '0')}";

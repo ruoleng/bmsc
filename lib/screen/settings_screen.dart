@@ -137,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 return Text('$limit MB');
               },
             ),
-            leading: const Icon(Icons.folder_outlined),
+            leading: const Icon(Icons.folder),
             onTap: () async {
               var currentLimit =
                   await SharedPreferencesService.getCacheLimitSize();
@@ -362,9 +362,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SizedBox();
                 return SwitchListTile(
-                  title: const Text('从剪贴板读取链接'),
+                  title: const Text('读取剪贴板'),
                   secondary: const Icon(Icons.content_paste),
-                  subtitle: const Text('自动读取剪贴板中的链接'),
+                  subtitle: const Text('自动提取剪贴板中的链接'),
                   value: snapshot.data!,
                   onChanged: (bool value) async {
                     await SharedPreferencesService.setReadFromClipboard(value);

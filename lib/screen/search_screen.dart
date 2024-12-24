@@ -85,7 +85,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _checkClipboard() async {
-    if (!(await SharedPreferencesService.getReadFromClipboard())) return;
+    if (!(await SharedPreferencesService.getReadFromClipboard())) {
+      final has = await Clipboard.hasStrings();
+      if (has) {
+        setState(() {
+          _clipboardUrl = "";
+        });
+      }
+      return;
+    }
     final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
     if (clipboardData?.text == null) return;
 
@@ -205,9 +213,26 @@ class _SearchScreenState extends State<SearchScreen> {
         if (_clipboardUrl != null && index == 0) {
           return ListTile(
             leading: const Icon(Icons.link),
-            title: Text(_clipboardUrl!),
-            subtitle: const Text('从剪贴板'),
-            onTap: () {
+            title: Text(_clipboardUrl!.isEmpty ? '从剪贴板' : _clipboardUrl!),
+            subtitle: _clipboardUrl!.isEmpty ? null : const Text('从剪贴板'),
+            onTap: () async {
+              if (_clipboardUrl!.isEmpty) {
+                _clipboardUrl = (await Clipboard.getData(Clipboard.kTextPlain))
+                    ?.text;
+                if (_clipboardUrl!.isEmpty) return;
+                final vid = extractBiliUrl(_clipboardUrl!);
+                if (vid == null) {
+                  setState(() {
+                    _clipboardUrl = "未找到视频";
+                  });
+                return;
+                } else {
+                  setState(() {
+                    _clipboardUrl = vid;
+                  });
+                  fieldTextController.text = vid;
+                }
+              }
               _focusNode.unfocus();
               fieldTextController.text = _clipboardUrl!;
               onSearching(null, fromClipboard: true);
