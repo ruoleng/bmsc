@@ -131,7 +131,7 @@ class AudioService {
           .getAudioSources(currentSource.tag.id);
     } catch (e) {
       _logger.warning('Failed to get audio sources: $e');
-      srcs = await DatabaseManager.getCachedAudioList(currentSource.tag.id);
+      srcs = await DatabaseManager.getLocalAudioList(currentSource.tag.id);
     }
     final excludedCids =
         await DatabaseManager.getExcludedParts(currentSource.tag.id);
@@ -150,15 +150,8 @@ class AudioService {
       return;
     }
     await doAndSavePlaylist(() async {
-      // final shuffleModeEnabled = player.shuffleModeEnabled;
-      // if (shuffleModeEnabled) {
-      //   await player.setShuffleModeEnabled(false);
-      // }
       await playlist.insertAll(index! + 1, srcs!);
       await playlist.removeAt(index);
-      // if (shuffleModeEnabled) {
-      //   await player.setShuffleModeEnabled(true);
-      // }
     });
     await player.play();
   }
@@ -211,9 +204,9 @@ class AudioService {
     _logger.info('playByBvids done');
   }
 
-  Future<void> playCachedAudio(String bvid, int cid) async {
+  Future<void> playLocalAudio(String bvid, int cid) async {
     await player.pause();
-    final cachedSource = await DatabaseManager.getCachedAudio(bvid, cid);
+    final cachedSource = await DatabaseManager.getLocalAudio(bvid, cid);
     if (cachedSource == null) {
       return;
     }
@@ -227,7 +220,7 @@ class AudioService {
   }
 
   Future<void> addToPlaylistCachedAudio(String bvid, int cid) async {
-    final cachedSource = await DatabaseManager.getCachedAudio(bvid, cid);
+    final cachedSource = await DatabaseManager.getLocalAudio(bvid, cid);
     if (cachedSource == null) {
       return;
     }
@@ -251,7 +244,7 @@ class AudioService {
 
   Future<void> appendCachedPlaylist(String bvid,
       {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
-    final srcs = await DatabaseManager.getCachedAudioList(bvid);
+    final srcs = await DatabaseManager.getLocalAudioList(bvid);
     final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);

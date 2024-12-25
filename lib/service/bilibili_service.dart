@@ -16,6 +16,7 @@ import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
 import '../model/meta.dart';
@@ -230,15 +231,10 @@ class BilibiliService {
       return null;
     }
     return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
-      final cachedSource = await DatabaseManager.getCachedAudio(bvid, x.cid);
+      final cachedSource = await DatabaseManager.getLocalAudio(bvid, x.cid);
       if (cachedSource != null) {
         return cachedSource;
       }
-      final audios = await getAudio(bvid, x.cid);
-      if (audios == null || audios.isEmpty) {
-        return null;
-      }
-      final firstAudio = audios[0];
       final tag = MediaItem(
           id: '${bvid}_${x.cid}',
           title: vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
@@ -253,6 +249,12 @@ class BilibiliService {
             'raw_title': vid.title,
             'multi': vid.pages.length > 1,
           });
+      final audios = await getAudio(bvid, x.cid);
+      _logger.info('audios: $audios');
+      if (audios == null || audios.isEmpty) {
+        return null;
+      }
+      final firstAudio = audios[0];
       return LazyAudioSource.create(
           bvid, x.cid, Uri.parse(firstAudio.baseUrl), tag);
     })))

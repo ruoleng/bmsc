@@ -379,11 +379,13 @@ class _CacheScreenState extends State<CacheScreen> {
                           view: DateTime.fromMillisecondsSinceEpoch(
                             file['createdAt'],
                           ).toString().substring(0, 19),
-                          selected: selectedItems.contains(id),
+                          color: isSelectionMode && selectedItems.contains(id)
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : null,
                           onTap: isSelectionMode
                               ? () => _toggleItemSelection(id)
                               : () => AudioService.instance.then((x) =>
-                                  x.playCachedAudio(file['bvid'], file['cid'])),
+                                  x.playLocalAudio(file['bvid'], file['cid'])),
                           onAddToPlaylistButtonPressed: () => AudioService
                               .instance
                               .then((x) => x.addToPlaylistCachedAudio(

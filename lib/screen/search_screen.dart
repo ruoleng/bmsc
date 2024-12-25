@@ -1,6 +1,8 @@
+import 'package:bmsc/component/download_parts_dialog.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
+import 'package:bmsc/service/download_manager.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
@@ -198,6 +200,22 @@ class _SearchScreenState extends State<SearchScreen> {
                                 UserDetailScreen(mid: vid.mid)));
                   },
                 ),
+                ListTile(
+                  leading: const Icon(Icons.download),
+                  title: const Text('下载'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) => DownloadPartsDialog(
+                        bvid: vid.bvid,
+                        title: vid.title,
+                      ),
+                    ).then((_) {
+                      setState(() {});
+                    });
+                  },
+                ),
               ],
             ),
           ),
@@ -217,15 +235,15 @@ class _SearchScreenState extends State<SearchScreen> {
             subtitle: _clipboardUrl!.isEmpty ? null : const Text('从剪贴板'),
             onTap: () async {
               if (_clipboardUrl!.isEmpty) {
-                _clipboardUrl = (await Clipboard.getData(Clipboard.kTextPlain))
-                    ?.text;
+                _clipboardUrl =
+                    (await Clipboard.getData(Clipboard.kTextPlain))?.text;
                 if (_clipboardUrl!.isEmpty) return;
                 final vid = extractBiliUrl(_clipboardUrl!);
                 if (vid == null) {
                   setState(() {
                     _clipboardUrl = "未找到视频";
                   });
-                return;
+                  return;
                 } else {
                   setState(() {
                     _clipboardUrl = vid;

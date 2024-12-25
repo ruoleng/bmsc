@@ -151,8 +151,8 @@ class PlayingCard extends StatelessWidget {
                                   IconButton(
                                     icon: const Icon(Icons.skip_previous),
                                     style: const ButtonStyle(
-                                      tapTargetSize: MaterialTapTargetSize
-                                          .shrinkWrap,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     onPressed: player.hasPrevious
                                         ? player.seekToPrevious
@@ -191,8 +191,8 @@ class PlayingCard extends StatelessWidget {
                                   IconButton(
                                     icon: const Icon(Icons.skip_next),
                                     style: const ButtonStyle(
-                                      tapTargetSize: MaterialTapTargetSize
-                                          .shrinkWrap,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     onPressed: player.hasNext
                                         ? player.seekToNext
@@ -202,8 +202,8 @@ class PlayingCard extends StatelessWidget {
                                   IconButton(
                                     icon: const Icon(Icons.queue_music),
                                     style: const ButtonStyle(
-                                      tapTargetSize: MaterialTapTargetSize
-                                          .shrinkWrap,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     onPressed: () {
                                       showModalBottomSheet(

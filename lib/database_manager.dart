@@ -21,6 +21,7 @@ const String _dbName = 'AudioCache.db';
 class DatabaseManager {
   static Database? _database;
   static const String cacheTable = 'audio_cache';
+  static const String downloadTable = 'audio_download';
   static const String metaTable = 'meta_cache';
   static const String favListVideoTable = 'fav_list_video';
   static const String collectedFavListVideoTable = 'collected_fav_list_video';
@@ -41,7 +42,7 @@ class DatabaseManager {
     try {
       final db = await openDatabase(
         path,
-        version: 2,
+        version: 3,
         onCreate: (db, version) async {
           _logger.info('Creating new database tables...');
           await db.execute('''
@@ -136,11 +137,31 @@ class DatabaseManager {
             PRIMARY KEY (bvid, mid)
           )
         ''');
+
+          await db.execute('''
+          CREATE TABLE IF NOT EXISTS $downloadTable (
+            bvid TEXT,
+            cid INTEGER,
+            filePath TEXT,
+            PRIMARY KEY (bvid, cid)
+          )
+        ''');
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           _logger.info('Upgrading database from v$oldVersion to v$newVersion');
 
-          if (oldVersion == 1) {
+          if (oldVersion <= 2) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS $downloadTable (
+                bvid TEXT,
+                cid INTEGER,
+                filePath TEXT,
+                PRIMARY KEY (bvid, cid)
+              )
+            ''');
+          }
+
+          if (oldVersion <= 1) {
             await db.transaction((txn) async {
               await txn.execute('''
                 CREATE TABLE ${cacheTable}_new (
@@ -307,6 +328,18 @@ class DatabaseManager {
     _logger.info('cached ${data.length} entities');
   }
 
+  static Future<Entity?> getEntity(String bvid, int cid) async {
+    final db = await database;
+    final results = await db.query(
+      entityTable,
+      where: 'bvid = ? AND cid = ?',
+      whereArgs: [bvid, cid],
+    );
+    return results.firstOrNull != null
+        ? Entity.fromJson(results.firstOrNull!)
+        : null;
+  }
+
   static Future<List<Entity>> getEntities(String bvid) async {
     final db = await database;
     final results = await db.query(
@@ -320,12 +353,20 @@ class DatabaseManager {
 
   static Future<int> cachedCount(String bvid) async {
     final db = await database;
-    final results = await db.query(
-      cacheTable,
-      where: "bvid = ?",
-      whereArgs: [bvid],
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM $cacheTable WHERE bvid = ?',
+      [bvid],
     );
-    return results.length;
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  static Future<int> downloadedCount(String bvid) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM $downloadTable WHERE bvid = ?',
+      [bvid],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   static Future<bool> isCached(String bvid, int cid) async {
@@ -338,18 +379,26 @@ class DatabaseManager {
     return results.isNotEmpty;
   }
 
-  static Future<List<UriAudioSource>?> getCachedAudioList(String bvid) async {
+  static Future<List<UriAudioSource>?> getLocalAudioList(String bvid) async {
     final meta = await getMeta(bvid);
     if (meta == null) {
       return null;
     }
 
     final db = await database;
-    final results = await db.query(
-      cacheTable,
+    var results = await db.query(
+      downloadTable,
       where: "bvid = ?",
       whereArgs: [bvid],
     );
+
+    if (results.isEmpty) {
+      results = await db.query(
+        cacheTable,
+        where: "bvid = ?",
+        whereArgs: [bvid],
+      );
+    }
 
     if (results.isNotEmpty) {
       final entities = await getEntities(bvid);
@@ -378,19 +427,29 @@ class DatabaseManager {
     return null;
   }
 
-  static Future<LazyAudioSource?> getCachedAudio(String bvid, int cid) async {
-    _logger.info('Fetching cached audio for bvid: $bvid, cid: $cid');
+  static Future<LazyAudioSource?> getLocalAudio(String bvid, int cid) async {
+    _logger.info('Fetching local audio for bvid: $bvid, cid: $cid');
     try {
       final meta = await getMeta(bvid);
       if (meta == null) {
         return null;
       }
       final db = await database;
-      final results = await db.query(
-        cacheTable,
+      var results = await db.query(
+        downloadTable,
         where: "bvid = ? AND cid = ?",
         whereArgs: [bvid, cid],
       );
+
+      _logger.info('get local audio results: $results');
+
+      if (results.isEmpty) {
+        results = await db.query(
+          cacheTable,
+          where: "bvid = ? AND cid = ?",
+          whereArgs: [bvid, cid],
+        );
+      }
 
       if (results.isNotEmpty) {
         _logger.info('Found cached audio for bvid: $bvid, cid: $cid');
@@ -412,7 +471,7 @@ class DatabaseManager {
               'raw_title': entity.bvidTitle,
               'cached': true
             });
-        return LazyAudioSource.create(bvid, cid, Uri.parse(filePath), tag);
+        return LazyAudioSource.file(bvid, cid, filePath, tag);
       } else {
         _logger.info('No cached audio found for bvid: $bvid, cid: $cid');
       }
@@ -514,11 +573,9 @@ class DatabaseManager {
       };
     }).toList();
 
-    // 按分数升序排序(分数低的先删除)
     files
         .sort((a, b) => (a['score'] as double).compareTo(b['score'] as double));
 
-    // 删除文件直到缓存大小低于限制
     int removedSize = 0;
     for (var file in files) {
       if (ignoreFile != null && file['filePath'] == ignoreFile.path) {
@@ -736,5 +793,62 @@ class DatabaseManager {
     final bvids = await DatabaseManager.getCachedFavBvids(mid);
     final metas = await DatabaseManager.getMetas(bvids);
     return metas;
+  }
+
+  static Future<void> removeDownloaded(List<(String, int)> bvidscids) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var (bvid, cid) in bvidscids) {
+      batch.delete(downloadTable,
+          where: 'bvid = ? AND cid = ?', whereArgs: [bvid, cid]);
+    }
+    await batch.commit();
+  }
+
+  static Future<List<int>> getDownloadedParts(String bvid) async {
+    final db = await database;
+    final results = await db.query(
+      downloadTable,
+      where: 'bvid = ?',
+      whereArgs: [bvid],
+    );
+    _logger.info('getDownloadedParts $bvid ${results.length}');
+    return results.map((e) => e['cid'] as int).toList();
+  }
+
+  static Future<void> saveDownload(
+      String bvid, int cid, String filePath) async {
+    final db = await database;
+    await db.insert(
+      downloadTable,
+      {
+        'bvid': bvid,
+        'cid': cid,
+        'filePath': filePath,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    _logger.info('saved download $bvid $cid $filePath');
+  }
+
+  static Future<String?> getDownloadPath(String bvid, int cid) async {
+    final db = await database;
+    final result = await db.query(
+      downloadTable,
+      columns: ['filePath'],
+      where: 'bvid = ? AND cid = ?',
+      whereArgs: [bvid, cid],
+    );
+
+    if (result.isNotEmpty) {
+      return result.first['filePath'] as String;
+    }
+    return null;
+  }
+
+  static Future<bool> isDownloaded(String bvid, int cid) async {
+    final path = await getDownloadPath(bvid, cid);
+    if (path == null) return false;
+    return File(path).exists();
   }
 }

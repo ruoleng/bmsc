@@ -1,6 +1,8 @@
+import 'package:bmsc/component/download_parts_dialog.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
+import 'package:bmsc/service/download_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/model/fav.dart';
 import '../component/track_tile.dart';
@@ -27,6 +29,8 @@ class FavDetailScreen extends StatefulWidget {
 class _FavDetailScreenState extends State<FavDetailScreen> {
   List<Meta> favInfo = [];
   bool isLoading = false;
+  bool isSelectionMode = false;
+  Set<String> selectedItems = {};
   static final _logger = LoggerUtils.getLogger('FavDetailScreen');
 
   @override
@@ -91,11 +95,86 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
     await loadMetas();
   }
 
+  void toggleSelectionMode() {
+    setState(() {
+      isSelectionMode = !isSelectionMode;
+      if (!isSelectionMode) {
+        selectedItems.clear();
+      }
+    });
+  }
+
+  void _toggleItemSelection(String id) {
+    setState(() {
+      if (selectedItems.contains(id)) {
+        selectedItems.remove(id);
+        _logger.info('Unselected item $id');
+      } else {
+        selectedItems.add(id);
+        _logger.info('Selected item $id');
+      }
+
+      if (selectedItems.isEmpty) {
+        isSelectionMode = false;
+      } else {
+        isSelectionMode = true;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.fav.title),
+        leading: isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => toggleSelectionMode(),
+              )
+            : null,
+        actions: [
+          if (isSelectionMode)
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: () async {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('下载'),
+                    content: Text('是否要下载${selectedItems.length}个视频？'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('取消'),
+                      ),
+                      FilledButton(
+                        onPressed: () async {
+                          Navigator.pop(context, true);
+                        },
+                        child: const Text('下载'),
+                      ),
+                    ],
+                  ),
+                ).then((value) async {
+                  if (value == true) {
+                    final dm = await DownloadManager.instance;
+                    await dm.addBvidTasks(selectedItems.toList());
+
+                    if (!context.mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('已添加 ${selectedItems.length} 个下载任务'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                    toggleSelectionMode();
+                  }
+                });
+              },
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
@@ -114,14 +193,17 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
     int sec = favInfo[index].duration % 60;
     final duration = "$min:${sec.toString().padLeft(2, '0')}";
 
-    return FutureBuilder<(List<int>, int)>(
+    return FutureBuilder<(List<int>, int, int)>(
         future: Future.wait([
           DatabaseManager.getExcludedParts(favInfo[index].bvid),
           DatabaseManager.cachedCount(favInfo[index].bvid),
-        ]).then((results) => (results[0] as List<int>, results[1] as int)),
+          DatabaseManager.downloadedCount(favInfo[index].bvid),
+        ]).then((results) =>
+            (results[0] as List<int>, results[1] as int, results[2] as int)),
         builder: (context, snapshot) {
           final excludedCount = snapshot.data?.$1.length ?? 0;
           final cachedCount = snapshot.data?.$2 ?? 0;
+          final downloadedCount = snapshot.data?.$3 ?? 0;
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -133,21 +215,34 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
               title: favInfo[index].title,
               author: favInfo[index].artist,
               len: duration,
-              cachedCount: cachedCount,
-              onTap: () async {
-                try {
-                  _logger.info(
-                      'Playing fav list ${widget.fav.id} from index $index');
-                  final bvids = widget.isCollected
-                      ? await DatabaseManager.getCachedCollectionBvids(
-                          widget.fav.id)
-                      : await DatabaseManager.getCachedFavBvids(widget.fav.id);
-                  await AudioService.instance
-                      .then((x) => x.playByBvids(bvids, index: index));
-                } catch (e, stackTrace) {
-                  _logger.severe('Error playing fav list', e, stackTrace);
-                }
-              },
+              cached: cachedCount > 0,
+              downloaded: downloadedCount > 0,
+              color: isSelectionMode
+                  ? selectedItems.contains(favInfo[index].bvid)
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withOpacity(0.7)
+                      : Theme.of(context).colorScheme.surfaceContainerLow
+                  : null,
+              onPicTap: () => _toggleItemSelection(favInfo[index].bvid),
+              onTap: isSelectionMode
+                  ? () => _toggleItemSelection(favInfo[index].bvid)
+                  : () async {
+                      try {
+                        _logger.info(
+                            'Playing fav list ${widget.fav.id} from index $index');
+                        final bvids = widget.isCollected
+                            ? await DatabaseManager.getCachedCollectionBvids(
+                                widget.fav.id)
+                            : await DatabaseManager.getCachedFavBvids(
+                                widget.fav.id);
+                        await AudioService.instance
+                            .then((x) => x.playByBvids(bvids, index: index));
+                      } catch (e, stackTrace) {
+                        _logger.severe('Error playing fav list', e, stackTrace);
+                      }
+                    },
               onAddToPlaylistButtonPressed: () async {
                 try {
                   _logger.info('Adding ${favInfo[index].bvid} to playlist');
@@ -164,80 +259,98 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                       .then((x) => x.appendCachedPlaylist(favInfo[index].bvid));
                 }
               },
-              onLongPress: () async {
-                if (!context.mounted) return;
-                showDialog(
-                  context: context,
-                  builder: (dialogContext) => AlertDialog(
-                    title: const Text('选择操作'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.person),
-                          title: const Text('查看 UP 主'),
-                          onTap: () {
-                            Navigator.pop(dialogContext);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => UserDetailScreen(
-                                  mid: favInfo[index].mid,
-                                ),
+              onLongPress: isSelectionMode
+                  ? null
+                  : () async {
+                      if (!context.mounted) return;
+                      showDialog(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('选择操作'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.person),
+                                title: const Text('查看 UP 主'),
+                                onTap: () {
+                                  Navigator.pop(dialogContext);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => UserDetailScreen(
+                                        mid: favInfo[index].mid,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.playlist_remove),
-                          title: const Text('管理分P'),
-                          onTap: () {
-                            Navigator.pop(dialogContext);
-                            showDialog(
-                              context: context,
-                              builder: (context) => ExcludedPartsDialog(
-                                bvid: favInfo[index].bvid,
-                                title: favInfo[index].title,
+                              ListTile(
+                                leading: const Icon(Icons.playlist_remove),
+                                title: const Text('屏蔽分 P'),
+                                onTap: () {
+                                  Navigator.pop(dialogContext);
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => ExcludedPartsDialog(
+                                      bvid: favInfo[index].bvid,
+                                      title: favInfo[index].title,
+                                    ),
+                                  ).then((_) {
+                                    setState(() {});
+                                  });
+                                },
                               ),
-                            ).then((_) {
-                              setState(() {});
-                            });
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.delete),
-                          title: const Text('取消收藏'),
-                          onTap: () async {
-                            Navigator.pop(dialogContext);
-                            final success = await BilibiliService.instance
-                                    .then((x) => x.favoriteVideo(
-                                          favInfo[index].aid,
-                                          [],
-                                          [widget.fav.id],
-                                        )) ??
-                                false;
+                              ListTile(
+                                leading: const Icon(Icons.delete),
+                                title: const Text('取消收藏'),
+                                onTap: () async {
+                                  Navigator.pop(dialogContext);
+                                  final success = await BilibiliService.instance
+                                          .then((x) => x.favoriteVideo(
+                                                favInfo[index].aid,
+                                                [],
+                                                [widget.fav.id],
+                                              )) ??
+                                      false;
 
-                            if (!context.mounted) return;
+                                  if (!context.mounted) return;
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(success ? '已取消收藏' : '操作失败'),
-                                duration: const Duration(seconds: 2),
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(success ? '已取消收藏' : '操作失败'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+
+                                  if (success) {
+                                    setState(() {
+                                      favInfo.removeAt(index);
+                                    });
+                                  }
+                                },
                               ),
-                            );
-
-                            if (success) {
-                              setState(() {
-                                favInfo.removeAt(index);
-                              });
-                            }
-                          },
+                              ListTile(
+                                leading: const Icon(Icons.download),
+                                title: const Text('下载'),
+                                onTap: () {
+                                  Navigator.pop(dialogContext);
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => DownloadPartsDialog(
+                                      bvid: favInfo[index].bvid,
+                                      title: favInfo[index].title,
+                                    ),
+                                  ).then((_) {
+                                    setState(() {});
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                      );
+                    },
             ),
           );
         });

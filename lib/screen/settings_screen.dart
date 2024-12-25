@@ -1,9 +1,11 @@
 import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/screen/about_screen.dart';
 import 'package:bmsc/screen/cache_screen.dart';
+import 'package:bmsc/screen/download_screen.dart';
 import 'package:bmsc/screen/login_screen.dart';
 import 'package:bmsc/screen/playlist_search_screen.dart';
 import 'package:bmsc/service/bilibili_service.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../service/shared_preferences_service.dart';
 import '../theme.dart';
@@ -105,6 +107,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }
                 });
               }
+            },
+          ),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              '下载',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          ListTile(
+            title: const Text('下载管理'),
+            leading: const Icon(Icons.download),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<Widget>(
+                    builder: (_) => const DownloadScreen()),
+              );
+            },
+          ),
+          ListTile(
+              title: const Text('下载路径'),
+              subtitle: FutureBuilder<String>(
+                future: SharedPreferencesService.getDownloadPath(),
+                builder: (context, snapshot) {
+                  final path =
+                      snapshot.data ?? '/storage/emulated/0/Download/BMSC';
+                  return Text(path);
+                },
+              ),
+              leading: const Icon(Icons.folder),
+              onTap: () async {
+                String? selectedDirectory =
+                    await FilePicker.platform.getDirectoryPath();
+                if (selectedDirectory != null) {
+                  await SharedPreferencesService.setDownloadPath(
+                      selectedDirectory);
+                }
+              }),
+          ListTile(
+            title: const Text('最大并发下载数'),
+            subtitle: FutureBuilder<int>(
+              future: SharedPreferencesService.getMaxConcurrentDownloads(),
+              builder: (context, snapshot) {
+                final limit = snapshot.data ?? 3;
+                return Text('$limit');
+              },
+            ),
+            leading: const Icon(Icons.numbers),
+            onTap: () async {
+              var currentLimit =
+                  await SharedPreferencesService.getMaxConcurrentDownloads();
+              final controller =
+                  TextEditingController(text: currentLimit.toString());
+              if (!context.mounted) return;
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('设置最大并发下载数'),
+                  content: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '最大并发下载数',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('取消'),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        final newValue = int.tryParse(controller.text);
+                        if (newValue != null) {
+                          currentLimit = newValue;
+                          await SharedPreferencesService
+                              .setMaxConcurrentDownloads(currentLimit);
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            setState(() {});
+                          }
+                        }
+                      },
+                      child: const Text('确定'),
+                    ),
+                  ],
+                ),
+              );
             },
           ),
           const Padding(

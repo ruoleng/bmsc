@@ -7,10 +7,17 @@ import 'package:bmsc/util/logger.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rxdart/subjects.dart';
 
 class SharedPreferencesService {
   static SharedPreferences? _prefs;
   static final _logger = LoggerUtils.getLogger('SharedPreferencesService');
+  static final _maxConcurrentDownloadsController = BehaviorSubject<int>();
+  static final _downloadPathController = BehaviorSubject<String>();
+  static Stream<int> get maxConcurrentDownloadsStream =>
+      _maxConcurrentDownloadsController.stream;
+  static Stream<String> get downloadPathStream =>
+      _downloadPathController.stream;
 
   static Future<SharedPreferences> get instance async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -27,6 +34,31 @@ class SharedPreferencesService {
   static Future<int> getCacheLimitSize() async {
     final prefs = await instance;
     return prefs.getInt('cacheLimitSize') ?? 300;
+  }
+
+  static Future<String> getDownloadPath() async {
+    final prefs = await instance;
+    final value =
+        prefs.getString('downloadPath') ?? '/storage/emulated/0/Download/BMSC';
+    return value;
+  }
+
+  static Future<void> setDownloadPath(String value) async {
+    final prefs = await instance;
+    await prefs.setString('downloadPath', value);
+    _downloadPathController.add(value);
+  }
+
+  static Future<int> getMaxConcurrentDownloads() async {
+    final prefs = await instance;
+    final value = prefs.getInt('maxConcurrentDownloads') ?? 3;
+    return value;
+  }
+
+  static Future<void> setMaxConcurrentDownloads(int value) async {
+    final prefs = await instance;
+    await prefs.setInt('maxConcurrentDownloads', value);
+    _maxConcurrentDownloadsController.add(value);
   }
 
   static Future<bool> getReadFromClipboard() async {

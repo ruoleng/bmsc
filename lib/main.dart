@@ -6,6 +6,7 @@ import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
+import 'package:bmsc/service/download_manager.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/update.dart';
 import 'package:bmsc/util/url.dart';
@@ -56,7 +57,7 @@ Future<void> _initializeBackgroundServices() async {
   LoggerUtils.init();
   await BilibiliService.instance;
   await AudioService.instance;
-  
+  await DownloadManager.instance;
 }
 
 class MyApp extends StatelessWidget {
@@ -144,7 +145,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     if (vidDetail == null) return;
 
     final as = await AudioService.instance;
-    if (as.player.sequenceState?.currentSource?.tag.extras['bvid'] == vidDetail.bvid) {
+    if (as.player.sequenceState?.currentSource?.tag.extras['bvid'] ==
+        vidDetail.bvid) {
       _logger.info('clipboard detected, but already playing');
       return;
     }

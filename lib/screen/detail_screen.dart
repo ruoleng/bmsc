@@ -156,6 +156,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                 borderRadius: BorderRadius.circular(5.0),
                                 child: SizedBox(
                                     height: 200,
+                                    width: 355.5,
                                     child: CachedNetworkImage(
                                       imageUrl: src.tag.artUri.toString(),
                                       fit: BoxFit.cover,
@@ -360,8 +361,9 @@ class _DetailScreenState extends State<DetailScreen> {
                                         if (result == null) return;
                                         final toAdd = result['toAdd'];
                                         final toRemove = result['toRemove'];
-                                        if (toAdd.isEmpty && toRemove.isEmpty)
+                                        if (toAdd.isEmpty && toRemove.isEmpty) {
                                           return;
+                                        }
 
                                         final success =
                                             await (await BilibiliService

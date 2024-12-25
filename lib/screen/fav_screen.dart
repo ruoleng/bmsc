@@ -48,7 +48,8 @@ class FavScreenState extends State<FavScreen> {
 
     if (local) {
       var cachedFavs = await DatabaseManager.getCachedFavList();
-      var cachedCollectedFavs = await DatabaseManager.getCachedCollectedFavList();
+      var cachedCollectedFavs =
+          await DatabaseManager.getCachedCollectedFavList();
 
       if (cachedFavs.isNotEmpty || cachedCollectedFavs.isNotEmpty) {
         if (!mounted) return;
