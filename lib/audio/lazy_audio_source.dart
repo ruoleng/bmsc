@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:async/async.dart';
 import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:just_audio/just_audio.dart';
@@ -18,7 +19,7 @@ class LazyAudioSource extends StreamAudioSource {
   Future<HttpClientResponse>? _response;
   final String bvid;
   final int cid;
-  final Future<Uri> uri;
+  final AsyncMemoizer<Uri> _uriMemoizer = AsyncMemoizer();
   final Future<File> localFile;
   int _progress = 0;
   final bool isLocal;
@@ -37,18 +38,19 @@ class LazyAudioSource extends StreamAudioSource {
     this.cid, {
     File? localFile,
     super.tag,
-  })  : uri = localFile != null
-            ? Future.value(Uri.file(localFile.path))
-            : Future<Uri>(() async {
-                final service = await BilibiliService.instance;
-                final audio = await service.getAudio(bvid, cid);
-                return Uri.parse(audio?.firstOrNull?.baseUrl ?? '');
-              }),
-        localFile = localFile != null
+  })  : localFile = localFile != null
             ? Future.value(localFile)
             : DatabaseManager.prepareFileForCaching(bvid, cid),
         isLocal = localFile != null {
     _init();
+  }
+
+  Future<Uri> get uri async {
+    return await _uriMemoizer.runOnce(() async {
+      final service = await BilibiliService.instance;
+      final audio = await service.getAudio(bvid, cid);
+      return Uri.parse(audio?.firstOrNull?.baseUrl ?? '');
+    });
   }
 
   Future<void> _init() async {

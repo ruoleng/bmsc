@@ -185,7 +185,6 @@ class AudioService {
     final metas = await DatabaseManager.getMetas(bvids);
     final silenceUri = Uri(scheme: 'asset', path: '/assets/silent.m4a');
     final srcs = await Future.wait(metas.map((x) async {
-      _logger.info('uri: ${x.artUri}');
       return AudioSource.uri(silenceUri,
           tag: MediaItem(
               id: x.bvid,
