@@ -377,7 +377,7 @@ class DatabaseManager {
       columns: ['filePath'],
       whereArgs: [bvid, cid],
     );
-    return results.first['filePath'] as String?;
+    return results.firstOrNull?['filePath'] as String?;
   }
 
   static Future<List<UriAudioSource>?> getLocalAudioList(String bvid) async {
