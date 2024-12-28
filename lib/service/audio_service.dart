@@ -10,7 +10,7 @@ import 'package:rxdart/rxdart.dart';
 final _logger = LoggerUtils.getLogger('AudioService');
 
 class AudioService {
-  static AudioService? _instance;
+  static final instance = _init();
 
   final playlist = ConcatenatingAudioSource(
     useLazyPreparation: true,
@@ -19,24 +19,25 @@ class AudioService {
   final player = AudioPlayer();
   late AudioSession session;
 
-  static Future<AudioService> get instance async {
-    if (_instance == null) {
-      final x = AudioService();
+  static Future<AudioService> _init() async {
+    final x = AudioService();
+    try {
       final restored = await SharedPreferencesService.getPlaylist();
       if (restored != null) {
         await x.playlist.addAll(restored.$1);
       }
       await x.player.setAudioSource(x.playlist);
-      if (restored != null) {
+      if (restored != null && restored.$2 < x.playlist.length) {
         await x.player.seek(null, index: restored.$2);
       }
       await x.restorePlayMode();
-      x.session = await AudioSession.instance;
-      await x.session.configure(const AudioSessionConfiguration.music());
-      await x.hookEvents();
-      _instance = x;
+    } catch (e) {
+      _logger.severe('Failed to restore playlist', e);
     }
-    return _instance!;
+    x.session = await AudioSession.instance;
+    await x.session.configure(const AudioSessionConfiguration.music());
+    await x.hookEvents();
+    return x;
   }
 
   Future<void> restorePlayMode() async {
@@ -128,7 +129,7 @@ class AudioService {
     List<IndexedAudioSource>? srcs;
     try {
       srcs = await (await BilibiliService.instance)
-          .getAudioSources(currentSource.tag.id);
+          .getAudios(currentSource.tag.id);
     } catch (e) {
       _logger.warning('Failed to get audio sources: $e');
       srcs = await DatabaseManager.getLocalAudioList(currentSource.tag.id);
@@ -159,7 +160,7 @@ class AudioService {
   Future<void> playByBvid(String bvid) async {
     _logger.info('Playing by BVID: $bvid');
     await player.pause();
-    final srcs = await (await BilibiliService.instance).getAudioSources(bvid);
+    final srcs = await (await BilibiliService.instance).getAudios(bvid);
     if (srcs == null) {
       _logger.warning('No audio sources found for BVID: $bvid');
       return;
@@ -230,7 +231,7 @@ class AudioService {
 
   Future<void> appendPlaylist(String bvid,
       {int? insertIndex, Map<String, dynamic>? extraExtras}) async {
-    final srcs = await (await BilibiliService.instance).getAudioSources(bvid);
+    final srcs = await (await BilibiliService.instance).getAudios(bvid);
     final excludedCids = await DatabaseManager.getExcludedParts(bvid);
     for (var cid in excludedCids) {
       srcs?.removeWhere((src) => src.tag.extras?['cid'] == cid);

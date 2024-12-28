@@ -16,7 +16,6 @@ import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
 import '../model/meta.dart';
@@ -25,30 +24,27 @@ import '../util/logger.dart';
 final _logger = LoggerUtils.getLogger('BilibiliService');
 
 class BilibiliService {
-  static BilibiliService? _instance;
+  static final instance = _init();
 
-  static Future<BilibiliService> get instance async {
-    if (_instance == null) {
-      final service = BilibiliService();
-      final cookie = await SharedPreferencesService.getCookie();
+  static Future<BilibiliService> _init() async {
+    final service = BilibiliService();
+    final cookie = await SharedPreferencesService.getCookie();
 
-      if (cookie != null) {
-        service._bilibiliAPI.setCookie(cookie);
-      } else {
-        _logger.info('No cookie found, resetting cookies');
-        await service._bilibiliAPI.resetCookies();
-      }
-
-      service.myInfo = await SharedPreferencesService.getMyInfo();
-
-      final newInfo = await service._bilibiliAPI.getMyInfo();
-      if (newInfo != null) {
-        await SharedPreferencesService.setMyInfo(newInfo);
-        service.myInfo = newInfo;
-      }
-      _instance = service;
+    if (cookie != null) {
+      service._bilibiliAPI.setCookie(cookie);
+    } else {
+      _logger.info('No cookie found, resetting cookies');
+      await service._bilibiliAPI.resetCookies();
     }
-    return _instance!;
+
+    service.myInfo = await SharedPreferencesService.getMyInfo();
+
+    final newInfo = await service._bilibiliAPI.getMyInfo();
+    if (newInfo != null) {
+      await SharedPreferencesService.setMyInfo(newInfo);
+      service.myInfo = newInfo;
+    }
+    return service;
   }
 
   final BilibiliAPI _bilibiliAPI = BilibiliAPI();
@@ -160,12 +156,48 @@ class BilibiliService {
     return _bilibiliAPI.getAudio(bvid, cid);
   }
 
-  Future<List<LazyAudioSource>?> getAudios(String bvid) {
-    return _bilibiliAPI.getAudios(bvid);
+  Future<List<LazyAudioSource>?> getAudios(String bvid) async {
+    // return _bilibiliAPI.getAudios(bvid);
+    // Future<List<LazyAudioSource>?> getAudios(String bvid) async {
+    _logger.info('Fetching audio sources for BVID: $bvid');
+    final vid = await getVidDetail(bvid: bvid);
+    if (vid == null) {
+      _logger.warning('Failed to get video details for BVID: $bvid');
+      return null;
+    }
+    return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
+      final cachedSource = await DatabaseManager.getLocalAudio(bvid, x.cid);
+      if (cachedSource != null) {
+        return cachedSource;
+      }
+      // final audios = await getAudio(bvid, x.cid);
+      // if (audios == null || audios.isEmpty) {
+      //   return null;
+      // }
+      // final firstAudio = audios[0];
+      final tag = MediaItem(
+          id: '${bvid}_${x.cid}',
+          title: vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
+          artUri: Uri.parse(vid.pic),
+          artist: vid.owner.name,
+          extras: {
+            'mid': vid.owner.mid,
+            'bvid': bvid,
+            'aid': vid.aid,
+            'cid': x.cid,
+            'cached': false,
+            'raw_title': vid.title,
+            'multi': vid.pages.length > 1,
+          });
+      return LazyAudioSource(bvid, x.cid, tag: tag);
+    })))
+        .whereType<LazyAudioSource>()
+        .toList();
+    // }
   }
 
-  Future<CommentData?> getComment(String aid, int pn) {
-    return _bilibiliAPI.getComment(aid, pn);
+  Future<CommentData?> getComment(String aid, String? offset) {
+    return _bilibiliAPI.getComment(aid, offset);
   }
 
   Future<CommentData?> getCommentsOfComment(int oid, int root, int pn) {
@@ -225,42 +257,42 @@ class BilibiliService {
     return _bilibiliAPI.getRawWbiKey();
   }
 
-  Future<List<LazyAudioSource>?> getAudioSources(String bvid) async {
-    final vid = await getVidDetail(bvid: bvid);
-    if (vid == null) {
-      return null;
-    }
-    return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
-      final cachedSource = await DatabaseManager.getLocalAudio(bvid, x.cid);
-      if (cachedSource != null) {
-        return cachedSource;
-      }
-      final tag = MediaItem(
-          id: '${bvid}_${x.cid}',
-          title: vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
-          artUri: Uri.parse(vid.pic),
-          artist: vid.owner.name,
-          extras: {
-            'mid': vid.owner.mid,
-            'bvid': bvid,
-            'aid': vid.aid,
-            'cid': x.cid,
-            'cached': false,
-            'raw_title': vid.title,
-            'multi': vid.pages.length > 1,
-          });
-      final audios = await getAudio(bvid, x.cid);
-      _logger.info('audios: $audios');
-      if (audios == null || audios.isEmpty) {
-        return null;
-      }
-      final firstAudio = audios[0];
-      return LazyAudioSource.create(
-          bvid, x.cid, Uri.parse(firstAudio.baseUrl), tag);
-    })))
-        .whereType<LazyAudioSource>()
-        .toList();
-  }
+  // Future<List<LazyAudioSource>?> getAudioSources(String bvid) async {
+  //   final vid = await getVidDetail(bvid: bvid);
+  //   if (vid == null) {
+  //     return null;
+  //   }
+  //   return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
+  //     final cachedSource = await DatabaseManager.getLocalAudio(bvid, x.cid);
+  //     if (cachedSource != null) {
+  //       return cachedSource;
+  //     }
+  //     final tag = MediaItem(
+  //         id: '${bvid}_${x.cid}',
+  //         title: vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
+  //         artUri: Uri.parse(vid.pic),
+  //         artist: vid.owner.name,
+  //         extras: {
+  //           'mid': vid.owner.mid,
+  //           'bvid': bvid,
+  //           'aid': vid.aid,
+  //           'cid': x.cid,
+  //           'cached': false,
+  //           'raw_title': vid.title,
+  //           'multi': vid.pages.length > 1,
+  //         });
+  //     final audios = await getAudio(bvid, x.cid);
+  //     _logger.info('audios: $audios');
+  //     if (audios == null || audios.isEmpty) {
+  //       return null;
+  //     }
+  //     final firstAudio = audios[0];
+  //     return LazyAudioSource(bvid, x.cid,
+  //         uri: Uri.parse(firstAudio.baseUrl), tag: tag);
+  //   })))
+  //       .whereType<LazyAudioSource>()
+  //       .toList();
+  // }
 
   Future<List<Meta>?> getRecommendations(List<Meta> tracks) async {
     if (tracks.isEmpty) {

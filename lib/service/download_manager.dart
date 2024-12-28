@@ -24,31 +24,27 @@ class DownloadManager {
 
   final _taskController = BehaviorSubject<Map<String, DownloadTask>>.seeded({});
 
-  static DownloadManager? _instance;
+  static final instance = _instance();
 
-  static Future<DownloadManager> get instance async {
-    if (_instance == null) {
-      final headers = (await BilibiliService.instance).headers;
-      _instance = DownloadManager();
-      _instance!.maxConcurrentDownloads =
-          await SharedPreferencesService.getMaxConcurrentDownloads();
-      _logger.info(
-          'got maxConcurrentDownloads: ${_instance!.maxConcurrentDownloads}');
-      SharedPreferencesService.maxConcurrentDownloadsStream.listen((value) {
-        _logger.info('maxConcurrentDownloads changed to $value');
-        _instance!.maxConcurrentDownloads = value;
-        _instance!._processQueue();
-      });
+  static Future<DownloadManager> _instance() async {
+    final headers = (await BilibiliService.instance).headers;
+    final instance = DownloadManager();
+    instance.maxConcurrentDownloads =
+        await SharedPreferencesService.getMaxConcurrentDownloads();
+    SharedPreferencesService.maxConcurrentDownloadsStream.listen((value) {
+      _logger.info('maxConcurrentDownloads changed to $value');
+      instance.maxConcurrentDownloads = value;
+      instance._processQueue();
+    });
 
-      _instance!._dio.interceptors.add(InterceptorsWrapper(
-        onRequest: (options, handler) {
-          options.headers = headers;
-          return handler.next(options);
-        },
-      ));
-      _instance!._init();
-    }
-    return _instance!;
+    instance._dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        options.headers = headers;
+        return handler.next(options);
+      },
+    ));
+    instance._init();
+    return instance;
   }
 
   Future<void> _init() async {
@@ -223,6 +219,20 @@ class DownloadManager {
 
       if (!_tasks.containsKey(taskId)) continue;
 
+      final fileName = '${task.bvid}-${task.cid}.mp3';
+      task.targetPath = path.join(downloadPath, fileName.replaceAll(' ', '-'));
+
+      final localPath =
+          await DatabaseManager.getCachedPath(task.bvid, task.cid);
+      if (localPath != null) {
+        _logger
+            .info('Cached file found, copying it to target path: $localPath');
+        File(localPath).copySync(task.targetPath!);
+        task.status = DownloadStatus.completed;
+        task.progress = 1.0;
+        _taskController.add(_tasks);
+        continue;
+      }
       _activeDownloads.add(taskId);
       task.status = DownloadStatus.downloading;
       task.cancelToken = CancelToken();
@@ -237,11 +247,7 @@ class DownloadManager {
         if (url == null) {
           throw Exception('Failed to get audio URL');
         }
-        final fileName = '${task.bvid}-${task.cid}.mp3';
-        task.targetPath =
-            path.join(downloadPath, fileName.replaceAll(' ', '-'));
 
-        // 检查是否存在临时文件
         final tempPath = '${task.targetPath}.temp';
         int startBytes = 0;
 
@@ -250,7 +256,6 @@ class DownloadManager {
           _logger.info('Resuming download from $startBytes bytes');
         }
 
-        // 添加 Range 请求头
         final options = Options(
           headers: {
             'Range': 'bytes=$startBytes-',
@@ -290,7 +295,7 @@ class DownloadManager {
             // 下载完成后，将临时文件重命名为目标文件
             await file.rename(task.targetPath!);
 
-            _logger.info('Downloaded ${task.bvid}-${task.cid} completed');
+            _logger.info('Download task ${task.bvid}-${task.cid} completed');
             await DatabaseManager.saveDownload(
                 task.bvid, task.cid, task.targetPath!);
 

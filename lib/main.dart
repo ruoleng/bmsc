@@ -6,7 +6,6 @@ import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
-import 'package:bmsc/service/download_manager.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/update.dart';
 import 'package:bmsc/util/url.dart';
@@ -36,9 +35,9 @@ Future<void> main() async {
   );
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeProvider.instance.init();
-  _setupErrorHandlers();
-  await _initializeBackgroundServices();
+  if (!kDebugMode) _setupErrorHandlers();
   runApp(const MyApp());
+  LoggerUtils.init();
 }
 
 void _setupErrorHandlers() {
@@ -51,13 +50,6 @@ void _setupErrorHandlers() {
     ErrorHandler.handleException(error);
     return true;
   };
-}
-
-Future<void> _initializeBackgroundServices() async {
-  LoggerUtils.init();
-  await BilibiliService.instance;
-  await AudioService.instance;
-  await DownloadManager.instance;
 }
 
 class MyApp extends StatelessWidget {

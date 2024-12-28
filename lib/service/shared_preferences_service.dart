@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:bmsc/audio/lazy_audio_source.dart';
 import 'package:bmsc/model/myinfo.dart';
@@ -9,9 +10,10 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rxdart/subjects.dart';
 
+final _logger = LoggerUtils.getLogger('SharedPreferencesService');
+
 class SharedPreferencesService {
-  static SharedPreferences? _prefs;
-  static final _logger = LoggerUtils.getLogger('SharedPreferencesService');
+  static final instance = _instance();
   static final _maxConcurrentDownloadsController = BehaviorSubject<int>();
   static final _downloadPathController = BehaviorSubject<String>();
   static Stream<int> get maxConcurrentDownloadsStream =>
@@ -19,9 +21,9 @@ class SharedPreferencesService {
   static Stream<String> get downloadPathStream =>
       _downloadPathController.stream;
 
-  static Future<SharedPreferences> get instance async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!;
+  static Future<SharedPreferences> _instance() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs;
   }
 
   /// 单位为MB
@@ -136,34 +138,34 @@ class SharedPreferencesService {
   static Future<void> savePlaylist(
       ConcatenatingAudioSource playlist, AudioPlayer player) async {
     final prefs = await SharedPreferencesService.instance;
-    final playlistData = playlist.children
-        .map((source) {
-          if ((source is UriAudioSource || source is LazyAudioSource)) {
-            final uri = source is UriAudioSource
-                ? source.uri
-                : (source as LazyAudioSource).uri;
-            final tag = (source as IndexedAudioSource).tag as MediaItem;
+    final playlistData =
+        await Future.wait(playlist.children.map((source) async {
+      if ((source is UriAudioSource || source is LazyAudioSource)) {
+        final String uri = source is UriAudioSource
+            ? source.uri.toString()
+            : (source as LazyAudioSource).isLocal
+                ? "file://${(await source.localFile).path}"
+                : "";
+        final tag = (source as IndexedAudioSource).tag as MediaItem;
 
-            final dummy = tag.extras?['dummy'] ?? false;
-            return PlaylistData(
-              id: tag.id,
-              title: tag.title,
-              artist: tag.artist ?? '',
-              artUri: tag.artUri?.toString() ?? '',
-              audioUri: dummy ? 'asset:///assets/silent.m4a' : uri.toString(),
-              bvid: tag.extras?['bvid'] ?? '',
-              aid: tag.extras?['aid'] ?? 0,
-              cid: tag.extras?['cid'] ?? 0,
-              multi: tag.extras?['multi'] ?? false,
-              rawTitle: tag.extras?['raw_title'] ?? '',
-              mid: tag.extras?['mid'] ?? 0,
-              cached: tag.extras?['cached'] ?? false,
-              dummy: dummy,
-            ).toJson();
-          }
-        })
-        .whereType<Map<String, dynamic>>()
-        .toList();
+        final dummy = tag.extras?['dummy'] ?? false;
+        return PlaylistData(
+          id: tag.id,
+          title: tag.title,
+          artist: tag.artist ?? '',
+          artUri: tag.artUri?.toString() ?? '',
+          audioUri: dummy ? 'asset:///assets/silent.m4a' : uri.toString(),
+          bvid: tag.extras?['bvid'] ?? '',
+          aid: tag.extras?['aid'] ?? 0,
+          cid: tag.extras?['cid'] ?? 0,
+          multi: tag.extras?['multi'] ?? false,
+          rawTitle: tag.extras?['raw_title'] ?? '',
+          mid: tag.extras?['mid'] ?? 0,
+          cached: tag.extras?['cached'] ?? false,
+          dummy: dummy,
+        ).toJson();
+      }
+    }).toList());
 
     await prefs.setString('playlist', jsonEncode(playlistData));
     await prefs.setInt('currentIndex', player.currentIndex ?? 0);
@@ -180,7 +182,7 @@ class SharedPreferencesService {
     }
 
     final List<dynamic> playlistData = jsonDecode(playlistJson);
-    final sources = await Future.wait(playlistData.map((item) async {
+    final sources = (playlistData.map((item) {
       final data = PlaylistData.fromJson(item);
       if (data.dummy) {
         return AudioSource.uri(Uri.parse(data.audioUri),
@@ -194,11 +196,15 @@ class SharedPreferencesService {
               },
             ));
       } else {
-        return LazyAudioSource.create(
+        final uri = data.audioUri == "" ? null : Uri.parse(data.audioUri);
+        final file =
+            uri != null && uri.isScheme('file') ? File(uri.path) : null;
+
+        return LazyAudioSource(
           data.bvid,
           data.cid,
-          Uri.parse(data.audioUri),
-          MediaItem(
+          localFile: file,
+          tag: MediaItem(
             id: data.id,
             title: data.title,
             artist: data.artist,
@@ -217,6 +223,6 @@ class SharedPreferencesService {
       }
     }));
 
-    return (sources, prefs.getInt('currentIndex') ?? 0);
+    return (sources.toList(), prefs.getInt('currentIndex') ?? 0);
   }
 }
