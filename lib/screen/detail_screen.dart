@@ -260,11 +260,11 @@ class _DetailScreenState extends State<DetailScreen> {
                                 snapshot.data ?? (LoopMode.off, false);
                             final icons = [
                               Icons.playlist_play,
-                              Icons.repeat,
                               Icons.repeat_one,
+                              Icons.repeat,
                               Icons.shuffle,
                             ];
-                            final labels = ["顺序播放", "歌单循环", "单曲循环", "随���播放"];
+                            final labels = ["顺序播放", "单曲循环", "歌单循环", "随机播放"];
                             final index = shuffleModeEnabled
                                 ? 3
                                 : LoopMode.values.indexOf(loopMode);

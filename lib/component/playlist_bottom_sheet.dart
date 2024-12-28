@@ -113,11 +113,10 @@ class _PlaylistBottomSheetState extends State<PlaylistBottomSheet> {
                               snapshot.data ?? (LoopMode.off, false);
                           final icons = [
                             Icons.playlist_play,
-                            Icons.repeat,
                             Icons.repeat_one,
+                            Icons.repeat,
                             Icons.shuffle,
                           ];
-                          final labels = ["顺序播放", "歌单循环", "单曲循环", "随机播放"];
                           final index = shuffleModeEnabled
                               ? 3
                               : LoopMode.values.indexOf(loopMode);
@@ -130,9 +129,8 @@ class _PlaylistBottomSheetState extends State<PlaylistBottomSheet> {
                             style: const ButtonStyle(
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            tooltip: labels[index],
                             onPressed: () {
-                              final idx = (index + 1) % labels.length;
+                              final idx = (index + 1) % LoopMode.values.length;
 
                               if (idx == 3) {
                                 service.player.setShuffleModeEnabled(true);
