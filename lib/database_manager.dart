@@ -369,14 +369,15 @@ class DatabaseManager {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  static Future<bool> isCached(String bvid, int cid) async {
+  static Future<String?> getCachedPath(String bvid, int cid) async {
     final db = await database;
     final results = await db.query(
       cacheTable,
       where: "bvid = ? AND cid = ?",
+      columns: ['filePath'],
       whereArgs: [bvid, cid],
     );
-    return results.isNotEmpty;
+    return results.first['filePath'] as String?;
   }
 
   static Future<List<UriAudioSource>?> getLocalAudioList(String bvid) async {
@@ -471,7 +472,8 @@ class DatabaseManager {
               'raw_title': entity.bvidTitle,
               'cached': true
             });
-        return LazyAudioSource.file(bvid, cid, filePath, tag);
+        final file = File(filePath);
+        return LazyAudioSource(bvid, cid, localFile: file, tag: tag);
       } else {
         _logger.info('No cached audio found for bvid: $bvid, cid: $cid');
       }
@@ -484,7 +486,7 @@ class DatabaseManager {
 
   static Future<File> prepareFileForCaching(String bvid, int cid) async {
     final directory = await getApplicationDocumentsDirectory();
-    final fileName = '${bvid}_$cid.mp3';
+    final fileName = '$bvid-$cid.mp3';
     final filePath = join(directory.path, fileName);
     return File(filePath);
   }

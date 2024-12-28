@@ -2,7 +2,6 @@ import 'package:bmsc/component/download_parts_dialog.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
-import 'package:bmsc/service/download_manager.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
