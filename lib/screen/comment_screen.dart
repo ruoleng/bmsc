@@ -2,6 +2,9 @@ import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import '../model/comment.dart';
 import '../theme.dart';
+// import '../util/logger.dart';
+
+// final _logger = LoggerUtils.getLogger('CommentScreen');
 
 class CommentScreen extends StatefulWidget {
   final String? aid;
@@ -18,7 +21,8 @@ class CommentScreen extends StatefulWidget {
 class _CommentScreenState extends State<CommentScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<ItemInfo> _comments = [];
-  int _currentPage = 1;
+  int? _nextPage;
+  String? _nextOffset;
   bool _isLoading = false;
   bool _hasMore = true;
 
@@ -45,16 +49,20 @@ class _CommentScreenState extends State<CommentScreen> {
     CommentData? commentData;
     final bs = await BilibiliService.instance;
     if (widget.aid != null) {
-      commentData = await bs.getComment(widget.aid!, _currentPage);
+      commentData = await bs.getComment(widget.aid!, _nextOffset);
     } else if (widget.oid != null && widget.root != null) {
       commentData = await bs.getCommentsOfComment(
-          widget.oid!, widget.root!, _currentPage);
+          widget.oid!, widget.root!, _nextPage ?? 1);
     }
 
     setState(() {
       if (commentData?.replies != null) {
         _comments.addAll(commentData!.replies!);
-        _currentPage++;
+        _nextPage = commentData.cursor?.next;
+        _nextOffset = commentData.cursor?.nextOffset;
+        _nextOffset = _nextOffset == null
+            ? null
+            : '{"offset":"${_nextOffset!.replaceAll('"', '\\"')}"}';
         if (widget.aid != null) {
           _hasMore = !commentData.cursor!.isEnd;
         } else {

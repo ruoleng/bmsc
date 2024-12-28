@@ -45,6 +45,7 @@ class Cursor {
   final int prev;
   final int next;
   final int allCount;
+  final String nextOffset;
 
   Cursor({
     required this.isBegin,
@@ -52,6 +53,7 @@ class Cursor {
     required this.prev,
     required this.next,
     required this.allCount,
+    required this.nextOffset,
   });
 
   factory Cursor.fromJson(Map<String, dynamic> json) {
@@ -61,6 +63,7 @@ class Cursor {
       prev: json['prev'] ?? 0,
       next: json['next'] ?? 0,
       allCount: json['all_count'] ?? 0,
+      nextOffset: json['pagination_reply']['next_offset'] ?? '',
     );
   }
 }

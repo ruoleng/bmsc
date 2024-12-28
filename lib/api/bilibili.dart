@@ -1,7 +1,6 @@
 import 'dart:convert' as convert;
 
 import 'package:bmsc/api/bilibili_api_constant.dart';
-import 'package:bmsc/audio/lazy_audio_source.dart';
 import 'package:bmsc/model/comment.dart';
 import 'package:bmsc/model/dynamic.dart';
 import 'package:bmsc/model/fav.dart';
@@ -17,7 +16,6 @@ import 'package:bmsc/util/logger.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/crypto.dart' as crypto;
 import 'package:dio/dio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 
 class BilibiliAPI {
   static final _logger = LoggerUtils.getLogger('BilibiliAPI');
@@ -66,7 +64,7 @@ class BilibiliAPI {
     final response = isPost
         ? await dio.post(url, queryParameters: queryParameters)
         : await dio.get(url, queryParameters: queryParameters);
-    // _logger.info('calling API: $url');
+    _logger.info('calling API: ${response.requestOptions.uri}');
     var data = response.data;
     if (needDecode) {
       data = convert.jsonDecode(data);
@@ -183,9 +181,10 @@ class BilibiliAPI {
         callback: (data) => UserUploadResult.fromJson(data));
   }
 
-  Future<CommentData?> getComment(String aid, int pn) {
+  Future<CommentData?> getComment(String aid, String? offset) async {
     return _callAPI(apiCommentUrl,
-        queryParameters: {'oid': aid, 'pn': pn, 'sort': 1, 'type': 1},
+        queryParameters: await crypto
+            .encodeParams({'oid': aid, 'type': 1, 'pagination_str': offset}),
         callback: (data) => CommentData.fromJson(data));
   }
 
@@ -234,40 +233,6 @@ class BilibiliAPI {
     return _callAPI(apiAudioUrl,
         queryParameters: {'bvid': bvid, 'cid': cid, 'fnval': 16},
         callback: (data) => TrackResult.fromJson(data).dash.audio);
-  }
-
-  Future<List<LazyAudioSource>?> getAudios(String bvid) async {
-    _logger.info('Fetching audio sources for BVID: $bvid');
-    final vid = await getVidDetail(bvid: bvid);
-    if (vid == null) {
-      _logger.warning('Failed to get video details for BVID: $bvid');
-      return null;
-    }
-    return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
-      final audios = await getAudio(bvid, x.cid);
-      if (audios == null || audios.isEmpty) {
-        return null;
-      }
-      final firstAudio = audios[0];
-      final tag = MediaItem(
-          id: '${bvid}_${x.cid}',
-          title: vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
-          artUri: Uri.parse(vid.pic),
-          artist: vid.owner.name,
-          extras: {
-            'mid': vid.owner.mid,
-            'bvid': bvid,
-            'aid': vid.aid,
-            'cid': x.cid,
-            'cached': false,
-            'raw_title': vid.title,
-            'multi': vid.pages.length > 1,
-          });
-      return LazyAudioSource.create(
-          bvid, x.cid, Uri.parse(firstAudio.baseUrl), tag);
-    })))
-        .whereType<LazyAudioSource>()
-        .toList();
   }
 
   Future<bool?> favoriteVideo(int avid, List<int> adds, List<int> dels) {
