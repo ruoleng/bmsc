@@ -61,26 +61,31 @@ class BilibiliAPI {
       bool isPost = false,
       String unwrapKey = "data",
       bool needDecode = false}) async {
-    final response = isPost
-        ? await dio.post(url, queryParameters: queryParameters)
-        : await dio.get(url, queryParameters: queryParameters);
-    _logger.info('calling API: ${response.requestOptions.uri}');
-    var data = response.data;
-    if (needDecode) {
-      data = convert.jsonDecode(data);
-    }
-    // _logger.info('response: $data');
-    if (data['code'] != 0 || data[unwrapKey] == null) {
+    try {
+      final response = isPost
+          ? await dio.post(url, queryParameters: queryParameters)
+          : await dio.get(url, queryParameters: queryParameters);
+      _logger.info('calling API: ${response.requestOptions.uri}');
+      var data = response.data;
+      if (needDecode) {
+        data = convert.jsonDecode(data);
+      }
+      // _logger.info('response: $data');
+      if (data['code'] != 0 || data[unwrapKey] == null) {
+        return null;
+      }
+      data = data[unwrapKey];
+      if (callback != null) {
+        return callback(data);
+      }
+      if (callbackAsync != null) {
+        return await callbackAsync(data);
+      }
+      return data;
+    } catch (e) {
+      _logger.severe('Error calling API: $e');
       return null;
     }
-    data = data[unwrapKey];
-    if (callback != null) {
-      return callback(data);
-    }
-    if (callbackAsync != null) {
-      return await callbackAsync(data);
-    }
-    return data;
   }
 
   Future<List<T>?> _callAPIMultiPage<T>(String url,
