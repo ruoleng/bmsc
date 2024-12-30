@@ -153,7 +153,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     showDialog(
       context: dialogContext,
       builder: (context) => AlertDialog(
-          title: const Text('检测到剪贴板链接'),
+          title: const Text('检测到剪贴板视频'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

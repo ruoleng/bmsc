@@ -1,4 +1,5 @@
 import 'package:bmsc/component/download_parts_dialog.dart';
+import 'package:bmsc/screen/comment_screen.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -299,6 +300,20 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                                   ).then((_) {
                                     setState(() {});
                                   });
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.comment_outlined),
+                                title: const Text('查看评论'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => CommentScreen(
+                                              aid: favInfo[index]
+                                                  .aid
+                                                  .toString())));
                                 },
                               ),
                               ListTile(

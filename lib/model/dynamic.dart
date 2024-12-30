@@ -104,6 +104,7 @@ class DynamicData {
 }
 
 class Archive {
+  late final String aid;
   late final String bvid;
   late final String cover;
   late final String desc;
@@ -114,6 +115,7 @@ class Archive {
   late final int type;
 
   Archive({
+    required this.aid,
     required this.bvid,
     required this.cover,
     required this.desc,
@@ -125,6 +127,7 @@ class Archive {
   });
 
   Archive.fromJson(Map<String, dynamic> json) {
+    aid = json['aid'];
     bvid = json['bvid'];
     cover = json['cover'];
     desc = json['desc'];

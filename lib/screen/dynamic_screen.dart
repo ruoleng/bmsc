@@ -1,3 +1,5 @@
+import 'package:bmsc/component/excluded_parts_dialog.dart';
+import 'package:bmsc/screen/comment_screen.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -106,6 +108,35 @@ class _DynamicScreenState extends State<DynamicScreen> {
                           builder: (context) => UserDetailScreen(
                               mid: dynList[index].moduleAuthor.mid)),
                     );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.comment_outlined),
+                  title: const Text('查看评论'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => CommentScreen(
+                                aid: dynList[index].moduleDynamic.major.archive
+                                    .aid)));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.playlist_remove),
+                  title: const Text('屏蔽分 P'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) => ExcludedPartsDialog(
+                        bvid: dynList[index].moduleDynamic.major.archive.bvid,
+                        title: dynList[index].moduleDynamic.major.archive.title,
+                      ),
+                    ).then((_) {
+                      setState(() {});
+                    });
                   },
                 ),
               ],

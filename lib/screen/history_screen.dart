@@ -1,3 +1,6 @@
+import 'package:bmsc/component/download_parts_dialog.dart';
+import 'package:bmsc/component/excluded_parts_dialog.dart';
+import 'package:bmsc/screen/comment_screen.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -108,6 +111,50 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         MaterialPageRoute(
                             builder: (context) => UserDetailScreen(
                                 mid: hisList[index].authorMid)));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.comment_outlined),
+                  title: const Text('查看评论'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => CommentScreen(
+                                aid: hisList[index].history.oid.toString())));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.playlist_remove),
+                  title: const Text('屏蔽分 P'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) => ExcludedPartsDialog(
+                        bvid: hisList[index].history.bvid,
+                        title: hisList[index].title,
+                      ),
+                    ).then((_) {
+                      setState(() {});
+                    });
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.download),
+                  title: const Text('下载'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) => DownloadPartsDialog(
+                        bvid: hisList[index].history.bvid,
+                        title: hisList[index].title,
+                      ),
+                    ).then((_) {
+                      setState(() {});
+                    });
                   },
                 ),
               ],

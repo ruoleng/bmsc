@@ -1,4 +1,6 @@
 import 'package:bmsc/component/download_parts_dialog.dart';
+import 'package:bmsc/component/excluded_parts_dialog.dart';
+import 'package:bmsc/screen/comment_screen.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -197,6 +199,34 @@ class _SearchScreenState extends State<SearchScreen> {
                         MaterialPageRoute(
                             builder: (context) =>
                                 UserDetailScreen(mid: vid.mid)));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.comment_outlined),
+                  title: const Text('查看评论'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                CommentScreen(aid: vid.aid.toString())));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.playlist_remove),
+                  title: const Text('屏蔽分 P'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) => ExcludedPartsDialog(
+                        bvid: vid.bvid,
+                        title: vid.title,
+                      ),
+                    ).then((_) {
+                      setState(() {});
+                    });
                   },
                 ),
                 ListTile(
