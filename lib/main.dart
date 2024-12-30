@@ -154,16 +154,21 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       context: dialogContext,
       builder: (context) => AlertDialog(
           title: const Text('检测到剪贴板链接'),
-          content: TrackTile(
-              title: vidDetail.title,
-              author: vidDetail.owner.name,
-              len: duration,
-              pic: vidDetail.pic,
-              view: unit(vidDetail.stat.view),
-              onTap: () {
-                Navigator.pop(context);
-                AudioService.instance.then((x) => x.playByBvid(vidDetail.bvid));
-              })),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TrackTile(
+                  title: vidDetail.title,
+                  author: vidDetail.owner.name,
+                  len: duration,
+                  pic: vidDetail.pic,
+                  view: unit(vidDetail.stat.view),
+                  onTap: () {
+                    Navigator.pop(context);
+                    AudioService.instance.then((x) => x.playByBvid(vidDetail.bvid));
+                  }),
+            ],
+          )),
     );
   }
 
