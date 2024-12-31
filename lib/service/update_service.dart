@@ -1,26 +1,37 @@
 import 'package:bmsc/model/release.dart';
+import 'package:bmsc/util/logger.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:bmsc/util/logger.dart';
 
 final logger = LoggerUtils.getLogger('Update');
 
-Future<List<ReleaseResult>?> checkNewVersion() async {
-  List<ReleaseResult>? ret;
-  try {
-    logger.info("requesting latest release");
-    final resp =
-        await Dio().get('https://api.github.com/repos/u2x1/bmsc/releases');
-    ret = List.from(resp.data).map((e) => ReleaseResult.fromJson(e)).toList();
-  } catch (e) {
-    logger.severe("error: $e");
-    return null;
-  }
-  return ret;
-}
+class UpdateService {
+  static Future<UpdateService> instance = _init();
 
-showUpdateDialog(
+  List<ReleaseResult>? newVersionInfo;
+
+  static Future<UpdateService> _init() async {
+    final x = UpdateService();
+    x.newVersionInfo = await checkNewVersion();
+    return x;
+  }
+
+  static Future<List<ReleaseResult>?> checkNewVersion() async {
+    List<ReleaseResult>? ret;
+    try {
+      logger.info("requesting latest release");
+      final resp =
+          await Dio().get('https://api.github.com/repos/u2x1/bmsc/releases');
+      ret = List.from(resp.data).map((e) => ReleaseResult.fromJson(e)).toList();
+    } catch (e) {
+      logger.severe("error: $e");
+      return null;
+    }
+    return ret;
+  }
+
+  static void showUpdateDialog(
     BuildContext context, List<ReleaseResult> newVersions, String curVersion) {
   var changelog = "";
   for (var version in newVersions) {
@@ -51,6 +62,7 @@ showUpdateDialog(
   AlertDialog alert = AlertDialog(
     title: const Text("有新版本可用"),
     content: Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text("检测到版本更新 ($curVersion -> ${newVersion.tagName})"),
         const SizedBox(height: 10),
@@ -69,4 +81,6 @@ showUpdateDialog(
       return alert;
     },
   );
+}
+
 }

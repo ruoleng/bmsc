@@ -2,7 +2,7 @@ import 'package:bmsc/model/release.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../util/update.dart';
+import '../service/update_service.dart';
 import 'package:flutter/services.dart';
 import 'package:bmsc/screen/log_screen.dart';
 
@@ -27,7 +27,7 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Future<void> _checkNewVersion() async {
-    final latestReleases = await checkNewVersion();
+    final latestReleases = (await UpdateService.instance).newVersionInfo;
     if (mounted) {
       setState(() {
         releases = latestReleases;
@@ -107,7 +107,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     label: const Text('新版本'),
                     onPressed: () {
                       if (releases != null) {
-                        showUpdateDialog(context, releases!, version);
+                        UpdateService.showUpdateDialog(context, releases!, version);
                       }
                     },
                   ),

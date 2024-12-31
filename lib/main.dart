@@ -7,7 +7,7 @@ import 'package:bmsc/screen/history_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
-import 'package:bmsc/util/update.dart';
+import 'package:bmsc/service/update_service.dart';
 import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -97,15 +97,13 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    checkNewVersion().then((x) async {
-      if (x == null) {
-        return;
-      }
+    UpdateService.instance.then((x) async {
       final packageInfo = await PackageInfo.fromPlatform();
       setState(() {
         curVersion = "v${packageInfo.version}";
-        officialVersions = x;
-        hasNewVersion = x.first.tagName != curVersion;
+        officialVersions = x.newVersionInfo;
+        hasNewVersion = x.newVersionInfo != null &&
+            x.newVersionInfo!.first.tagName != curVersion;
       });
     });
   }
