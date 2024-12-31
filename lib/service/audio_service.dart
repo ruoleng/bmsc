@@ -151,8 +151,15 @@ class AudioService {
       return;
     }
     await doAndSavePlaylist(() async {
+      final isShuffle = player.shuffleModeEnabled;
+      if (isShuffle) {
+        await player.setShuffleModeEnabled(false);
+      }
       await playlist.insertAll(index! + 1, srcs!);
       await playlist.removeAt(index);
+      if (isShuffle) {
+        await player.setShuffleModeEnabled(true);
+      }
     });
     await player.play();
   }
