@@ -323,6 +323,17 @@ class BilibiliAPI {
     });
   }
 
+  Future<void> reportHistory(int aid, int cid, int? progress) {
+    return _callAPI(apiReportHistoryUrl,
+        queryParameters: {
+          'aid': aid,
+          'cid': cid,
+          'progress': progress,
+          'csrf': crypto.extractCSRF(cookies),
+        },
+        isPost: true);
+  }
+
   Future<String?> getRawWbiKey() async {
     final prefs = await SharedPreferencesService.instance;
     final rawWbiKey = prefs.getString('raw_wbi_key');

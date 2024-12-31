@@ -225,4 +225,35 @@ class SharedPreferencesService {
 
     return (sources.toList(), prefs.getInt('currentIndex') ?? 0);
   }
+
+  static Future<int> getPlayPosition() async {
+    final prefs = await SharedPreferencesService.instance;
+    return prefs.getInt('play_position') ?? 0;
+  }
+
+  static Future<void> setPlayPosition(int position) async {
+    final prefs = await SharedPreferencesService.instance;
+    await prefs.setInt('play_position', position);
+  }
+
+  static Future<void> setHistoryReported(bool value) async {
+    final prefs = await SharedPreferencesService.instance;
+    await prefs.setBool('enable_history_report', value);
+  }
+
+  static Future<bool> getHistoryReported() async {
+    final prefs = await SharedPreferencesService.instance;
+    return prefs.getBool('enable_history_report') ?? false;
+  }
+
+  static Future<void> setReportHistoryInterval(int interval) async {
+    final prefs = await SharedPreferencesService.instance;
+    await prefs.setInt('report_history_interval', interval);
+  }
+
+  static Future<int> getReportHistoryInterval() async {
+    final prefs = await SharedPreferencesService.instance;
+    _logger.info('getReportHistoryInterval: ${prefs.getInt('report_history_interval')}');
+    return prefs.getInt('report_history_interval') ?? 10;
+  }
 }

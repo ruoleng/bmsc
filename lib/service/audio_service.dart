@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:rxdart/rxdart.dart';
+import 'dart:async';
 
 final _logger = LoggerUtils.getLogger('AudioService');
 
@@ -18,6 +19,8 @@ class AudioService {
   );
   final player = AudioPlayer();
   late AudioSession session;
+  Timer? _historyReportTimer;
+  Timer? _playPositionTimer;
 
   static Future<AudioService> _init() async {
     final x = AudioService();
@@ -30,6 +33,8 @@ class AudioService {
       if (restored != null && restored.$2 < x.playlist.length) {
         await x.player.seek(null, index: restored.$2);
       }
+      final position = await SharedPreferencesService.getPlayPosition();
+      await x.player.seek(Duration(seconds: position));
       await x.restorePlayMode();
     } catch (e) {
       _logger.severe('Failed to restore playlist', e);
@@ -87,6 +92,18 @@ class AudioService {
     });
 
     player.playerStateStream.listen((state) async {
+      final enableHistoryReport =
+          await SharedPreferencesService.getHistoryReported();
+      if (state.playing) {
+        if (enableHistoryReport) {
+          _startHistoryReporting();
+        }
+        _startPlayPositionSaving();
+      } else {
+        _stopHistoryReporting();
+        _stopPlayPositionSaving();
+      }
+
       if (state.processingState == ProcessingState.ready) {
         final index = player.currentIndex;
         if (index == null) {
@@ -100,6 +117,50 @@ class AudioService {
         _logger.info('processing state hijack done');
       }
     });
+  }
+
+  void _startHistoryReporting() async {
+    _historyReportTimer?.cancel();
+    final interval = await SharedPreferencesService.getReportHistoryInterval();
+    _historyReportTimer =
+        Timer.periodic(Duration(seconds: interval), (timer) async {
+      final currentSource = player.sequenceState?.currentSource;
+      if (currentSource == null || !player.playing) {
+        return;
+      }
+
+      final extras = currentSource.tag.extras;
+      if (extras == null || extras['aid'] == null || extras['cid'] == null) {
+        return;
+      }
+
+      final length = currentSource.duration?.inSeconds;
+
+      await (await BilibiliService.instance).reportHistory(
+          extras['aid'],
+          extras['cid'],
+          length != null && length - player.position.inSeconds <= interval
+              ? length
+              : player.position.inSeconds);
+    });
+  }
+
+  void _stopHistoryReporting() {
+    _historyReportTimer?.cancel();
+    _historyReportTimer = null;
+  }
+
+  void _startPlayPositionSaving() {
+    _playPositionTimer?.cancel();
+    _playPositionTimer =
+        Timer.periodic(const Duration(seconds: 5), (timer) async {
+      await SharedPreferencesService.setPlayPosition(player.position.inSeconds);
+    });
+  }
+
+  void _stopPlayPositionSaving() {
+    _playPositionTimer?.cancel();
+    _playPositionTimer = null;
   }
 
   Future<void> _hijackDummySource({int? index}) async {

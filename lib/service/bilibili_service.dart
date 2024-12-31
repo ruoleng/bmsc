@@ -233,6 +233,10 @@ class BilibiliService {
     return _bilibiliAPI.getSearchSuggestions(keyword);
   }
 
+  Future<void> reportHistory(int aid, int cid, int? progress) {
+    return _bilibiliAPI.reportHistory(aid, cid, progress);
+  }
+
   Future<(bool, String?)> passwordLogin(
       String username, String password, Map<String, dynamic> geetestResult) {
     return _bilibiliAPI.passwordLogin(
@@ -256,43 +260,6 @@ class BilibiliService {
   Future<String?> getRawWbiKey() {
     return _bilibiliAPI.getRawWbiKey();
   }
-
-  // Future<List<LazyAudioSource>?> getAudioSources(String bvid) async {
-  //   final vid = await getVidDetail(bvid: bvid);
-  //   if (vid == null) {
-  //     return null;
-  //   }
-  //   return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
-  //     final cachedSource = await DatabaseManager.getLocalAudio(bvid, x.cid);
-  //     if (cachedSource != null) {
-  //       return cachedSource;
-  //     }
-  //     final tag = MediaItem(
-  //         id: '${bvid}_${x.cid}',
-  //         title: vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
-  //         artUri: Uri.parse(vid.pic),
-  //         artist: vid.owner.name,
-  //         extras: {
-  //           'mid': vid.owner.mid,
-  //           'bvid': bvid,
-  //           'aid': vid.aid,
-  //           'cid': x.cid,
-  //           'cached': false,
-  //           'raw_title': vid.title,
-  //           'multi': vid.pages.length > 1,
-  //         });
-  //     final audios = await getAudio(bvid, x.cid);
-  //     _logger.info('audios: $audios');
-  //     if (audios == null || audios.isEmpty) {
-  //       return null;
-  //     }
-  //     final firstAudio = audios[0];
-  //     return LazyAudioSource(bvid, x.cid,
-  //         uri: Uri.parse(firstAudio.baseUrl), tag: tag);
-  //   })))
-  //       .whereType<LazyAudioSource>()
-  //       .toList();
-  // }
 
   Future<List<Meta>?> getRecommendations(List<Meta> tracks) async {
     if (tracks.isEmpty) {

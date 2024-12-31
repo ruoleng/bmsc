@@ -29,3 +29,4 @@ const String apiLoginKeyUrl = '$_passportUrl/x/passport-login/web/key';
 const String apiSmsCaptchaUrl = '$_passportUrl/x/passport-login/web/sms/send';
 const String apiPasswordLoginUrl = '$_passportUrl/x/passport-login/web/login';
 const String apiSmsLoginUrl = '$_passportUrl/x/passport-login/web/login/sms';
+const String apiReportHistoryUrl = '$_baseUrl/x/v2/history/report';
