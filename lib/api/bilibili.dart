@@ -12,6 +12,7 @@ import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/user_card.dart';
 import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
+import 'package:bmsc/service/connection_service.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/crypto.dart' as crypto;
@@ -23,6 +24,16 @@ class BilibiliAPI {
   late String cookies;
   late Map<String, String> headers;
   Dio dio = Dio();
+  bool noNetwork = false;
+  ConnectionService connectionService = ConnectionService.getInstance();
+
+  BilibiliAPI() {
+    connectionService.initialize();
+    connectionService.connectionChange.listen((result) {
+      noNetwork = !result;
+    });
+    noNetwork = !connectionService.hasConnection;
+  }
 
   Future<void> setCookie(String cookie, {bool save = false}) async {
     if (save) {
@@ -62,6 +73,9 @@ class BilibiliAPI {
       String unwrapKey = "data",
       bool needDecode = false}) async {
     try {
+      if (noNetwork) {
+        return null;
+      }
       final response = isPost
           ? await dio.post(url, queryParameters: queryParameters)
           : await dio.get(url, queryParameters: queryParameters);

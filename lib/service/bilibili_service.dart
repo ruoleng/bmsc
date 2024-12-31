@@ -157,37 +157,35 @@ class BilibiliService {
   }
 
   Future<List<LazyAudioSource>?> getAudios(String bvid) async {
-    // return _bilibiliAPI.getAudios(bvid);
-    // Future<List<LazyAudioSource>?> getAudios(String bvid) async {
     _logger.info('Fetching audio sources for BVID: $bvid');
-    final vid = await getVidDetail(bvid: bvid);
-    if (vid == null) {
+    var entities = await DatabaseManager.getEntities(bvid);
+    if (entities.isEmpty) {
+      await getVidDetail(bvid: bvid);
+      entities = await DatabaseManager.getEntities(bvid);
+    }
+    if (entities.isEmpty) {
       _logger.warning('Failed to get video details for BVID: $bvid');
       return null;
     }
-    return (await Future.wait<LazyAudioSource?>(vid.pages.map((x) async {
+    final meta = await DatabaseManager.getMeta(bvid);
+    return (await Future.wait<LazyAudioSource?>(entities.map((x) async {
       final cachedSource = await DatabaseManager.getLocalAudio(bvid, x.cid);
       if (cachedSource != null) {
         return cachedSource;
       }
-      // final audios = await getAudio(bvid, x.cid);
-      // if (audios == null || audios.isEmpty) {
-      //   return null;
-      // }
-      // final firstAudio = audios[0];
       final tag = MediaItem(
           id: '${bvid}_${x.cid}',
-          title: vid.pages.length > 1 ? "${x.part} - ${vid.title}" : vid.title,
-          artUri: Uri.parse(vid.pic),
-          artist: vid.owner.name,
+          title: entities.length > 1 ? "${x.bvidTitle} - ${x.partTitle}" : x.bvidTitle,
+          artUri: Uri.parse(x.artUri),
+          artist: x.artist,
           extras: {
-            'mid': vid.owner.mid,
-            'bvid': bvid,
-            'aid': vid.aid,
+            'mid': meta?.mid,
+            'bvid': meta?.bvid,
+            'aid': meta?.aid,
             'cid': x.cid,
             'cached': false,
-            'raw_title': vid.title,
-            'multi': vid.pages.length > 1,
+            'raw_title': x.bvidTitle,
+            'multi': entities.length > 1,
           });
       return LazyAudioSource(bvid, x.cid, tag: tag);
     })))
