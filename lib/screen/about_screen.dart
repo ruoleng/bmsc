@@ -15,6 +15,7 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen> {
   String version = '';
+  String latestVersion = '';
   List<ReleaseResult>? releases;
   bool hasNewVersion = false;
   List<(String, String)> changelog = [];
@@ -27,21 +28,19 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Future<void> _checkNewVersion() async {
-    final latestReleases = (await UpdateService.instance).newVersionInfo;
+    final x = await UpdateService.instance;
     if (mounted) {
       setState(() {
-        releases = latestReleases;
-        if (latestReleases != null && latestReleases.isNotEmpty) {
-          hasNewVersion = latestReleases.first.tagName != version;
-          changelog = latestReleases.map((e) => (e.tagName, e.body)).toList();
-        }
+        releases = x.newVersionInfo;
+        hasNewVersion = x.hasNewVersion;
+        latestVersion = x.newVersionInfo?.first.tagName.replaceAll('v', '') ?? '';
       });
     }
   }
 
   Future<void> _loadVersionInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
-    final currentVersion = "v${packageInfo.version}";
+    final currentVersion = packageInfo.version;
     final changelogAsset = await rootBundle.loadString('changelog.md');
     final c = changelogAsset
         .split('#')
@@ -105,9 +104,12 @@ class _AboutScreenState extends State<AboutScreen> {
                   FilledButton.icon(
                     icon: const Icon(Icons.system_update),
                     label: const Text('新版本'),
-                    onPressed: () {
+                    onPressed: () async {
                       if (releases != null) {
-                        UpdateService.showUpdateDialog(context, releases!, version);
+                        final x = await UpdateService.instance;
+                        if (context.mounted) {
+                          x.showUpdateDialog(context, version);
+                        }
                       }
                     },
                   ),
@@ -221,7 +223,25 @@ class _AboutScreenState extends State<AboutScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(
-                                '当前版本',
+                                '当前',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          if (entry.$1 == latestVersion)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                '最新',
                                 style: TextStyle(fontSize: 12),
                               ),
                             ),

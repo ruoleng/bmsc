@@ -1,5 +1,4 @@
 import 'package:bmsc/component/track_tile.dart';
-import 'package:bmsc/model/release.dart';
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
@@ -11,7 +10,6 @@ import 'package:bmsc/service/update_service.dart';
 import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:bmsc/screen/search_screen.dart';
 import 'package:flutter/services.dart';
 
@@ -87,7 +85,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
-  List<ReleaseResult>? officialVersions;
   String? curVersion;
   bool hasNewVersion = false;
   FavScreenState? _favScreenState;
@@ -98,12 +95,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     UpdateService.instance.then((x) async {
-      final packageInfo = await PackageInfo.fromPlatform();
       setState(() {
-        curVersion = "v${packageInfo.version}";
-        officialVersions = x.newVersionInfo;
-        hasNewVersion = x.newVersionInfo != null &&
-            x.newVersionInfo!.first.tagName != curVersion;
+        curVersion = x.curVersion;
+        hasNewVersion = x.hasNewVersion;
       });
     });
   }
@@ -182,9 +176,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           child: Row(
             children: [
               const Text("BiliMusic"),
-              if (hasNewVersion &&
-                  officialVersions != null &&
-                  curVersion != null)
+              if (hasNewVersion)
                 Icon(Icons.arrow_circle_up_outlined,
                     color: Theme.of(context).colorScheme.error),
             ],
