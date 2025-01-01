@@ -30,11 +30,13 @@ class AudioService {
         await x.playlist.addAll(restored.$1);
       }
       await x.player.setAudioSource(x.playlist);
-      if (restored != null && restored.$2 < x.playlist.length) {
-        await x.player.seek(null, index: restored.$2);
-      }
       final position = await SharedPreferencesService.getPlayPosition();
-      await x.player.seek(Duration(seconds: position));
+      if (restored != null &&
+          restored.$2 < x.playlist.length &&
+          x.playlist.sequence[restored.$2].duration != null &&
+          x.playlist.sequence[restored.$2].duration!.inSeconds > position) {
+        await x.player.seek(Duration(seconds: position), index: restored.$2);
+      }
       await x.restorePlayMode();
     } catch (e) {
       _logger.severe('Failed to restore playlist', e);
