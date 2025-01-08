@@ -52,6 +52,17 @@ class MusicProvider {
   static Future<List<Map<String, dynamic>>?> fetchKuGouPlaylistTracks(
       String playlistId) async {
     try {
+      if (playlistId.startsWith("gcid")) {
+        final response = await Dio().get("https://www.kugou.com/songlist/$playlistId/");
+        final html = response.data as String;
+        final RegExp regExp = RegExp(r'"list_create_gid":"([^"]+)"');
+        final match = regExp.firstMatch(html);
+        if (match != null) {
+          final gid = match.group(1)!;
+          playlistId = gid;
+        }
+      }
+
       final response = await Dio().get(
           'https://kg.u2x1.work/playlist/track/all?id=$playlistId&pagesize=300');
       if (response.data['status'] == 0) {

@@ -183,7 +183,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                 maxLines: 7,
                 decoration: const InputDecoration(
                   hintText:
-                      '[示例1] 歌名 \$ 作者 \$ 时长(秒)\nTRUE \$ Yoari \$ 192\n夏日已所剩无几 \$ 泠鸢yousa \$ 271\n[示例2] 平台:歌单ID\nnetease:1234567890\ntencent:1207922987\nkugou:collection_3_1323003327_2_0',
+                      '[示例1] 歌名 \$ 作者 \$ 时长(秒)\nTRUE \$ Yoari \$ 192\n夏日已所剩无几 \$ 泠鸢yousa \$ 271\n[示例2] 平台:歌单ID\nnetease:1234567890\ntencent:1207922987\nkugou:gcid_3z18k3yjxz3z089',
                   border: OutlineInputBorder(),
                   isDense: true,
                   contentPadding: EdgeInsets.all(8),
@@ -343,7 +343,7 @@ class _PlaylistSearchScreenState extends State<PlaylistSearchScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.refresh),
+                                    icon: const Icon(Icons.search),
                                     onPressed: isSearching && !isSearchPaused
                                         ? null
                                         : () async {
