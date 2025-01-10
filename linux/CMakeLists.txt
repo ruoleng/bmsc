@@ -7,7 +7,7 @@ project(runner LANGUAGES CXX)
 set(BINARY_NAME "bmsc")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.example.bmsc")
+set(APPLICATION_ID "org.u2x1.bmsc")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -139,3 +139,5 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 endif()
 
 target_link_libraries(${BINARY_NAME} PRIVATE ${MIMALLOC_LIB})
+set(CMAKE_CXX_COMPILER "/usr/bin/g++")
+set(CMAKE_C_COMPILER "/usr/bin/gcc")
