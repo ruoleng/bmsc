@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:bmsc/component/track_tile.dart';
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
@@ -26,11 +28,13 @@ import 'util/string.dart';
 final _logger = LoggerUtils.getLogger('main');
 
 Future<void> main() async {
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
-    androidNotificationChannelName: 'Audio Playback',
-    androidNotificationOngoing: true,
-  );
+  if (Platform.isAndroid) {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
+      androidNotificationChannelName: 'Audio Playback',
+      androidNotificationOngoing: true,
+    );
+  }
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeProvider.instance.init();
   if (!kDebugMode) _setupErrorHandlers();

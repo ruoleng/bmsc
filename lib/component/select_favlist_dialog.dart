@@ -11,6 +11,7 @@ class SelectFavlistDialog extends StatefulWidget {
 
 class _SelectFavlistDialogState extends State<SelectFavlistDialog> {
   List<Fav> favs = [];
+  bool isLoggedIn = true;
 
   @override
   void initState() {
@@ -24,41 +25,47 @@ class _SelectFavlistDialogState extends State<SelectFavlistDialog> {
     final f = await bs.getFavs(uid) ?? [];
     setState(() {
       favs = f;
+      isLoggedIn = uid != 0;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('选择收藏夹'),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 300,
-        child: Column(
-          children: [
-            createFavFolderListTile(context, true),
-            const Divider(),
-            Expanded(
-              child: ListView.builder(
-                cacheExtent: 10000,
-                shrinkWrap: true,
-                itemCount: favs.length,
-                itemBuilder: (context, index) {
-                  final folder = favs[index];
-                  return ListTile(
-                    title: Text(folder.title),
-                    subtitle: Text('${folder.mediaCount} 首曲目'),
-                    onTap: () async {
-                      Navigator.pop(context, folder);
-                    },
-                  );
-                },
+    return !isLoggedIn
+        ? const AlertDialog(
+            title:  Text('未登录'),
+            content: Text('请先登录'),
+          )
+        : AlertDialog(
+            title: const Text('选择收藏夹'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 300,
+              child: Column(
+                children: [
+                  createFavFolderListTile(context, true),
+                  const Divider(),
+                  Expanded(
+                    child: ListView.builder(
+                      cacheExtent: 10000,
+                      shrinkWrap: true,
+                      itemCount: favs.length,
+                      itemBuilder: (context, index) {
+                        final folder = favs[index];
+                        return ListTile(
+                          title: Text(folder.title),
+                          subtitle: Text('${folder.mediaCount} 首曲目'),
+                          onTap: () async {
+                            Navigator.pop(context, folder);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
+          );
   }
 }
 

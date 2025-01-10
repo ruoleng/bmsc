@@ -292,16 +292,18 @@ class FavScreenState extends State<FavScreen> {
       appBar: AppBar(
         title: const Text('云收藏夹',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _showCreateFolderDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: loadFavorites,
-          ),
-        ],
+        actions: !signedin
+            ? []
+            : [
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: _showCreateFolderDialog,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: loadFavorites,
+                ),
+              ],
       ),
       body: !signedin
           ? const Center(child: Text('请先登录'))

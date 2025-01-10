@@ -96,6 +96,12 @@ class BilibiliAPI {
         return await callbackAsync(data);
       }
       return data;
+    } on DioException catch (e) {
+      _logger.info('DioException: ${e.response}');
+      if (e.response?.statusCode == 412) {
+        throw Exception('错误代码 412，可能触发了 B 站风控，请等待一段时间后重试');
+      }
+      return null;
     } catch (e) {
       _logger.severe('Error calling API: $e');
       return null;

@@ -256,4 +256,26 @@ class SharedPreferencesService {
     _logger.info('getReportHistoryInterval: ${prefs.getInt('report_history_interval')}');
     return prefs.getInt('report_history_interval') ?? 10;
   }
+
+  static Future<void> savePlaylistSearchResult(List<Map<String, dynamic>> result, String text, int favid) async {
+    final prefs = await SharedPreferencesService.instance;
+    final content = {
+      'result': jsonEncode(result),
+      'favid': favid,
+      'text': text,
+    };
+    await prefs.setString('playlist_search_result', jsonEncode(content));
+  }
+
+  static Future<Map<String, dynamic>?> getPlaylistSearchResult() async {
+    final prefs = await SharedPreferencesService.instance;
+    final result = prefs.getString('playlist_search_result');
+    if (result == null) return null;
+    final Map<String, dynamic> decoded = jsonDecode(result);
+    decoded['result'] = (jsonDecode(decoded['result']) as List<dynamic>)
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+    return decoded;
+  }
 }
+
