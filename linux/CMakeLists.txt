@@ -139,5 +139,3 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 endif()
 
 target_link_libraries(${BINARY_NAME} PRIVATE ${MIMALLOC_LIB})
-set(CMAKE_CXX_COMPILER "/usr/bin/g++")
-set(CMAKE_C_COMPILER "/usr/bin/gcc")

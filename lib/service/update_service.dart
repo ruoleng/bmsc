@@ -66,7 +66,9 @@ class UpdateService {
       child: const Text("下载"),
       onPressed: () async {
         if (newVersion.assets.isNotEmpty) {
-          await launchUrl(Uri.parse(newVersion.assets.first.browserDownloadUrl),
+          await launchUrl(
+              Uri.parse(
+                  "https://github.com/u2x1/bmsc/releases/download/${newVersion.tagName}/bmsc-${newVersion.tagName}-arm64.apk"),
               mode: LaunchMode.externalApplication);
         }
       },
