@@ -1,3 +1,8 @@
+# 1.2.0
+- feat 支持二维码登录
+- feat 导入歌单的内容将在退出后保存
+- feat Linux 平台播放支持
+
 # 1.1.5
 - feat 支持导入 ID 为形如 gcid_xxxxxxxxxxxxxxxx 的酷狗歌单
 

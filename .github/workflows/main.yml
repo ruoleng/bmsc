@@ -51,6 +51,9 @@ jobs:
 
       - name: Build apks
         run: flutter build apk --release --split-per-abi
+      
+      - name: Build linux executable
+        run: flutter build linux --release
 
       - name: Extract Changelog
         id: changelog
@@ -65,15 +68,34 @@ jobs:
           cat changelog_content.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+      - name: Prepare Release Files
+        run: |
+          cd build/app/outputs/flutter-apk/
+          mv app-arm64-v8a-release.apk ${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-arm64.apk
+          mv app-armeabi-v7a-release.apk ${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-arm32.apk
+          mv app-x86_64-release.apk ${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-x64.apk
+          cd ../../../..
+          cd build/linux/x64/release/bundle/
+          zip -r ${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-linux.zip .
+          mv ${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-linux.zip ../../../../../
+
       - name: Create Github Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/app/outputs/flutter-apk/*.apk"
+          artifacts: |
+            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-arm64.apk
+            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-arm32.apk
+            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-x64.apk
+            ${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-linux.zip
           token: ${{ secrets.PERSONAL_RELEASE_TOKEN }}
           body: ${{ env.changelog }}
 
-      - name: Save apks to Artifacts
+      - name: Save artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: APKS
-          path: build/app/outputs/flutter-apk/*.apk
+          name: release-artifacts
+          path: |
+            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-arm64.apk
+            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-arm32.apk
+            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-x64.apk
+            ${{ github.event.repository.name }}-${{ steps.tagName.outputs.tag }}-linux.zip
