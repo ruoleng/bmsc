@@ -31,11 +31,10 @@ class AudioService {
       }
       await x.player.setAudioSource(x.playlist);
       final position = await SharedPreferencesService.getPlayPosition();
-      if (restored != null &&
-          restored.$2 < x.playlist.length &&
-          x.playlist.sequence[restored.$2].duration != null &&
-          x.playlist.sequence[restored.$2].duration!.inSeconds > position) {
-        await x.player.seek(Duration(seconds: position), index: restored.$2);
+      if (restored != null && restored.$2 < x.playlist.length) {
+        await x.player.seek(null, index: restored.$2);
+        await Future.delayed(const Duration(milliseconds: 500));
+        await x.player.seek(Duration(seconds: position));
       }
       await x.restorePlayMode();
     } catch (e) {
@@ -85,10 +84,7 @@ class AudioService {
         final prefs = await SharedPreferencesService.instance;
         await prefs.setInt('currentIndex', index);
         if (player.playing) {
-          _logger
-              .info('currentIndexStream hijack dummy source for index: $index');
           await _hijackDummySource(index: index);
-          _logger.info('currentIndexStream hijack done');
         }
       }
     });
@@ -114,9 +110,7 @@ class AudioService {
         if (state.playing == false) {
           return;
         }
-        _logger.info('processing state hijack dummy source for index: $index');
         await _hijackDummySource(index: index);
-        _logger.info('processing state hijack done');
       }
     });
   }
@@ -156,6 +150,7 @@ class AudioService {
     _playPositionTimer?.cancel();
     _playPositionTimer =
         Timer.periodic(const Duration(seconds: 5), (timer) async {
+      _logger.info('saving play position: ${player.position.inSeconds}');
       await SharedPreferencesService.setPlayPosition(player.position.inSeconds);
     });
   }
