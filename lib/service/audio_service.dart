@@ -171,6 +171,9 @@ class AudioService {
       _logger.warning('No current index available for hijacking');
       return;
     }
+    if (index >= playlist.length) {
+      return;
+    }
 
     final currentSource = playlist.sequence[index];
 

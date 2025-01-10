@@ -35,6 +35,7 @@ outputs = { self, nixpkgs, flake-utils }:
             sqlite
           ];
           GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/libexec/android-sdk/build-tools/${buildToolsVersion}/aapt2";
+          LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}:/run/current-system/sw/lib:$LD_LIBRARY_PATH";
         };
     });
 }

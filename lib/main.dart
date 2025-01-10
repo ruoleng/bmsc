@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:bmsc/screen/search_screen.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'component/playing_card.dart';
 import 'package:flutter/foundation.dart';
@@ -34,6 +35,9 @@ Future<void> main() async {
       androidNotificationChannelName: 'Audio Playback',
       androidNotificationOngoing: true,
     );
+  }
+  if (Platform.isLinux || Platform.isWindows) {
+    JustAudioMediaKit.ensureInitialized();
   }
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeProvider.instance.init();

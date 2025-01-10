@@ -13,6 +13,7 @@ import '../model/fav_detail.dart';
 import '../model/meta.dart';
 import 'dart:math' as math;
 import 'package:bmsc/util/logger.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 final _logger = LoggerUtils.getLogger('DatabaseManager');
 
@@ -37,8 +38,30 @@ class DatabaseManager {
   }
 
   static Future<Database> initDB() async {
-    Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String path = join(documentsDirectory.path, _dbName);
+    // Initialize FFI for Linux
+    if (Platform.isLinux) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
+    String path;
+    if (Platform.isLinux) {
+      // Use standard XDG data directory for Linux
+      final home = Platform.environment['HOME'];
+      if (home == null) {
+        throw Exception('Could not find HOME directory');
+      }
+      final dataDir = Directory('$home/.local/share/bmsc');
+      // Create directory if it doesn't exist
+      if (!await dataDir.exists()) {
+        await dataDir.create(recursive: true);
+      }
+      path = join(dataDir.path, _dbName);
+    } else {
+      Directory documentsDirectory = await getApplicationDocumentsDirectory();
+      path = join(documentsDirectory.path, _dbName);
+    }
+    
     try {
       final db = await openDatabase(
         path,
@@ -485,9 +508,14 @@ class DatabaseManager {
   }
 
   static Future<File> prepareFileForCaching(String bvid, int cid) async {
-    final directory = await getApplicationDocumentsDirectory();
+    String directory;
+    if (Platform.isLinux || Platform.isWindows) {
+      directory = (await getApplicationCacheDirectory()).path;
+    } else {
+      directory = (await getApplicationDocumentsDirectory()).path;
+    }
     final fileName = '$bvid-$cid.mp3';
-    final filePath = join(directory.path, fileName);
+    final filePath = join(directory, fileName);
     return File(filePath);
   }
 
