@@ -519,4 +519,39 @@ class BilibiliAPI {
       return (false, e.toString());
     }
   }
+
+  Future<(String, String)?> getQrcodeLoginInfo() async {
+    return _callAPI(apiGetQrcodeLoginUrl,
+        callback: (data) => (data['url'] as String, data['qrcode_key'] as String));
+  }
+
+  Future<int?> checkQrcodeLoginStatus(String qrcodeKey) async {
+    try {
+      final loginResponse = await dio.get(
+        apiCheckQrcodeLoginStatusUrl,
+        queryParameters: {
+          'qrcode_key': qrcodeKey,
+        },
+      );
+      _logger
+          .info('called login with url: ${loginResponse.requestOptions.uri}');
+
+      if (loginResponse.data['code'] != 0) {
+        _logger.severe('Login error: ${loginResponse.data['message']}');
+        return null;
+      }
+
+      if (loginResponse.data['data']['code'] == 0) {
+        final cookies = loginResponse.headers['set-cookie'];
+        if (cookies != null) {
+          await setCookie(cookies.join(';'), save: true);
+        }
+        return 0;
+      }
+      return loginResponse.data['data']['code'];
+    } catch (e) {
+      _logger.severe('Login error: $e');
+      return null;
+    }
+  }
 }

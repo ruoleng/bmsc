@@ -255,6 +255,14 @@ class BilibiliService {
     return _bilibiliAPI.getLoginCaptcha();
   }
 
+  Future<(String, String)?> getQrcodeLoginInfo() {
+    return _bilibiliAPI.getQrcodeLoginInfo();
+  }
+
+  Future<int?> checkQrcodeLoginStatus(String qrcodeKey) {
+    return _bilibiliAPI.checkQrcodeLoginStatus(qrcodeKey);
+  }
+
   Future<String?> getRawWbiKey() {
     return _bilibiliAPI.getRawWbiKey();
   }

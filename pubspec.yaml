@@ -49,6 +49,7 @@ dependencies:
       ref: 99cf0cd2b3c224904490c37071c9eec4d7e1782b
   scroll_to_index: ^3.0.1
   async: ^2.12.0
+  qr_flutter: ^4.1.0
   
 flutter_launcher_icons:
   android: "launcher_icon"
