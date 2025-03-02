@@ -38,7 +38,7 @@ class AudioService {
       final position = await SharedPreferencesService.getPlayPosition();
       if (restored != null && restored.$2 < x.playlist.length) {
         await x.player.seek(null, index: restored.$2);
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 100));
         await x.player.seek(Duration(seconds: position));
       }
       await x.restorePlayMode();

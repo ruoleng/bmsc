@@ -29,17 +29,23 @@ import 'util/string.dart';
 final _logger = LoggerUtils.getLogger('main');
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 记录Android版本信息
   if (Platform.isAndroid) {
+    _logger.info('Android version: ${Platform.operatingSystemVersion}');
+    
     await JustAudioBackground.init(
       androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
       androidNotificationChannelName: 'Audio Playback',
       androidNotificationOngoing: true,
     );
   }
+  
   if (Platform.isLinux || Platform.isWindows) {
     JustAudioMediaKit.ensureInitialized();
   }
-  WidgetsFlutterBinding.ensureInitialized();
+  
   await ThemeProvider.instance.init();
   if (!kDebugMode) _setupErrorHandlers();
   runApp(const MyApp());
@@ -66,6 +72,15 @@ class MyApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: ThemeProvider.instance,
       builder: (context, child) {
+        final isDarkMode = ThemeProvider.instance.themeMode == ThemeMode.dark || 
+                          (ThemeProvider.instance.themeMode == ThemeMode.system && 
+                           WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+        SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+          systemNavigationBarColor: isDarkMode 
+              ? ThemeProvider.darkTheme.colorScheme.surfaceContainer 
+              : ThemeProvider.lightTheme.colorScheme.surfaceContainer,
+        ));
+        
         return MaterialApp(
           navigatorKey: ErrorHandler.navigatorKey,
           theme: ThemeProvider.lightTheme,
