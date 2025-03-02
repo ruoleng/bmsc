@@ -257,6 +257,22 @@ class SharedPreferencesService {
     return prefs.getInt('report_history_interval') ?? 10;
   }
 
+  // 获取定时停止播放的时间（分钟）
+  static Future<int?> getSleepTimerMinutes() async {
+    final prefs = await SharedPreferencesService.instance;
+    return prefs.getInt('sleep_timer_minutes');
+  }
+
+  // 设置定时停止播放的时间（分钟）
+  static Future<void> setSleepTimerMinutes(int? minutes) async {
+    final prefs = await SharedPreferencesService.instance;
+    if (minutes == null) {
+      await prefs.remove('sleep_timer_minutes');
+    } else {
+      await prefs.setInt('sleep_timer_minutes', minutes);
+    }
+  }
+
   static Future<void> savePlaylistSearchResult(List<Map<String, dynamic>> result, String text, int favid) async {
     final prefs = await SharedPreferencesService.instance;
     final content = {
