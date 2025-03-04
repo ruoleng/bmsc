@@ -22,7 +22,9 @@ class AudioService {
   Timer? _historyReportTimer;
   Timer? _playPositionTimer;
   Timer? _sleepTimer;
+  Timer? _fadeTimer;
   final _sleepTimerSubject = BehaviorSubject<int?>.seeded(null);
+  final _fadeOutDuration = 15; // 15 seconds fade out
 
   // 获取定时停止播放的流
   Stream<int?> get sleepTimerStream => _sleepTimerSubject.stream;
@@ -179,6 +181,11 @@ class AudioService {
     // 取消现有的定时器
     _sleepTimer?.cancel();
     _sleepTimer = null;
+    _fadeTimer?.cancel();
+    _fadeTimer = null;
+    
+    // 恢复音量
+    await player.setVolume(1);
     
     // 更新设置
     await SharedPreferencesService.setSleepTimerMinutes(minutes);
@@ -220,12 +227,34 @@ class AudioService {
         player.pause();
         _sleepTimer?.cancel();
         _sleepTimer = null;
+        _fadeTimer?.cancel();
+        _fadeTimer = null;
         _sleepTimerSubject.add(null);
         SharedPreferencesService.setSleepTimerMinutes(null);
+        // 恢复音量
+        player.setVolume(1);
+      } else if (remainingSeconds <= _fadeOutDuration && _fadeTimer == null) {
+        // 开始淡出
+        _startFadeOut(remainingSeconds);
       } else {
         // 更新剩余时间
         _sleepTimerSubject.add(remainingSeconds);
       }
+    });
+  }
+
+  void _startFadeOut(int remainingSeconds) {
+    final startVolume = player.volume;
+    final volumeStep = startVolume / remainingSeconds;
+    
+    _fadeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (timer.tick >= remainingSeconds) {
+        _fadeTimer?.cancel();
+        _fadeTimer = null;
+        return;
+      }
+      final newVolume = startVolume - (volumeStep * timer.tick);
+      player.setVolume(newVolume.clamp(0.0, 1.0));
     });
   }
 
