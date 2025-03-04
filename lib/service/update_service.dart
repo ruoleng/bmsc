@@ -48,7 +48,7 @@ class UpdateService {
     var changelog = "";
     for (var version in newVersionInfo!) {
       changelog += "# ${version.tagName}\n\n${version.body}\n\n";
-      if (version.tagName == curVersion) {
+      if (version.tagName == 'v$curVersion') {
         break;
       }
     }
