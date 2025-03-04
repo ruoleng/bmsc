@@ -34,6 +34,7 @@ class _DetailScreenState extends State<DetailScreen> {
   final AutoScrollController _subtitleScrollController = AutoScrollController();
   final Map<String, List<BilibiliSubtitle>> _subtitleCache = {};
   String? currentKey;
+  final Map<String, CommentData?> _commentCache = {};
 
   @override
   void initState() {
@@ -1075,17 +1076,32 @@ class _DetailScreenState extends State<DetailScreen> {
       stream: audioService.player.sequenceStateStream,
       builder: (context, snapshot) {
         final src = snapshot.data?.currentSource;
+        final aid = src?.tag.extras['aid']?.toString();
+        
+        Future<CommentData?> getCommentData(String aid) async {
+          // Check cache first
+          if (_commentCache.containsKey(aid)) {
+            return _commentCache[aid];
+          }
+          
+          // If not in cache, fetch and cache it
+          final bs = await BilibiliService.instance;
+          final data = await bs.getComment(aid, null);
+          _commentCache[aid] = data;
+          return data;
+        }
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             GestureDetector(
-              onTap: src == null
+              onTap: aid == null
                   ? null
                   : () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => CommentScreen(
-                            aid: src.tag.extras['aid'].toString(),
+                            aid: aid,
                           ),
                         ),
                       ),
@@ -1095,10 +1111,9 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            if (src != null)
+            if (aid != null)
               FutureBuilder<CommentData?>(
-                future: (BilibiliService.instance).then((bs) =>
-                    bs.getComment(src.tag.extras['aid'].toString(), null)),
+                future: getCommentData(aid),
                 builder: (context, snapshot) {
                   final count = snapshot.data?.cursor?.allCount ?? 0;
                   return Text(
