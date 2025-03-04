@@ -325,6 +325,9 @@ class _DetailScreenState extends State<DetailScreen> {
                           _subtitles = null;
                         });
                       } else {
+                        setState(() {
+                          _showSubtitles = true;
+                        });
                         await _loadSubtitles(aid, cid);
                       }
                     }
@@ -1147,13 +1150,11 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _loadSubtitles(int aid, int cid) async {
     final subtitleKey = '${aid}_$cid';
-    
     if (_subtitleCache.containsKey(subtitleKey)) {
       // 使用缓存的字幕数据
       setState(() {
         _subtitles = _subtitleCache[subtitleKey];
         _showSubtitles = true;
-        currentKey = subtitleKey;
       });
       return;
     }
@@ -1172,14 +1173,12 @@ class _DetailScreenState extends State<DetailScreen> {
         setState(() {
           _subtitles = subtitleData;
           _showSubtitles = true;
-          currentKey = subtitleKey;
         });
       }
     } else {
       _subtitleCache[subtitleKey] = [];
       setState(() {
         _subtitles = [];
-        currentKey = subtitleKey;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1201,7 +1200,6 @@ class _DetailScreenState extends State<DetailScreen> {
         final currentCid = src?.tag.extras['cid'] as int?;
 
         if (currentAid == null || currentCid == null) {
-          _subtitles = [];
           return Center(
             child: Text(
               '歌曲信息暂未加载',
@@ -1215,6 +1213,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
         // 检查字幕是否与当前播放的视频匹配
         if ('${currentAid}_$currentCid' != currentKey) {
+          currentKey = '${currentAid}_$currentCid';
           Future.microtask(() => _loadSubtitles(currentAid, currentCid));
 
           if (_subtitles == null) {
@@ -1275,7 +1274,7 @@ class _DetailScreenState extends State<DetailScreen> {
               }
 
               return SizedBox(
-                height: MediaQuery.of(context).size.height * 0.6,
+                height: MediaQuery.of(context).size.height * 0.5,
                 child: ListView.builder(
                   controller: _subtitleScrollController,
                   padding: const EdgeInsets.symmetric(vertical: 80),
@@ -1343,6 +1342,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
   @override
   void dispose() {
+    _commentCache.clear();
     _subtitleScrollController.dispose();
     super.dispose();
   }
