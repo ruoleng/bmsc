@@ -10,6 +10,7 @@ import 'package:bmsc/model/fav.dart';
 import 'package:bmsc/model/history.dart';
 import 'package:bmsc/model/myinfo.dart';
 import 'package:bmsc/model/search.dart';
+import 'package:bmsc/model/subtitle.dart';
 import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/user_card.dart' show UserInfoResult;
 import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
@@ -175,7 +176,7 @@ class BilibiliService {
       }
       final tag = MediaItem(
           id: '${bvid}_${x.cid}',
-          title: entities.length > 1 ? "${x.bvidTitle} - ${x.partTitle}" : x.bvidTitle,
+          title: entities.length > 1 ? x.partTitle : x.bvidTitle,
           artUri: Uri.parse(x.artUri),
           artist: x.artist,
           extras: {
@@ -233,6 +234,16 @@ class BilibiliService {
 
   Future<void> reportHistory(int aid, int cid, int? progress) {
     return _bilibiliAPI.reportHistory(aid, cid, progress);
+  }
+
+  /// Returns a list of tuples containing subtitle language and URL
+  /// Each tuple contains (language, subtitle_url)
+  Future<List<(String, String)>?> getSubTitleInfo(int aid, int cid) {
+    return _bilibiliAPI.getSubTitleInfo(aid, cid);
+  }
+
+  Future<List<BilibiliSubtitle>?> getSubTitleData(String url) {
+    return _bilibiliAPI.getSubTitleData(url);
   }
 
   Future<(bool, String?)> passwordLogin(

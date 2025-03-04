@@ -8,6 +8,7 @@ import 'package:bmsc/model/history.dart';
 import 'package:bmsc/model/meta.dart';
 import 'package:bmsc/model/myinfo.dart';
 import 'package:bmsc/model/search.dart';
+import 'package:bmsc/model/subtitle.dart';
 import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/user_card.dart';
 import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
@@ -85,7 +86,8 @@ class BilibiliAPI {
         data = convert.jsonDecode(data);
       }
       // _logger.info('response: $data');
-      if (data['code'] != 0 || data[unwrapKey] == null) {
+      if ((unwrapKey == "data" && data['code'] != 0) ||
+          data[unwrapKey] == null) {
         return null;
       }
       data = data[unwrapKey];
@@ -380,10 +382,6 @@ class BilibiliAPI {
     return rawWbiKeyNew;
   }
 
-  Future<Map<String, dynamic>?> _getGeetestParams() async {
-    return _callAPI(apiGeetestParamsUrl);
-  }
-
   Future<Map<String, String>?> getLoginCaptcha() async {
     return _callAPI(apiLoginCaptchaUrl,
         queryParameters: {'source': 'main_web'},
@@ -392,6 +390,28 @@ class BilibiliAPI {
               'gt': data['geetest']['gt'],
               'token': data['token'],
             });
+  }
+
+  Future<List<(String, String)>?> getSubTitleInfo(int aid, int cid) async {
+    return _callAPI(apiPlayer, queryParameters: {'aid': aid, 'cid': cid},
+        callback: (data) {
+      final subtitles = data['subtitle']['subtitles'] as List<dynamic>;
+      return subtitles.map((x) {
+        var url = x['subtitle_url'] as String;
+        if (url != "" && url[0] == '/') {
+          url = "https:$url";
+        }
+        return (x['lan_doc'] as String, url);
+      }).toList();
+    });
+  }
+
+  Future<List<BilibiliSubtitle>?> getSubTitleData(String url) async {
+    return _callAPI(url,
+        unwrapKey: "body",
+        callback: (data) => (data as List<dynamic>)
+            .map((x) => BilibiliSubtitle.fromJson(x))
+            .toList());
   }
 
   Future<Map<String, dynamic>?> _getLoginKey() async {
@@ -522,7 +542,8 @@ class BilibiliAPI {
 
   Future<(String, String)?> getQrcodeLoginInfo() async {
     return _callAPI(apiGetQrcodeLoginUrl,
-        callback: (data) => (data['url'] as String, data['qrcode_key'] as String));
+        callback: (data) =>
+            (data['url'] as String, data['qrcode_key'] as String));
   }
 
   Future<int?> checkQrcodeLoginStatus(String qrcodeKey) async {

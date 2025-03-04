@@ -1,6 +1,10 @@
+import 'dart:math';
+
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:bmsc/component/playlist_bottom_sheet.dart';
 import 'package:bmsc/component/select_favlist_dialog_multi.dart';
+import 'package:bmsc/model/comment.dart';
+import 'package:bmsc/model/subtitle.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -8,6 +12,7 @@ import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 import '../component/playing_card.dart';
 import '../util/widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -24,6 +29,11 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   bool? _isFavorite;
   int? _currentAid;
+  bool _showSubtitles = false;
+  List<BilibiliSubtitle>? _subtitles;
+  final AutoScrollController _subtitleScrollController = AutoScrollController();
+  final Map<String, List<BilibiliSubtitle>> _subtitleCache = {};
+  String? currentKey;
 
   @override
   void initState() {
@@ -41,20 +51,26 @@ class _DetailScreenState extends State<DetailScreen> {
     setState(() => _isFavorite = isFavorited);
   }
 
-  // 判断是否为小屏幕设备的辅助方法
   bool _isSmallScreen(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
-    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-    
-    // 打印设备信息，帮助调试
-    print('Screen size: $screenWidth x $screenHeight, Pixel ratio: $devicePixelRatio');
-    
-    // 使用更宽松的条件来判断小屏幕
-    // 对于720x1280的xhdpi设备，逻辑分辨率约为360x640，像素比约为2.0
-    // 我们将条件放宽，确保这类设备被识别为小屏幕
-    return screenWidth <= 400 || screenHeight <= 720;
+
+    // 计算屏幕对角线长度(逻辑像素)
+    final diagonal =
+        sqrt(screenWidth * screenWidth + screenHeight * screenHeight);
+
+    // 判断是否为平板
+    final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
+
+    // 如果是平板设备，则不认为是小屏幕
+    if (isTablet) {
+      return false;
+    }
+
+    // 对于手机设备，使用对角线长度和最短边长来判断
+    // 对角线小于900逻辑像素或最短边小于360逻辑像素认为是小屏幕
+    return diagonal < 900 || screenSize.shortestSide < 360;
   }
 
   @override
@@ -66,6 +82,7 @@ class _DetailScreenState extends State<DetailScreen> {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('正在播放'),
+        forceMaterialTransparency: true,
         actions: [
           _buildShareButton(),
         ],
@@ -128,67 +145,145 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildPortraitLayout(BuildContext context, AudioService audioService) {
-    // 使用辅助方法判断小屏幕
     final isSmallScreen = _isSmallScreen(context);
-    
+    final padding = isSmallScreen ? 12.0 : 24.0;
     return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildCoverImage(audioService),
-          _buildTitleAndArtist(audioService, context),
-          // 根据屏幕大小调整间距
-          SizedBox(height: isSmallScreen ? 10 : 30),
-          _buildProgressBar(audioService, context),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 8.0 : 16.0),
-            child: Column(
-              children: [
-                _buildPlaybackControls(audioService, context),
-                SizedBox(height: isSmallScreen ? 8 : 16),
-                _buildTransportControls(audioService),
-                SizedBox(height: isSmallScreen ? 8 : 16),
-                _buildAdditionalControls(audioService, context),
-              ],
-            ),
-          ),
-        ],
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: padding),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_showSubtitles && _subtitles != null)
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(
+                        child:
+                            _buildCoverImage(audioService, showTapHint: false),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: _buildTitleAndArtist(
+                          audioService,
+                          context,
+                          compact: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isSmallScreen ? 16 : 24),
+                  _buildSubtitlesView(audioService),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: isSmallScreen ? 8.0 : 16.0),
+                    child: Column(
+                      children: [
+                        _buildProgressBar(audioService, context),
+                        SizedBox(height: isSmallScreen ? 8 : 16),
+                        _buildTransportControls(audioService),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            else
+              Column(
+                children: [
+                  _buildCoverImage(audioService),
+                  SizedBox(height: isSmallScreen ? 16 : 24),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: padding),
+                    child: _buildTitleAndArtist(audioService, context),
+                  ),
+                  SizedBox(height: isSmallScreen ? 10 : 30),
+                  _buildProgressBar(audioService, context),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: isSmallScreen ? 8.0 : 16.0),
+                    child: Column(
+                      children: [
+                        _buildPlaybackControls(audioService, context),
+                        SizedBox(height: isSmallScreen ? 8 : 16),
+                        _buildTransportControls(audioService),
+                        SizedBox(height: isSmallScreen ? 8 : 16),
+                        _buildAdditionalControls(audioService, context),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildLandscapeLayout(BuildContext context, AudioService audioService) {
-    // 使用辅助方法判断小屏幕
+  Widget _buildLandscapeLayout(
+      BuildContext context, AudioService audioService) {
     final isSmallScreen = _isSmallScreen(context);
-    
+    final horizontalPadding = isSmallScreen ? 8.0 : 16.0;
+    final verticalSpacing = isSmallScreen ? 12.0 : 20.0;
+
     return Row(children: [
       Expanded(
         flex: 1,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildCoverImage(audioService),
-            _buildTitleAndArtist(audioService, context),
+            if (_showSubtitles && _subtitles != null)
+              Column(
+                children: [
+                  // SizedBox(height: verticalSpacing),
+                  _buildSubtitlesView(audioService),
+                ],
+              )
+            else ...[
+              _buildCoverImage(audioService),
+              SizedBox(height: verticalSpacing),
+              _buildTitleAndArtist(audioService, context),
+            ],
           ],
         ),
       ),
+      SizedBox(width: 24),
       Expanded(
         flex: 1,
         child: SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsets.all(isSmallScreen ? 8.0 : 16.0),
+            padding: EdgeInsets.all(horizontalPadding),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (_showSubtitles && _subtitles != null) ...[
+                  Row(
+                    children: [
+                      SizedBox(
+                        child:
+                            _buildCoverImage(audioService, showTapHint: false),
+                      ),
+                      SizedBox(width: horizontalPadding),
+                      Expanded(
+                        child: _buildTitleAndArtist(
+                          audioService,
+                          context,
+                          compact: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+                ],
                 _buildProgressBar(audioService, context),
+                SizedBox(height: verticalSpacing),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 8.0 : 16.0),
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   child: Column(
                     children: [
                       _buildPlaybackControls(audioService, context),
-                      SizedBox(height: isSmallScreen ? 8 : 16),
+                      SizedBox(height: verticalSpacing),
                       _buildTransportControls(audioService),
-                      SizedBox(height: isSmallScreen ? 8 : 16),
+                      SizedBox(height: verticalSpacing),
                       _buildAdditionalControls(audioService, context),
                     ],
                   ),
@@ -201,49 +296,68 @@ class _DetailScreenState extends State<DetailScreen> {
     ]);
   }
 
-  Widget _buildCoverImage(AudioService audioService) {
+  Widget _buildCoverImage(AudioService audioService,
+      {bool showTapHint = true}) {
     return StreamBuilder<SequenceState?>(
       stream: audioService.player.sequenceStateStream,
       builder: (context, snapshot) {
         final src = snapshot.data?.currentSource;
-        // 获取屏幕宽度
-        final screenWidth = MediaQuery.of(context).size.width;
-        // 使用辅助方法判断小屏幕
         final isSmallScreen = _isSmallScreen(context);
-        // 根据屏幕宽度计算图片尺寸，小屏幕上显示更小的图片
-        final imageSize = isSmallScreen ? 
-            Size(screenWidth * 0.7, screenWidth * 0.4) : 
-            Size(355.5, 200);
-            
-        return src == null
-            ? SizedBox(
+        double width = 355.5, height = 200.0;
+        var factor = isSmallScreen ? 0.7 : 1;
+        if (!showTapHint) {
+          factor *= 0.4;
+          width *= 0.9;
+        }
+        final imageSize = Size(width * factor, height * factor);
+
+        return GestureDetector(
+          onTap: showTapHint
+              ? () async {
+                  if (src != null) {
+                    final aid = src.tag.extras['aid'] as int?;
+                    final cid = src.tag.extras['cid'] as int?;
+                    if (aid != null && cid != null) {
+                      if (_showSubtitles) {
+                        setState(() {
+                          _showSubtitles = false;
+                          _subtitles = null;
+                        });
+                      } else {
+                        await _loadSubtitles(aid, cid);
+                      }
+                    }
+                  }
+                }
+              : null,
+          child: shadow(ClipRRect(
+            borderRadius: BorderRadius.circular(5.0),
+            child: SizedBox(
                 height: imageSize.height,
                 width: imageSize.width,
-                child: const Center(
-                  child: Icon(Icons.question_mark, size: 50),
-                ),
-              )
-            : shadow(ClipRRect(
-                borderRadius: BorderRadius.circular(5.0),
-                child: SizedBox(
-                    height: imageSize.height,
-                    width: imageSize.width,
-                    child: CachedNetworkImage(
-                      imageUrl: src.tag.artUri.toString(),
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Icon(Icons.music_note),
-                      errorWidget: (context, url, error) => const Icon(Icons.music_note),
-                    )),
-              ));
+                child: src == null
+                    ? Center(
+                        child: Icon(Icons.question_mark, size: 50),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: src.tag.artUri.toString(),
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            const Icon(Icons.music_note),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.music_note),
+                      )),
+          )),
+        );
       },
     );
   }
 
-  Widget _buildTitleAndArtist(AudioService audioService, BuildContext context) {
-    // 使用辅助方法判断小屏幕
-    final isSmallScreen = _isSmallScreen(context);
-    
+  Widget _buildTitleAndArtist(AudioService audioService, BuildContext context,
+      {bool compact = false}) {
     return Column(
+      crossAxisAlignment:
+          compact ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         StreamBuilder<SequenceState?>(
           stream: audioService.player.sequenceStateStream,
@@ -251,16 +365,21 @@ class _DetailScreenState extends State<DetailScreen> {
             final src = snapshot.data?.currentSource;
             return Padding(
               padding: EdgeInsets.only(
-                top: isSmallScreen ? 8 : 16, 
-                left: isSmallScreen ? 8 : 16, 
-                right: isSmallScreen ? 8 : 16, 
-                bottom: isSmallScreen ? 4 : 8
+                top: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
+                left: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
+                right: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
+                bottom: compact ? 4 : (_isSmallScreen(context) ? 4 : 8),
               ),
               child: Text(
                 src?.tag.title ?? "",
-                style: TextStyle(fontSize: isSmallScreen ? 16 : 20),
+                style: TextStyle(
+                  fontSize: compact ? 16 : (_isSmallScreen(context) ? 16 : 20),
+                  fontWeight: FontWeight.w600,
+                ),
                 softWrap: true,
-                textAlign: TextAlign.center,
+                maxLines: compact ? 1 : null,
+                overflow: compact ? TextOverflow.ellipsis : null,
+                textAlign: compact ? TextAlign.left : TextAlign.center,
               ),
             );
           },
@@ -272,7 +391,8 @@ class _DetailScreenState extends State<DetailScreen> {
             return InkWell(
               onTap: () => src == null
                   ? null
-                  : Navigator.pushReplacement(context, MaterialPageRoute<Widget>(
+                  : Navigator.pushReplacement(context,
+                      MaterialPageRoute<Widget>(
                       builder: (BuildContext context) {
                         return Overlay(
                           initialEntries: [
@@ -288,13 +408,35 @@ class _DetailScreenState extends State<DetailScreen> {
                         );
                       },
                     )),
-              child: Text(
-                src?.tag.artist ?? "",
-                style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
-                softWrap: false,
-                maxLines: 1,
-                textAlign: TextAlign.center,
-              ),
+              child: src?.tag.artist != null
+                  ? Row(
+                      mainAxisAlignment: compact
+                          ? MainAxisAlignment.start
+                          : MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          src?.tag.artist ?? "",
+                          style: TextStyle(
+                            fontSize: compact
+                                ? 12
+                                : (_isSmallScreen(context) ? 12 : 14),
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          softWrap: false,
+                          maxLines: 1,
+                          textAlign:
+                              compact ? TextAlign.left : TextAlign.center,
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          size: compact
+                              ? 16
+                              : (_isSmallScreen(context) ? 16 : 18),
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ],
+                    )
+                  : SizedBox(),
             );
           },
         ),
@@ -303,41 +445,55 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildProgressBar(AudioService audioService, BuildContext context) {
-    // 使用辅助方法判断小屏幕
     final isSmallScreen = _isSmallScreen(context);
-    
+
     return Padding(
       padding: EdgeInsets.all(isSmallScreen ? 10.0 : 20.0),
-      child: StreamBuilder<(Duration, Duration, Duration?)>(
-        stream: Rx.combineLatest2(
-            audioService.player.positionStream,
-            audioService.player.playbackEventStream,
-            (position, playbackEvent) => (
-                  position, // progress
-                  playbackEvent.bufferedPosition, // buffered
-                  playbackEvent.duration, // total
-                )),
+      child: FutureBuilder<(Duration?, Duration?, Duration?)>(
+        future: Future.wait([
+          Future.value(audioService.player.position),
+          Future.value(audioService.player.bufferedPosition),
+          Future.value(audioService.player.duration),
+        ]).then((values) => (values[0], values[1], values[2])),
         builder: (context, snapshot) {
-          final durationState = snapshot.data;
-          final progress = durationState?.$1 ?? Duration.zero;
-          final buffered = durationState?.$2 ?? Duration.zero;
-          final total = durationState?.$3 ?? Duration.zero;
-          return ProgressBar(
-            progress: progress,
-            buffered: buffered,
-            total: total,
-            onSeek: audioService.player.seek,
-            timeLabelTextStyle: TextStyle(
-                color: Theme.of(context).colorScheme.primary, fontSize: 10),
-            timeLabelPadding: 5,
-            thumbRadius: 5,
+          return StreamBuilder<(Duration?, Duration?, Duration?)>(
+            initialData: snapshot.data, // 使用 Future 获取的初始值
+            stream: Rx.combineLatest3(
+              audioService.player.positionStream,
+              audioService.player.bufferedPositionStream,
+              audioService.player.durationStream,
+              (position, bufferedPosition, duration) => (
+                position,
+                bufferedPosition,
+                duration,
+              ),
+            ),
+            builder: (context, snapshot) {
+              final durationState = snapshot.data;
+              final progress = durationState?.$1 ?? Duration.zero;
+              final buffered = durationState?.$2 ?? Duration.zero;
+              final total = durationState?.$3 ?? Duration.zero;
+              return ProgressBar(
+                progress: progress,
+                buffered: buffered,
+                total: total,
+                onSeek: audioService.player.seek,
+                timeLabelTextStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 10,
+                ),
+                timeLabelPadding: 5,
+                thumbRadius: 5,
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Widget _buildPlaybackControls(AudioService audioService, BuildContext context) {
+  Widget _buildPlaybackControls(
+      AudioService audioService, BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -347,7 +503,8 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildPlaybackModeButton(AudioService audioService, BuildContext context) {
+  Widget _buildPlaybackModeButton(
+      AudioService audioService, BuildContext context) {
     return StreamBuilder<(LoopMode, bool)>(
       stream: Rx.combineLatest2(
         audioService.player.loopModeStream,
@@ -355,7 +512,8 @@ class _DetailScreenState extends State<DetailScreen> {
         (a, b) => (a, b),
       ),
       builder: (context, snapshot) {
-        final (loopMode, shuffleModeEnabled) = snapshot.data ?? (LoopMode.off, false);
+        final (loopMode, shuffleModeEnabled) =
+            snapshot.data ?? (LoopMode.off, false);
         final icons = [
           Icons.playlist_play,
           Icons.repeat_one,
@@ -363,7 +521,8 @@ class _DetailScreenState extends State<DetailScreen> {
           Icons.shuffle,
         ];
         final labels = ["顺序播放", "单曲循环", "歌单循环", "随机播放"];
-        final index = shuffleModeEnabled ? 3 : LoopMode.values.indexOf(loopMode);
+        final index =
+            shuffleModeEnabled ? 3 : LoopMode.values.indexOf(loopMode);
 
         return TextButton.icon(
           icon: Icon(
@@ -406,22 +565,28 @@ class _DetailScreenState extends State<DetailScreen> {
           icon: Icon(
             _isFavorite == true ? Icons.favorite : Icons.favorite_border,
             size: 20,
-            color: _isFavorite == true ? Colors.red : Theme.of(context).colorScheme.primary,
+            color: _isFavorite == true
+                ? Colors.red
+                : Theme.of(context).colorScheme.primary,
           ),
           label: Text(
             _isFavorite == true ? '已收藏' : '收藏',
             style: TextStyle(
               fontSize: 12,
-              color: _isFavorite == true ? Colors.red : Theme.of(context).colorScheme.primary,
+              color: _isFavorite == true
+                  ? Colors.red
+                  : Theme.of(context).colorScheme.primary,
             ),
           ),
-          onPressed: src == null ? null : () => _handleFavoriteAction(src, context),
+          onPressed:
+              src == null ? null : () => _handleFavoriteAction(src, context),
         );
       },
     );
   }
 
-  Future<void> _handleFavoriteAction(IndexedAudioSource src, BuildContext context) async {
+  Future<void> _handleFavoriteAction(
+      IndexedAudioSource src, BuildContext context) async {
     final bs = await BilibiliService.instance;
     final uid = bs.myInfo?.mid ?? 0;
     final favs = await bs.getFavs(uid, rid: src.tag.extras['aid']);
@@ -429,7 +594,8 @@ class _DetailScreenState extends State<DetailScreen> {
       return;
     }
 
-    final defaultFolderId = await SharedPreferencesService.getDefaultFavFolder();
+    final defaultFolderId =
+        await SharedPreferencesService.getDefaultFavFolder();
 
     if (!_isFavorite! && defaultFolderId != null) {
       final success = await bs.favoriteVideo(
@@ -453,7 +619,8 @@ class _DetailScreenState extends State<DetailScreen> {
       if (!context.mounted) return;
       final result = await showDialog(
           context: context,
-          builder: (context) => SelectMultiFavlistDialog(aid: src.tag.extras['aid']));
+          builder: (context) =>
+              SelectMultiFavlistDialog(aid: src.tag.extras['aid']));
       if (result == null) return;
       final toAdd = result['toAdd'];
       final toRemove = result['toRemove'];
@@ -504,7 +671,7 @@ class _DetailScreenState extends State<DetailScreen> {
     // 使用辅助方法判断小屏幕
     final isSmallScreen = _isSmallScreen(context);
     final iconSize = isSmallScreen ? 30.0 : 36.0;
-    
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -513,7 +680,9 @@ class _DetailScreenState extends State<DetailScreen> {
           builder: (_, __) {
             return IconButton(
               icon: Icon(Icons.skip_previous, size: iconSize),
-              onPressed: audioService.player.hasPrevious ? audioService.player.seekToPrevious : null,
+              onPressed: audioService.player.hasPrevious
+                  ? audioService.player.seekToPrevious
+                  : null,
             );
           },
         ),
@@ -528,7 +697,8 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
               child: Padding(
                 padding: EdgeInsets.all(isSmallScreen ? 6.0 : 8.0),
-                child: _playPauseButton(playerState, audioService.player, context, isSmallScreen),
+                child: _playPauseButton(
+                    playerState, audioService.player, context, isSmallScreen),
               ),
             );
           },
@@ -538,7 +708,9 @@ class _DetailScreenState extends State<DetailScreen> {
           builder: (_, __) {
             return IconButton(
               icon: Icon(Icons.skip_next, size: iconSize),
-              onPressed: audioService.player.hasNext ? audioService.player.seekToNext : null,
+              onPressed: audioService.player.hasNext
+                  ? audioService.player.seekToNext
+                  : null,
             );
           },
         ),
@@ -546,10 +718,11 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _playPauseButton(PlayerState? playerState, AudioPlayer player, BuildContext context, bool isSmallScreen) {
+  Widget _playPauseButton(PlayerState? playerState, AudioPlayer player,
+      BuildContext context, bool isSmallScreen) {
     final processingState = playerState?.processingState;
     final iconSize = isSmallScreen ? 34.0 : 40.0;
-    
+
     if (processingState == ProcessingState.loading ||
         processingState == ProcessingState.buffering) {
       return IconButton(
@@ -580,15 +753,17 @@ class _DetailScreenState extends State<DetailScreen> {
           Icons.replay,
           size: iconSize,
         ),
-        onPressed: () => player.seek(Duration.zero, index: player.effectiveIndices!.first),
+        onPressed: () =>
+            player.seek(Duration.zero, index: player.effectiveIndices!.first),
       );
     }
   }
 
-  Widget _buildAdditionalControls(AudioService audioService, BuildContext context) {
+  Widget _buildAdditionalControls(
+      AudioService audioService, BuildContext context) {
     // 使用辅助方法判断小屏幕
     final isSmallScreen = _isSmallScreen(context);
-    
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -599,7 +774,8 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildSleepTimerButton(AudioService audioService, BuildContext context, bool isSmallScreen) {
+  Widget _buildSleepTimerButton(
+      AudioService audioService, BuildContext context, bool isSmallScreen) {
     return StreamBuilder<int?>(
       stream: audioService.sleepTimerStream,
       builder: (context, snapshot) {
@@ -609,14 +785,16 @@ class _DetailScreenState extends State<DetailScreen> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              icon: Icon(
+            GestureDetector(
+              onTap: () =>
+                  _handleSleepTimerPress(isActive, audioService, context),
+              child: Icon(
                 isActive ? Icons.timer : Icons.timer_outlined,
                 color: isActive ? Theme.of(context).colorScheme.primary : null,
                 size: isSmallScreen ? 22 : 24,
               ),
-              onPressed: () => _handleSleepTimerPress(isActive, audioService, context),
             ),
+            const SizedBox(height: 4),
             if (isActive)
               Text(
                 _formatTime(remainingSeconds),
@@ -633,7 +811,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   fontSize: isSmallScreen ? 8 : 10,
                   color: isActive
                       ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.6),
                 ),
               ),
           ],
@@ -654,7 +835,8 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  void _handleSleepTimerPress(bool isActive, AudioService audioService, BuildContext context) {
+  void _handleSleepTimerPress(
+      bool isActive, AudioService audioService, BuildContext context) {
     if (isActive) {
       _showCancelSleepTimerDialog(audioService, context);
     } else {
@@ -662,7 +844,8 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  void _showCancelSleepTimerDialog(AudioService audioService, BuildContext context) {
+  void _showCancelSleepTimerDialog(
+      AudioService audioService, BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -691,7 +874,8 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  void _showSleepTimerOptionsDialog(AudioService audioService, BuildContext context) {
+  void _showSleepTimerOptionsDialog(
+      AudioService audioService, BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -704,13 +888,20 @@ class _DetailScreenState extends State<DetailScreen> {
             children: [
               const Padding(
                 padding: EdgeInsets.only(bottom: 8.0),
-                child: Text('倒计时停止', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text('倒计时停止',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
               SizedBox(
                 height: 200,
                 child: ListView(
                   shrinkWrap: true,
                   children: [
+                    ListTile(
+                      dense: true,
+                      title: const Text('自定义时间'),
+                      onTap: () =>
+                          _showCustomTimerDialog(audioService, context),
+                    ),
                     ...[5, 10, 15, 30, 45, 60, 90].map((minutes) => ListTile(
                           dense: true,
                           title: Text('$minutes 分钟'),
@@ -725,18 +916,14 @@ class _DetailScreenState extends State<DetailScreen> {
                             );
                           },
                         )),
-                    ListTile(
-                      dense: true,
-                      title: const Text('自定义时间'),
-                      onTap: () => _showCustomTimerDialog(audioService, context),
-                    ),
                   ],
                 ),
               ),
               const Divider(),
               const Padding(
                 padding: EdgeInsets.only(top: 8.0, bottom: 8.0),
-                child: Text('指定时刻停止', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text('指定时刻停止',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
               ListTile(
                 dense: true,
@@ -791,7 +978,8 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Future<void> _showTimePickerDialog(AudioService audioService, BuildContext context) async {
+  Future<void> _showTimePickerDialog(
+      AudioService audioService, BuildContext context) async {
     Navigator.pop(context);
 
     // 获取当前时间作为初始值
@@ -812,7 +1000,7 @@ class _DetailScreenState extends State<DetailScreen> {
       },
     );
 
-    if (selectedTime != null && context.mounted) {
+    if (selectedTime != null) {
       // 创建目标DateTime
       final now = DateTime.now();
       var targetTime = DateTime(
@@ -852,12 +1040,8 @@ class _DetailScreenState extends State<DetailScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          icon: Icon(
-            Icons.queue_music,
-            size: isSmallScreen ? 22 : 24,
-          ),
-          onPressed: () {
+        GestureDetector(
+          onTap: () {
             showModalBottomSheet(
               context: context,
               builder: (context) => const PlaylistBottomSheet(),
@@ -868,7 +1052,12 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
             );
           },
+          child: Icon(
+            Icons.queue_music,
+            size: isSmallScreen ? 22 : 24,
+          ),
         ),
+        const SizedBox(height: 4),
         Text(
           '播放列表',
           style: TextStyle(
@@ -880,7 +1069,8 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildCommentButton(AudioService audioService, BuildContext context, bool isSmallScreen) {
+  Widget _buildCommentButton(
+      AudioService audioService, BuildContext context, bool isSmallScreen) {
     return StreamBuilder<SequenceState?>(
       stream: audioService.player.sequenceStateStream,
       builder: (context, snapshot) {
@@ -888,31 +1078,257 @@ class _DetailScreenState extends State<DetailScreen> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-                icon: Icon(
-                  Icons.comment_outlined,
-                  size: isSmallScreen ? 22 : 24,
-                ),
-                onPressed: src == null
-                    ? null
-                    : () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CommentScreen(
-                              aid: src.tag.extras['aid'].toString(),
-                            ),
+            GestureDetector(
+              onTap: src == null
+                  ? null
+                  : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CommentScreen(
+                            aid: src.tag.extras['aid'].toString(),
                           ),
-                        )),
-            Text(
-              '评论',
-              style: TextStyle(
-                fontSize: isSmallScreen ? 8 : 10,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+              child: Icon(
+                Icons.comment_outlined,
+                size: isSmallScreen ? 22 : 24,
               ),
-            )
+            ),
+            const SizedBox(height: 4),
+            if (src != null)
+              FutureBuilder<CommentData?>(
+                future: (BilibiliService.instance).then((bs) =>
+                    bs.getComment(src.tag.extras['aid'].toString(), null)),
+                builder: (context, snapshot) {
+                  final count = snapshot.data?.cursor?.allCount ?? 0;
+                  return Text(
+                    count > 10000
+                        ? '${(count / 10000).toStringAsFixed(1)}万'
+                        : count.toString(),
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 8 : 10,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.6),
+                    ),
+                  );
+                },
+              )
+            else
+              Text(
+                '评论',
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 8 : 10,
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
+              )
           ],
         );
       },
     );
+  }
+
+  Future<void> _loadSubtitles(int aid, int cid) async {
+    final subtitleKey = '${aid}_$cid';
+    
+    if (_subtitleCache.containsKey(subtitleKey)) {
+      // 使用缓存的字幕数据
+      setState(() {
+        _subtitles = _subtitleCache[subtitleKey];
+        _showSubtitles = true;
+        currentKey = subtitleKey;
+      });
+      return;
+    }
+
+    final bilibiliService = await BilibiliService.instance;
+    final subtitles = await bilibiliService.getSubTitleInfo(aid, cid);
+
+    if (!mounted) return;
+
+    if (subtitles != null && subtitles.isNotEmpty) {
+      final subtitleData =
+          await bilibiliService.getSubTitleData(subtitles.last.$2);
+      if (subtitleData != null && mounted) {
+        // 缓存字幕数据
+        _subtitleCache[subtitleKey] = subtitleData;
+        setState(() {
+          _subtitles = subtitleData;
+          _showSubtitles = true;
+          currentKey = subtitleKey;
+        });
+      }
+    } else {
+      _subtitleCache[subtitleKey] = [];
+      setState(() {
+        _subtitles = [];
+        currentKey = subtitleKey;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('没有找到字幕'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSubtitlesView(AudioService audioService) {
+    return StreamBuilder<SequenceState?>(
+      stream: audioService.player.sequenceStateStream,
+      builder: (context, sequenceSnapshot) {
+        final src = sequenceSnapshot.data?.currentSource;
+        final currentAid = src?.tag.extras['aid'] as int?;
+        final currentCid = src?.tag.extras['cid'] as int?;
+
+        if (currentAid == null || currentCid == null) {
+          _subtitles = [];
+          return Center(
+            child: Text(
+              '歌曲信息暂未加载',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+          );
+        }
+
+        // 检查字幕是否与当前播放的视频匹配
+        if ('${currentAid}_$currentCid' != currentKey) {
+          Future.microtask(() => _loadSubtitles(currentAid, currentCid));
+
+          if (_subtitles == null) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+        }
+
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _showSubtitles = false;
+              _subtitles = null;
+            });
+          },
+          child: StreamBuilder<Duration>(
+            stream: audioService.player.positionStream,
+            builder: (context, snapshot) {
+              final position = snapshot.data?.inMilliseconds ?? 0;
+
+              if (_subtitles == null || _subtitles!.isEmpty) {
+                return Center(
+                  child: Text(
+                    '暂无歌词',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.6),
+                    ),
+                  ),
+                );
+              }
+
+              const subTitleHeight = 36.0;
+
+              // 找到当前歌词索引
+              final currentIndex = _subtitles!.indexWhere((subtitle) =>
+                  position >= subtitle.from && position <= subtitle.to);
+
+              // 自动滚动到当前歌词
+              if (currentIndex != -1) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!_subtitleScrollController.hasClients) return;
+                  if (_subtitleScrollController
+                      .position.isScrollingNotifier.value) {
+                    return;
+                  }
+
+                  _subtitleScrollController.scrollToIndex(
+                    currentIndex,
+                    preferPosition: AutoScrollPosition.middle,
+                    duration: const Duration(milliseconds: 300),
+                  );
+                });
+              }
+
+              return SizedBox(
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: ListView.builder(
+                  controller: _subtitleScrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 80),
+                  itemCount: _subtitles!.length,
+                  physics: const ClampingScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final subtitle = _subtitles![index];
+                    final isActive =
+                        position >= subtitle.from && position <= subtitle.to;
+                    final isNext = index == currentIndex + 1;
+
+                    return AutoScrollTag(
+                      key: ValueKey(index),
+                      index: index,
+                      controller: _subtitleScrollController,
+                      child: Container(
+                        height: subTitleHeight,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 24),
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 300),
+                          style: TextStyle(
+                            fontSize: isActive ? 18 : (isNext ? 15 : 14),
+                            fontWeight:
+                                isActive ? FontWeight.w600 : FontWeight.normal,
+                            color: isActive
+                                ? Theme.of(context).colorScheme.primary
+                                : (isNext
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.8)
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.5)),
+                            height: 1.2,
+                          ),
+                          child: Center(
+                              child: GestureDetector(
+                            onTap: () {
+                              // 点击歌词跳转到对应时间
+                              audioService.player
+                                  .seek(Duration(milliseconds: subtitle.from));
+                            },
+                            child: Text(
+                              subtitle.content,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          )),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _subtitleScrollController.dispose();
+    super.dispose();
   }
 }
