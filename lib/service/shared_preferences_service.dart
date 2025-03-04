@@ -243,7 +243,7 @@ class SharedPreferencesService {
 
   static Future<bool> getHistoryReported() async {
     final prefs = await SharedPreferencesService.instance;
-    return prefs.getBool('enable_history_report') ?? false;
+    return prefs.getBool('enable_history_report') ?? true;
   }
 
   static Future<void> setReportHistoryInterval(int interval) async {
