@@ -514,7 +514,7 @@ class DatabaseManager {
     } else {
       directory = (await getApplicationDocumentsDirectory()).path;
     }
-    final fileName = '$bvid-$cid.mp3';
+    final fileName = '$bvid-$cid.m4a';
     final filePath = join(directory, fileName);
     return File(filePath);
   }

@@ -170,7 +170,7 @@ class _CacheScreenState extends State<CacheScreen> {
         await downloadDir.create(recursive: true);
       }
 
-      final fileName = '${file['title']} - ${file['artist']}.mp3';
+      final fileName = '${file['title']} - ${file['artist']}.m4a';
       final sanitizedFileName =
           fileName.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
       final targetPath = '${downloadDir.path}/$sanitizedFileName';

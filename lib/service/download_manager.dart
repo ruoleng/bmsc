@@ -219,7 +219,7 @@ class DownloadManager {
 
       if (!_tasks.containsKey(taskId)) continue;
 
-      final fileName = '${task.bvid}-${task.cid}.mp3';
+      final fileName = '${task.bvid}-${task.cid}.m4a';
       task.targetPath = path.join(downloadPath, fileName.replaceAll(' ', '-'));
 
       final localPath =
