@@ -39,9 +39,66 @@ class _DetailScreenState extends State<DetailScreen> {
   String? currentKey;
   final Map<String, CommentData?> _commentCache = {};
 
+  AudioService? _audioService;
+  bool _isAudioServiceLoading = true;
+  SequenceState? _currentSequenceState;
+  Duration _position = Duration.zero;
+  Duration _bufferedPosition = Duration.zero;
+  Duration _duration = Duration.zero;
+
   @override
   void initState() {
     super.initState();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    // Initialize AudioService
+    _audioService = await AudioService.instance;
+    if (!mounted) return;
+    setState(() {
+      _isAudioServiceLoading = false;
+    });
+
+    // Set up listeners for audio state
+    _audioService!.player.sequenceStateStream.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _currentSequenceState = state;
+      });
+
+      // Check favorite status when current track changes
+      final aid = state?.currentSource?.tag.extras['aid'] as int?;
+      if (aid != _currentAid) {
+        _currentAid = aid;
+        _checkFavoriteStatus(aid);
+      }
+    });
+
+    // Set up combined position stream
+    Rx.combineLatest3(
+      _audioService!.player.positionStream,
+      _audioService!.player.bufferedPositionStream,
+      _audioService!.player.durationStream,
+      (position, bufferedPosition, duration) => (
+        position,
+        bufferedPosition,
+        duration,
+      ),
+    ).listen((durationState) {
+      if (!mounted) return;
+      setState(() {
+        _position = durationState.$1;
+        _bufferedPosition = durationState.$2;
+        _duration = durationState.$3 ?? Duration.zero;
+      });
+    });
+
+    // Initialize initial values
+    _position = _audioService!.player.position;
+    _bufferedPosition = _audioService!.player.bufferedPosition;
+    _duration = _audioService!.player.duration ?? Duration.zero;
+    _currentSequenceState = _audioService!.player.sequenceState;
   }
 
   Future<void> _checkFavoriteStatus(int? aid) async {
@@ -91,64 +148,46 @@ class _DetailScreenState extends State<DetailScreen> {
           _buildShareButton(),
         ],
       ),
-      body: FutureBuilder<AudioService>(
-        future: AudioService.instance,
-        builder: (context, snapshot) {
-          final audioService = snapshot.data;
-          if (audioService == null) {
-            return const SizedBox.shrink();
-          }
-
-          return SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 800,
+      body: _isAudioServiceLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 800,
+                  ),
+                  child: isLandscape
+                      ? _buildLandscapeLayout(context)
+                      : _buildPortraitLayout(context),
                 ),
-                child: isLandscape
-                    ? _buildLandscapeLayout(context, audioService)
-                    : _buildPortraitLayout(context, audioService),
               ),
             ),
-          );
-        },
-      ),
     );
   }
 
   Widget _buildShareButton() {
-    return FutureBuilder<AudioService>(
-      future: AudioService.instance,
-      builder: (_, snapshot) {
-        final audioService = snapshot.data;
-        if (audioService == null) {
-          return const SizedBox.shrink();
-        }
-        return StreamBuilder<SequenceState?>(
-          stream: audioService.player.sequenceStateStream,
-          builder: (context, snapshot) {
-            final src = snapshot.data?.currentSource;
-            return IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: src == null
-                  ? null
-                  : () {
-                      final bvid = src.tag.extras['bvid'];
-                      final title = src.tag.title;
-                      final url = 'https://www.bilibili.com/video/$bvid';
-                      Share.share(
-                        '$title\n$url',
-                        subject: title,
-                      );
-                    },
-            );
-          },
-        );
-      },
+    if (_isAudioServiceLoading) {
+      return const SizedBox.shrink();
+    }
+
+    final src = _currentSequenceState?.currentSource;
+    return IconButton(
+      icon: const Icon(Icons.share),
+      onPressed: src == null
+          ? null
+          : () {
+              final bvid = src.tag.extras['bvid'];
+              final title = src.tag.title;
+              final url = 'https://www.bilibili.com/video/$bvid';
+              Share.share(
+                '$title\n$url',
+                subject: title,
+              );
+            },
     );
   }
 
-  Widget _buildPortraitLayout(BuildContext context, AudioService audioService) {
+  Widget _buildPortraitLayout(BuildContext context) {
     final isSmallScreen = _isSmallScreen(context);
     final padding = isSmallScreen ? 12.0 : 24.0;
     return SingleChildScrollView(
@@ -163,13 +202,11 @@ class _DetailScreenState extends State<DetailScreen> {
                   Row(
                     children: [
                       SizedBox(
-                        child:
-                            _buildCoverImage(audioService, showTapHint: false),
+                        child: _buildCoverImage(showTapHint: false),
                       ),
                       SizedBox(width: 12),
                       Expanded(
                         child: _buildTitleAndArtist(
-                          audioService,
                           context,
                           compact: true,
                         ),
@@ -177,15 +214,15 @@ class _DetailScreenState extends State<DetailScreen> {
                     ],
                   ),
                   SizedBox(height: isSmallScreen ? 16 : 24),
-                  _buildSubtitlesView(audioService),
+                  _buildSubtitlesView(),
                   Padding(
                     padding: EdgeInsets.symmetric(
                         horizontal: isSmallScreen ? 8.0 : 16.0),
                     child: Column(
                       children: [
-                        _buildProgressBar(audioService, context),
+                        _buildProgressBar(context),
                         SizedBox(height: isSmallScreen ? 8 : 16),
-                        _buildTransportControls(audioService),
+                        _buildTransportControls(),
                       ],
                     ),
                   ),
@@ -194,24 +231,24 @@ class _DetailScreenState extends State<DetailScreen> {
             else
               Column(
                 children: [
-                  _buildCoverImage(audioService),
+                  _buildCoverImage(),
                   SizedBox(height: isSmallScreen ? 16 : 24),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: padding),
-                    child: _buildTitleAndArtist(audioService, context),
+                    child: _buildTitleAndArtist(context),
                   ),
                   SizedBox(height: isSmallScreen ? 10 : 30),
-                  _buildProgressBar(audioService, context),
+                  _buildProgressBar(context),
                   Padding(
                     padding: EdgeInsets.symmetric(
                         horizontal: isSmallScreen ? 8.0 : 16.0),
                     child: Column(
                       children: [
-                        _buildPlaybackControls(audioService, context),
+                        _buildPlaybackControls(),
                         SizedBox(height: isSmallScreen ? 8 : 16),
-                        _buildTransportControls(audioService),
+                        _buildTransportControls(),
                         SizedBox(height: isSmallScreen ? 8 : 16),
-                        _buildAdditionalControls(audioService, context),
+                        _buildAdditionalControls(context),
                       ],
                     ),
                   ),
@@ -223,8 +260,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildLandscapeLayout(
-      BuildContext context, AudioService audioService) {
+  Widget _buildLandscapeLayout(BuildContext context) {
     final isSmallScreen = _isSmallScreen(context);
     final horizontalPadding = isSmallScreen ? 8.0 : 16.0;
     final verticalSpacing = isSmallScreen ? 12.0 : 20.0;
@@ -238,14 +274,13 @@ class _DetailScreenState extends State<DetailScreen> {
             if (_showSubtitles && _subtitles != null)
               Column(
                 children: [
-                  // SizedBox(height: verticalSpacing),
-                  _buildSubtitlesView(audioService),
+                  _buildSubtitlesView(),
                 ],
               )
             else ...[
-              _buildCoverImage(audioService),
+              _buildCoverImage(),
               SizedBox(height: verticalSpacing),
-              _buildTitleAndArtist(audioService, context),
+              _buildTitleAndArtist(context),
             ],
           ],
         ),
@@ -263,13 +298,11 @@ class _DetailScreenState extends State<DetailScreen> {
                   Row(
                     children: [
                       SizedBox(
-                        child:
-                            _buildCoverImage(audioService, showTapHint: false),
+                        child: _buildCoverImage(showTapHint: false),
                       ),
                       SizedBox(width: horizontalPadding),
                       Expanded(
                         child: _buildTitleAndArtist(
-                          audioService,
                           context,
                           compact: true,
                         ),
@@ -278,17 +311,17 @@ class _DetailScreenState extends State<DetailScreen> {
                   ),
                   SizedBox(height: verticalSpacing),
                 ],
-                _buildProgressBar(audioService, context),
+                _buildProgressBar(context),
                 SizedBox(height: verticalSpacing),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   child: Column(
                     children: [
-                      _buildPlaybackControls(audioService, context),
+                      _buildPlaybackControls(),
                       SizedBox(height: verticalSpacing),
-                      _buildTransportControls(audioService),
+                      _buildTransportControls(),
                       SizedBox(height: verticalSpacing),
-                      _buildAdditionalControls(audioService, context),
+                      _buildAdditionalControls(context),
                     ],
                   ),
                 ),
@@ -300,222 +333,170 @@ class _DetailScreenState extends State<DetailScreen> {
     ]);
   }
 
-  Widget _buildCoverImage(AudioService audioService,
-      {bool showTapHint = true}) {
-    return StreamBuilder<SequenceState?>(
-      stream: audioService.player.sequenceStateStream,
-      builder: (context, snapshot) {
-        final src = snapshot.data?.currentSource;
-        final isSmallScreen = _isSmallScreen(context);
-        double width = 355.5, height = 200.0;
-        var factor = isSmallScreen ? 0.7 : 1;
-        if (!showTapHint) {
-          factor *= 0.4;
-          width *= 0.9;
-        }
-        final imageSize = Size(width * factor, height * factor);
+  Widget _buildCoverImage({bool showTapHint = true}) {
 
-        return GestureDetector(
-          onTap: showTapHint
-              ? () async {
-                  if (src != null) {
-                    final aid = src.tag.extras['aid'] as int?;
-                    final cid = src.tag.extras['cid'] as int?;
-                    if (aid != null && cid != null) {
-                      if (_showSubtitles) {
-                        setState(() {
-                          _showSubtitles = false;
-                          _subtitles = null;
-                        });
-                      } else {
-                        setState(() {
-                          _showSubtitles = true;
-                        });
-                        await _loadSubtitles(aid, cid);
-                      }
-                    }
+    final src = _currentSequenceState?.currentSource;
+    final isSmallScreen = _isSmallScreen(context);
+    double width = 355.5, height = 200.0;
+    var factor = isSmallScreen ? 0.7 : 1;
+    if (!showTapHint) {
+      factor *= 0.4;
+      width *= 0.9;
+    }
+    final imageSize = Size(width * factor, height * factor);
+
+    return GestureDetector(
+      onTap: showTapHint
+          ? () async {
+              if (src != null) {
+                final aid = src.tag.extras['aid'] as int?;
+                final cid = src.tag.extras['cid'] as int?;
+                if (aid != null && cid != null) {
+                  if (_showSubtitles) {
+                    setState(() {
+                      _showSubtitles = false;
+                      _subtitles = null;
+                    });
+                  } else {
+                    setState(() {
+                      _showSubtitles = true;
+                    });
+                    await _loadSubtitles(aid, cid);
                   }
                 }
-              : null,
-          child: shadow(ClipRRect(
-            borderRadius: BorderRadius.circular(5.0),
-            child: SizedBox(
-                height: imageSize.height,
-                width: imageSize.width,
-                child: src == null
-                    ? Center(
-                        child: Icon(Icons.question_mark, size: 50),
-                      )
-                    : CachedNetworkImage(
-                        imageUrl: src.tag.artUri.toString(),
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            const Icon(Icons.music_note),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.music_note),
-                      )),
-          )),
-        );
-      },
+              }
+            }
+          : null,
+      child: shadow(ClipRRect(
+        borderRadius: BorderRadius.circular(5.0),
+        child: SizedBox(
+            height: imageSize.height,
+            width: imageSize.width,
+            child: src == null
+                ? Center(
+                    child: Icon(Icons.question_mark, size: 50),
+                  )
+                : CachedNetworkImage(
+                    imageUrl: src.tag.artUri.toString(),
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const Icon(Icons.music_note),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.music_note),
+                  )),
+      )),
     );
   }
 
-  Widget _buildTitleAndArtist(AudioService audioService, BuildContext context,
-      {bool compact = false}) {
+  Widget _buildTitleAndArtist(BuildContext context, {bool compact = false}) {
+    final src = _currentSequenceState?.currentSource;
+
     return Column(
       crossAxisAlignment:
           compact ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
-        StreamBuilder<SequenceState?>(
-          stream: audioService.player.sequenceStateStream,
-          builder: (_, snapshot) {
-            final src = snapshot.data?.currentSource;
-            return Padding(
-              padding: EdgeInsets.only(
-                top: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
-                left: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
-                right: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
-                bottom: compact ? 4 : (_isSmallScreen(context) ? 4 : 8),
-              ),
-              child: Text(
-                src?.tag.title ?? "",
-                style: TextStyle(
-                  fontSize: compact ? 16 : (_isSmallScreen(context) ? 16 : 20),
-                  fontWeight: FontWeight.w600,
-                ),
-                softWrap: true,
-                maxLines: compact ? 1 : null,
-                overflow: compact ? TextOverflow.ellipsis : null,
-                textAlign: compact ? TextAlign.left : TextAlign.center,
-              ),
-            );
-          },
+        Padding(
+          padding: EdgeInsets.only(
+            top: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
+            left: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
+            right: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
+            bottom: compact ? 4 : (_isSmallScreen(context) ? 4 : 8),
+          ),
+          child: Text(
+            src?.tag.title ?? "",
+            style: TextStyle(
+              fontSize: compact ? 16 : (_isSmallScreen(context) ? 16 : 20),
+              fontWeight: FontWeight.w600,
+            ),
+            softWrap: true,
+            maxLines: compact ? 1 : null,
+            overflow: compact ? TextOverflow.ellipsis : null,
+            textAlign: compact ? TextAlign.left : TextAlign.center,
+          ),
         ),
-        StreamBuilder<SequenceState?>(
-          stream: audioService.player.sequenceStateStream,
-          builder: (_, snapshot) {
-            final src = snapshot.data?.currentSource;
-            return InkWell(
-              onTap: () => src == null
-                  ? null
-                  : Navigator.pushReplacement(context,
-                      MaterialPageRoute<Widget>(
-                      builder: (BuildContext context) {
-                        return Overlay(
-                          initialEntries: [
-                            OverlayEntry(builder: (context3) {
-                              return Scaffold(
-                                body: UserDetailScreen(
-                                  mid: src.tag.extras['mid'] ?? 0,
-                                ),
-                                bottomNavigationBar: const PlayingCard(),
-                              );
-                            })
-                          ],
-                        );
-                      },
-                    )),
-              child: src?.tag.artist != null
-                  ? Row(
-                      mainAxisAlignment: compact
-                          ? MainAxisAlignment.start
-                          : MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          src?.tag.artist ?? "",
-                          style: TextStyle(
-                            fontSize: compact
-                                ? 12
-                                : (_isSmallScreen(context) ? 12 : 14),
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          softWrap: false,
-                          maxLines: 1,
-                          textAlign:
-                              compact ? TextAlign.left : TextAlign.center,
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          size: compact
-                              ? 16
-                              : (_isSmallScreen(context) ? 16 : 18),
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+        InkWell(
+          onTap: () => src == null
+              ? null
+              : Navigator.pushReplacement(context, MaterialPageRoute<Widget>(
+                  builder: (BuildContext context) {
+                    return Overlay(
+                      initialEntries: [
+                        OverlayEntry(builder: (context3) {
+                          return Scaffold(
+                            body: UserDetailScreen(
+                              mid: src.tag.extras['mid'] ?? 0,
+                            ),
+                            bottomNavigationBar: const PlayingCard(),
+                          );
+                        })
                       ],
-                    )
-                  : SizedBox(),
-            );
-          },
+                    );
+                  },
+                )),
+          child: src?.tag.artist != null
+              ? Row(
+                  mainAxisAlignment: compact
+                      ? MainAxisAlignment.start
+                      : MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      src?.tag.artist ?? "",
+                      style: TextStyle(
+                        fontSize:
+                            compact ? 12 : (_isSmallScreen(context) ? 12 : 14),
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      softWrap: false,
+                      maxLines: 1,
+                      textAlign: compact ? TextAlign.left : TextAlign.center,
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      size: compact ? 16 : (_isSmallScreen(context) ? 16 : 18),
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ],
+                )
+              : SizedBox(),
         ),
       ],
     );
   }
 
-  Widget _buildProgressBar(AudioService audioService, BuildContext context) {
+  Widget _buildProgressBar(BuildContext context) {
     final isSmallScreen = _isSmallScreen(context);
 
     return Padding(
       padding: EdgeInsets.all(isSmallScreen ? 10.0 : 20.0),
-      child: FutureBuilder<(Duration?, Duration?, Duration?)>(
-        future: Future.wait([
-          Future.value(audioService.player.position),
-          Future.value(audioService.player.bufferedPosition),
-          Future.value(audioService.player.duration),
-        ]).then((values) => (values[0], values[1], values[2])),
-        builder: (context, snapshot) {
-          return StreamBuilder<(Duration?, Duration?, Duration?)>(
-            initialData: snapshot.data, // 使用 Future 获取的初始值
-            stream: Rx.combineLatest3(
-              audioService.player.positionStream,
-              audioService.player.bufferedPositionStream,
-              audioService.player.durationStream,
-              (position, bufferedPosition, duration) => (
-                position,
-                bufferedPosition,
-                duration,
-              ),
-            ),
-            builder: (context, snapshot) {
-              final durationState = snapshot.data;
-              final progress = durationState?.$1 ?? Duration.zero;
-              final buffered = durationState?.$2 ?? Duration.zero;
-              final total = durationState?.$3 ?? Duration.zero;
-              return ProgressBar(
-                progress: progress,
-                buffered: buffered,
-                total: total,
-                onSeek: audioService.player.seek,
-                timeLabelTextStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 10,
-                ),
-                timeLabelPadding: 5,
-                thumbRadius: 5,
-              );
-            },
-          );
-        },
+      child: ProgressBar(
+        progress: _position,
+        buffered: _bufferedPosition,
+        total: _duration,
+        onSeek: _audioService!.player.seek,
+        timeLabelTextStyle: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontSize: 10,
+        ),
+        timeLabelPadding: 5,
+        thumbRadius: 5,
       ),
     );
   }
 
-  Widget _buildPlaybackControls(
-      AudioService audioService, BuildContext context) {
+  Widget _buildPlaybackControls() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildPlaybackModeButton(audioService, context),
-        _buildFavoriteButton(audioService, context),
+        _buildPlaybackModeButton(),
+        _buildFavoriteButton(),
       ],
     );
   }
 
-  Widget _buildPlaybackModeButton(
-      AudioService audioService, BuildContext context) {
+  Widget _buildPlaybackModeButton() {
     return StreamBuilder<(LoopMode, bool)>(
       stream: Rx.combineLatest2(
-        audioService.player.loopModeStream,
-        audioService.player.shuffleModeEnabledStream,
+        _audioService!.player.loopModeStream,
+        _audioService!.player.shuffleModeEnabledStream,
         (a, b) => (a, b),
       ),
       builder: (context, snapshot) {
@@ -548,10 +529,10 @@ class _DetailScreenState extends State<DetailScreen> {
             final idx = (index + 1) % labels.length;
 
             if (idx == 3) {
-              audioService.player.setShuffleModeEnabled(true);
+              _audioService!.player.setShuffleModeEnabled(true);
             } else {
-              audioService.player.setLoopMode(LoopMode.values[idx]);
-              audioService.player.setShuffleModeEnabled(false);
+              _audioService!.player.setLoopMode(LoopMode.values[idx]);
+              _audioService!.player.setShuffleModeEnabled(false);
             }
           },
         );
@@ -559,9 +540,9 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildFavoriteButton(AudioService audioService, BuildContext context) {
+  Widget _buildFavoriteButton() {
     return StreamBuilder<SequenceState?>(
-      stream: audioService.player.sequenceStateStream,
+      stream: _audioService!.player.sequenceStateStream,
       builder: (context, snapshot) {
         final src = snapshot.data?.currentSource;
         if (src?.tag.extras['aid'] != _currentAid) {
@@ -674,52 +655,36 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  Widget _buildTransportControls(AudioService audioService) {
+  Widget _buildTransportControls() {
     // 使用辅助方法判断小屏幕
     final isSmallScreen = _isSmallScreen(context);
     final iconSize = isSmallScreen ? 30.0 : 36.0;
+    final player = _audioService!.player;
+    final hasPrevious = player.hasPrevious;
+    final hasNext = player.hasNext;
+    final playerState = player.playerState;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        StreamBuilder<SequenceState?>(
-          stream: audioService.player.sequenceStateStream,
-          builder: (_, __) {
-            return IconButton(
-              icon: Icon(Icons.skip_previous, size: iconSize),
-              onPressed: audioService.player.hasPrevious
-                  ? audioService.player.seekToPrevious
-                  : null,
-            );
-          },
+        IconButton(
+          icon: Icon(Icons.skip_previous, size: iconSize),
+          onPressed: hasPrevious ? player.seekToPrevious : null,
         ),
-        StreamBuilder<PlayerState>(
-          stream: audioService.player.playerStateStream,
-          builder: (context, snapshot) {
-            final playerState = snapshot.data;
-            return Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(isSmallScreen ? 6.0 : 8.0),
-                child: _playPauseButton(
-                    playerState, audioService.player, context, isSmallScreen),
-              ),
-            );
-          },
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(isSmallScreen ? 6.0 : 8.0),
+            child:
+                _playPauseButton(playerState, player, context, isSmallScreen),
+          ),
         ),
-        StreamBuilder<SequenceState?>(
-          stream: audioService.player.sequenceStateStream,
-          builder: (_, __) {
-            return IconButton(
-              icon: Icon(Icons.skip_next, size: iconSize),
-              onPressed: audioService.player.hasNext
-                  ? audioService.player.seekToNext
-                  : null,
-            );
-          },
+        IconButton(
+          icon: Icon(Icons.skip_next, size: iconSize),
+          onPressed: hasNext ? player.seekToNext : null,
         ),
       ],
     );
@@ -766,33 +731,32 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  Widget _buildAdditionalControls(
-      AudioService audioService, BuildContext context) {
+  Widget _buildAdditionalControls(BuildContext context) {
     // 使用辅助方法判断小屏幕
     final isSmallScreen = _isSmallScreen(context);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildSleepTimerButton(audioService, context, isSmallScreen),
-        _buildPlaybackSpeedButton(audioService, context, isSmallScreen),
-        _buildDownloadButton(audioService, context, isSmallScreen),
+        _buildSleepTimerButton(context, isSmallScreen),
+        _buildPlaybackSpeedButton(context, isSmallScreen),
+        _buildDownloadButton(context, isSmallScreen),
         _buildPlaylistButton(context, isSmallScreen),
-        _buildCommentButton(audioService, context, isSmallScreen),
+        _buildCommentButton(context, isSmallScreen),
       ],
     );
   }
 
-  Widget _buildSleepTimerButton(
-      AudioService audioService, BuildContext context, bool isSmallScreen) {
+  Widget _buildSleepTimerButton(BuildContext context, bool isSmallScreen) {
     return StreamBuilder<int?>(
-      stream: audioService.sleepTimerStream,
+      stream: _audioService!.sleepTimerStream,
       builder: (context, snapshot) {
         final remainingSeconds = snapshot.data;
         final isActive = remainingSeconds != null;
 
         return InkWell(
-          onTap: () => _handleSleepTimerPress(isActive, audioService, context),
+          onTap: () =>
+              _handleSleepTimerPress(isActive, _audioService!, context),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -851,14 +815,13 @@ class _DetailScreenState extends State<DetailScreen> {
   void _handleSleepTimerPress(
       bool isActive, AudioService audioService, BuildContext context) {
     if (isActive) {
-      _showCancelSleepTimerDialog(audioService, context);
+      _showCancelSleepTimerDialog(context);
     } else {
-      _showSleepTimerOptionsDialog(audioService, context);
+      _showSleepTimerOptionsDialog(context);
     }
   }
 
-  void _showCancelSleepTimerDialog(
-      AudioService audioService, BuildContext context) {
+  void _showCancelSleepTimerDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -871,7 +834,7 @@ class _DetailScreenState extends State<DetailScreen> {
           ),
           FilledButton(
             onPressed: () {
-              audioService.setSleepTimer(null);
+              _audioService!.setSleepTimer(null);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -887,8 +850,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  void _showSleepTimerOptionsDialog(
-      AudioService audioService, BuildContext context) {
+  void _showSleepTimerOptionsDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -912,14 +874,13 @@ class _DetailScreenState extends State<DetailScreen> {
                     ListTile(
                       dense: true,
                       title: const Text('自定义时间'),
-                      onTap: () =>
-                          _showCustomTimerDialog(audioService, context),
+                      onTap: () => _showCustomTimerDialog(context),
                     ),
                     ...[5, 10, 15, 30, 45, 60, 90].map((minutes) => ListTile(
                           dense: true,
                           title: Text('$minutes 分钟'),
                           onTap: () {
-                            audioService.setSleepTimer(minutes);
+                            _audioService!.setSleepTimer(minutes);
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -941,7 +902,7 @@ class _DetailScreenState extends State<DetailScreen> {
               ListTile(
                 dense: true,
                 title: const Text('选择时间'),
-                onTap: () => _showTimePickerDialog(audioService, context),
+                onTap: () => _showTimePickerDialog(context),
               ),
             ],
           ),
@@ -950,7 +911,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  void _showCustomTimerDialog(AudioService audioService, BuildContext context) {
+  void _showCustomTimerDialog(BuildContext context) {
     Navigator.pop(context);
     final controller = TextEditingController();
     showDialog(
@@ -974,7 +935,7 @@ class _DetailScreenState extends State<DetailScreen> {
             onPressed: () {
               final minutes = int.tryParse(controller.text);
               if (minutes != null && minutes > 0) {
-                audioService.setSleepTimer(minutes);
+                _audioService!.setSleepTimer(minutes);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -991,8 +952,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Future<void> _showTimePickerDialog(
-      AudioService audioService, BuildContext context) async {
+  Future<void> _showTimePickerDialog(BuildContext context) async {
     Navigator.pop(context);
 
     // 获取当前时间作为初始值
@@ -1030,7 +990,7 @@ class _DetailScreenState extends State<DetailScreen> {
       }
 
       // 设置定时器
-      audioService.setSleepTimer(null, specificTime: targetTime);
+      _audioService!.setSleepTimer(null, specificTime: targetTime);
 
       // 计算并显示剩余时间
       final difference = targetTime.difference(now);
@@ -1086,10 +1046,9 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildCommentButton(
-      AudioService audioService, BuildContext context, bool isSmallScreen) {
+  Widget _buildCommentButton(BuildContext context, bool isSmallScreen) {
     return StreamBuilder<SequenceState?>(
-      stream: audioService.player.sequenceStateStream,
+      stream: _audioService!.player.sequenceStateStream,
       builder: (context, snapshot) {
         final src = snapshot.data?.currentSource;
         final aid = src?.tag.extras['aid']?.toString();
@@ -1167,16 +1126,15 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildPlaybackSpeedButton(
-      AudioService audioService, BuildContext context, bool isSmallScreen) {
+  Widget _buildPlaybackSpeedButton(BuildContext context, bool isSmallScreen) {
     return StreamBuilder<double>(
-      stream: audioService.speedStream,
+      stream: _audioService!.speedStream,
       builder: (context, snapshot) {
         final speed = snapshot.data ?? 1.0;
         final speedText = speed.toStringAsFixed(2);
 
         return InkWell(
-          onTap: () => _showPlaybackSpeedDialog(audioService, context),
+          onTap: () => _showPlaybackSpeedDialog(context),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1213,12 +1171,11 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  void _showPlaybackSpeedDialog(
-      AudioService audioService, BuildContext context) {
+  void _showPlaybackSpeedDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => StreamBuilder<double>(
-          stream: audioService.speedStream,
+          stream: _audioService!.speedStream,
           builder: (context, snapshot) {
             final currentSpeed = snapshot.data ?? 1;
 
@@ -1236,7 +1193,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       divisions: 11, // 0.25的倍数
                       label: '${currentSpeed.toStringAsFixed(2)}x',
                       onChanged: (value) {
-                        audioService.setPlaybackSpeed(value);
+                        _audioService!.setPlaybackSpeed(value);
                       },
                     ),
                     const SizedBox(height: 16),
@@ -1247,7 +1204,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
                         return ElevatedButton(
                           onPressed: () {
-                            audioService.setPlaybackSpeed(speed);
+                            _audioService!.setPlaybackSpeed(speed);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: currentSpeed == speed
@@ -1281,10 +1238,9 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildDownloadButton(
-      AudioService audioService, BuildContext context, bool isSmallScreen) {
+  Widget _buildDownloadButton(BuildContext context, bool isSmallScreen) {
     return StreamBuilder<SequenceState?>(
-        stream: audioService.player.sequenceStateStream,
+        stream: _audioService!.player.sequenceStateStream,
         builder: (context, snapshot) {
           final src = snapshot.data?.currentSource;
           final bvid = src?.tag.extras['bvid'] as String?;
@@ -1401,7 +1357,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                       ? Icons.download
                                       : task?.status == DownloadStatus.paused
                                           ? Icons.pause
-                                          : task?.status == DownloadStatus.failed
+                                          : task?.status ==
+                                                  DownloadStatus.failed
                                               ? Icons.error
                                               : Icons.download_outlined,
                               color: task?.status == DownloadStatus.completed
@@ -1411,15 +1368,19 @@ class _DetailScreenState extends State<DetailScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              task == null ? '下载' : task.status == DownloadStatus.completed
-                                  ? '已下载'
-                                  : task.status == DownloadStatus.downloading
-                                      ? '下载中'
-                                      : task.status == DownloadStatus.paused
-                                          ? '已暂停'
-                                          : task.status == DownloadStatus.failed
-                                              ? '下载失败'
-                                              : '等待中',
+                              task == null
+                                  ? '下载'
+                                  : task.status == DownloadStatus.completed
+                                      ? '已下载'
+                                      : task.status ==
+                                              DownloadStatus.downloading
+                                          ? '下载中'
+                                          : task.status == DownloadStatus.paused
+                                              ? '已暂停'
+                                              : task.status ==
+                                                      DownloadStatus.failed
+                                                  ? '下载失败'
+                                                  : '等待中',
                               style: TextStyle(
                                 fontSize: isSmallScreen ? 8 : 10,
                                 fontWeight:
@@ -1487,9 +1448,9 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  Widget _buildSubtitlesView(AudioService audioService) {
+  Widget _buildSubtitlesView() {
     return StreamBuilder<SequenceState?>(
-      stream: audioService.player.sequenceStateStream,
+      stream: _audioService!.player.sequenceStateStream,
       builder: (context, sequenceSnapshot) {
         final src = sequenceSnapshot.data?.currentSource;
         final currentAid = src?.tag.extras['aid'] as int?;
@@ -1527,7 +1488,7 @@ class _DetailScreenState extends State<DetailScreen> {
             });
           },
           child: StreamBuilder<Duration>(
-            stream: audioService.player.positionStream,
+            stream: _audioService!.player.positionStream,
             builder: (context, snapshot) {
               final position = snapshot.data?.inMilliseconds ?? 0;
 
@@ -1613,7 +1574,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               child: GestureDetector(
                             onTap: () {
                               // 点击歌词跳转到对应时间
-                              audioService.player
+                              _audioService!.player
                                   .seek(Duration(milliseconds: subtitle.from));
                             },
                             child: Text(
