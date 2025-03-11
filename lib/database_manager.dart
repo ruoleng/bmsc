@@ -14,6 +14,7 @@ import '../model/meta.dart';
 import 'dart:math' as math;
 import 'package:bmsc/util/logger.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:bmsc/model/download_task.dart';
 
 final _logger = LoggerUtils.getLogger('DatabaseManager');
 
@@ -30,6 +31,7 @@ class DatabaseManager {
   static const String entityTable = 'entity_cache';
   static const String favListTable = 'fav_list';
   static const String favDetailTable = 'fav_detail';
+  static const String downloadTaskTable = 'download_tasks';
 
   static Future<Database> get database async {
     if (_database != null) return _database!;
@@ -61,11 +63,11 @@ class DatabaseManager {
       Directory documentsDirectory = await getApplicationDocumentsDirectory();
       path = join(documentsDirectory.path, _dbName);
     }
-    
+
     try {
       final db = await openDatabase(
         path,
-        version: 3,
+        version: 4,
         onCreate: (db, version) async {
           _logger.info('Creating new database tables...');
           await db.execute('''
@@ -169,9 +171,35 @@ class DatabaseManager {
             PRIMARY KEY (bvid, cid)
           )
         ''');
+
+          await db.execute('''
+          CREATE TABLE IF NOT EXISTS $downloadTaskTable (
+            bvid TEXT,
+            cid INTEGER,
+            targetPath TEXT,
+            status INTEGER,
+            progress REAL,
+            error TEXT,
+            PRIMARY KEY (bvid, cid)
+          )
+        ''');
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           _logger.info('Upgrading database from v$oldVersion to v$newVersion');
+
+          if (oldVersion <= 3) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS $downloadTaskTable (
+                bvid TEXT,
+                cid INTEGER,
+                targetPath TEXT,
+                status INTEGER,
+                progress REAL,
+                error TEXT,
+                PRIMARY KEY (bvid, cid)
+              )
+            ''');
+          }
 
           if (oldVersion <= 2) {
             await db.execute('''
@@ -523,21 +551,24 @@ class DatabaseManager {
     try {
       final db = await database;
       final now = DateTime.now().millisecondsSinceEpoch;
-      int ret = await db.insert(
-          cacheTable,
-          {
-            'bvid': bvid,
-            'cid': cid,
-            'filePath': file.path,
-            'fileSize': file.lengthSync(),
-            'playCount': 0,
-            'lastPlayed': now,
-            'createdAt': now,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace);
-      if (ret != 0) {
-        _logger.info('audio cache metadata saved');
-      }
+      
+      await db.transaction((txn) async {
+        int ret = await txn.insert(
+            cacheTable,
+            {
+              'bvid': bvid,
+              'cid': cid,
+              'filePath': file.path,
+              'fileSize': file.lengthSync(),
+              'playCount': 0,
+              'lastPlayed': now,
+              'createdAt': now,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace);
+        if (ret != 0) {
+          _logger.info('audio cache metadata saved');
+        }
+      });
     } catch (e, stackTrace) {
       _logger.severe('Failed to save audio cache metadata', e, stackTrace);
       rethrow;
@@ -555,10 +586,20 @@ class DatabaseManager {
   }
 
   static Future<int> getCacheTotalSize() async {
-    final db = await database;
-    final result =
-        await db.rawQuery('SELECT SUM(fileSize) as total FROM $cacheTable');
-    return (result.first['total'] as int?) ?? 0;
+    try {
+      final db = await database;
+      int totalSize = 0;
+      
+      await db.transaction((txn) async {
+        final result = await txn.rawQuery('SELECT SUM(fileSize) as total FROM $cacheTable');
+        totalSize = (result.first['total'] as int?) ?? 0;
+      });
+      
+      return totalSize;
+    } catch (e, stackTrace) {
+      _logger.severe('Failed to get cache total size', e, stackTrace);
+      return 0; // Return 0 on error to prevent further issues
+    }
   }
 
   static Future<void> cleanupCache({File? ignoreFile}) async {
@@ -575,61 +616,70 @@ class DatabaseManager {
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // 获取所有缓存文件信息并计算分数
-    final results = await db.query(cacheTable);
+    // Use a transaction for all database operations
+    await db.transaction((txn) async {
+      // 获取所有缓存文件信息并计算分数
+      final results = await txn.query(cacheTable);
 
-    // 计算最大播放次数用于归一化
-    final maxPlayCount = results.fold<int>(
-        1, (max, row) => math.max(max, row['playCount'] as int));
+      // 计算最大播放次数用于归一化
+      final maxPlayCount = results.fold<int>(
+          1, (max, row) => math.max(max, row['playCount'] as int));
 
-    var files = results.map((row) {
-      final playCount = row['playCount'] as int;
-      final lastPlayed = row['lastPlayed'] as int;
-      final daysAgo = (now - lastPlayed) / (24 * 60 * 60 * 1000);
+      var files = results.map((row) {
+        final playCount = row['playCount'] as int;
+        final lastPlayed = row['lastPlayed'] as int;
+        final daysAgo = (now - lastPlayed) / (24 * 60 * 60 * 1000);
 
-      // 计算归一化分数
-      final playScore = playCount / maxPlayCount;
-      final recencyScore = math.exp(-daysAgo / 7); // 使用指数衰减
+        // 计算归一化分数
+        final playScore = playCount / maxPlayCount;
+        final recencyScore = math.exp(-daysAgo / 7); // 使用指数衰减
 
-      final score =
-          (playScore * playCountWeight) + (recencyScore * recencyWeight);
+        final score =
+            (playScore * playCountWeight) + (recencyScore * recencyWeight);
 
-      return {
-        'bvid': row['bvid'],
-        'cid': row['cid'],
-        'filePath': row['filePath'],
-        'fileSize': row['fileSize'],
-        'score': score,
-      };
-    }).toList();
+        return {
+          'bvid': row['bvid'],
+          'cid': row['cid'],
+          'filePath': row['filePath'],
+          'fileSize': row['fileSize'],
+          'score': score,
+        };
+      }).toList();
 
-    files
-        .sort((a, b) => (a['score'] as double).compareTo(b['score'] as double));
+      files
+          .sort((a, b) => (a['score'] as double).compareTo(b['score'] as double));
 
-    int removedSize = 0;
-    for (var file in files) {
-      if (ignoreFile != null && file['filePath'] == ignoreFile.path) {
-        continue;
+      int removedSize = 0;
+      for (var file in files) {
+        if (ignoreFile != null && file['filePath'] == ignoreFile.path) {
+          continue;
+        }
+        if (currentSize - removedSize <= maxCacheSize) {
+          break;
+        }
+
+        final filePath = file['filePath'] as String;
+        final fileObj = File(filePath);
+        try {
+          if (await fileObj.exists()) {
+            await fileObj.delete();
+          }
+
+          await txn.delete(
+            cacheTable,
+            where: 'bvid = ? AND cid = ?',
+            whereArgs: [file['bvid'], file['cid']],
+          );
+
+          removedSize += file['fileSize'] as int;
+        } catch (e) {
+          _logger.warning('Failed to delete cache file: $filePath, error: $e');
+          // Continue with next file even if this one fails
+          continue;
+        }
       }
-      if (currentSize - removedSize <= maxCacheSize) {
-        break;
-      }
-
-      final filePath = file['filePath'] as String;
-      final fileObj = File(filePath);
-      if (await fileObj.exists()) {
-        await fileObj.delete();
-      }
-
-      await db.delete(
-        cacheTable,
-        where: 'bvid = ? AND cid = ?',
-        whereArgs: [file['bvid'], file['cid']],
-      );
-
-      removedSize += file['fileSize'] as int;
-    }
-    _logger.info('Cleaned up cache, removed $removedSize bytes');
+      _logger.info('Cleaned up cache, removed $removedSize bytes');
+    });
   }
 
   static Future<void> cacheFavList(List<Fav> favs) async {
@@ -827,12 +877,12 @@ class DatabaseManager {
 
   static Future<void> removeDownloaded(List<(String, int)> bvidscids) async {
     final db = await database;
-    final batch = db.batch();
-    for (var (bvid, cid) in bvidscids) {
-      batch.delete(downloadTable,
-          where: 'bvid = ? AND cid = ?', whereArgs: [bvid, cid]);
-    }
-    await batch.commit();
+    await db.transaction((txn) async {
+      for (var (bvid, cid) in bvidscids) {
+        await txn.delete(downloadTable,
+            where: 'bvid = ? AND cid = ?', whereArgs: [bvid, cid]);
+      }
+    });
   }
 
   static Future<List<int>> getDownloadedParts(String bvid) async {
@@ -846,18 +896,19 @@ class DatabaseManager {
     return results.map((e) => e['cid'] as int).toList();
   }
 
-  static Future<void> saveDownload(
-      String bvid, int cid, String filePath) async {
+  static Future<void> saveDownload(String bvid, int cid, String filePath) async {
     final db = await database;
-    await db.insert(
-      downloadTable,
-      {
-        'bvid': bvid,
-        'cid': cid,
-        'filePath': filePath,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.transaction((txn) async {
+      await txn.insert(
+        downloadTable,
+        {
+          'bvid': bvid,
+          'cid': cid,
+          'filePath': filePath,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
     _logger.info('saved download $bvid $cid $filePath');
   }
 
@@ -880,5 +931,125 @@ class DatabaseManager {
     final path = await getDownloadPath(bvid, cid);
     if (path == null) return false;
     return File(path).exists();
+  }
+
+  static Future<void> saveDownloadTask(DownloadTask task) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.insert(
+        downloadTaskTable,
+        {
+          'bvid': task.bvid,
+          'cid': task.cid,
+          'targetPath': task.targetPath,
+          'status': task.status.index,
+          'progress': task.progress,
+          'error': task.error,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+  }
+
+  static Future<void> updateDownloadTaskStatus(
+      String bvid, int cid, DownloadStatus status) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.update(
+        downloadTaskTable,
+        {'status': status.index},
+        where: 'bvid = ? AND cid = ?',
+        whereArgs: [bvid, cid],
+      );
+    });
+  }
+
+  static Future<void> updateDownloadTaskProgress(
+      String bvid, int cid, double progress) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.update(
+        downloadTaskTable,
+        {'progress': progress},
+        where: 'bvid = ? AND cid = ?',
+        whereArgs: [bvid, cid],
+      );
+    });
+  }
+
+  static Future<void> removeDownloadTask(String bvid, int cid) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete(
+        downloadTaskTable,
+        where: 'bvid = ? AND cid = ?',
+        whereArgs: [bvid, cid],
+      );
+    });
+  }
+
+  static Future<List<DownloadTask>> getAllDownloadTasks() async {
+    final db = await database;
+    List<Map<String, dynamic>> results = [];
+    await db.transaction((txn) async {
+      results = await txn.query(downloadTaskTable);
+    });
+    return results
+        .map((row) => DownloadTask(
+              bvid: row['bvid'] as String,
+              cid: row['cid'] as int,
+              targetPath: row['targetPath'] as String?,
+              status: DownloadStatus.values[row['status'] as int],
+              progress: row['progress'] as double,
+              error: row['error'] as String?,
+            ))
+        .toList();
+  }
+
+  static Future<DownloadTask?> getDownloadTask(String bvid, int cid) async {
+    final db = await database;
+    List<Map<String, dynamic>> results = [];
+    await db.transaction((txn) async {
+      results = await txn.query(
+        downloadTaskTable,
+        where: 'bvid = ? AND cid = ?',
+        whereArgs: [bvid, cid],
+      );
+    });
+
+    if (results.isEmpty) return null;
+
+    final row = results.first;
+    return DownloadTask(
+      bvid: row['bvid'] as String,
+      cid: row['cid'] as int,
+      targetPath: row['targetPath'] as String?,
+      status: DownloadStatus.values[row['status'] as int],
+      progress: row['progress'] as double,
+      error: row['error'] as String?,
+    );
+  }
+
+  static Future<List<DownloadTask>> getPendingDownloadTasks() async {
+    final db = await database;
+    List<Map<String, dynamic>> results = [];
+    await db.transaction((txn) async {
+      results = await txn.query(
+        downloadTaskTable,
+        where: 'status = ? OR status = ?',
+        whereArgs: [DownloadStatus.pending.index, DownloadStatus.paused.index],
+      );
+    });
+
+    return results
+        .map((row) => DownloadTask(
+              bvid: row['bvid'] as String,
+              cid: row['cid'] as int,
+              targetPath: row['targetPath'] as String?,
+              status: DownloadStatus.values[row['status'] as int],
+              progress: row['progress'] as double,
+              error: row['error'] as String?,
+            ))
+        .toList();
   }
 }

@@ -25,9 +25,16 @@ class AudioService {
   Timer? _fadeTimer;
   final _sleepTimerSubject = BehaviorSubject<int?>.seeded(null);
   final _fadeOutDuration = 15; // 15 seconds fade out
+  final _speedSubject = BehaviorSubject<double>.seeded(1.0);
 
   // 获取定时停止播放的流
   Stream<int?> get sleepTimerStream => _sleepTimerSubject.stream;
+  
+  // 获取播放速度的流
+  Stream<double> get speedStream => _speedSubject.stream;
+  
+  // 获取当前播放速度
+  double get currentSpeed => _speedSubject.value;
 
   static Future<AudioService> _init() async {
     final x = AudioService();
@@ -52,6 +59,12 @@ class AudioService {
         if (sleepTimerMinutes > 0) {
           await x.setSleepTimer(sleepTimerMinutes);
         }
+      }
+      
+      // 恢复播放速度设置
+      final speed = await SharedPreferencesService.getPlaybackSpeed();
+      if (speed != null) {
+        await x.setPlaybackSpeed(speed);
       }
     } catch (e) {
       _logger.severe('Failed to restore playlist', e);
@@ -465,5 +478,17 @@ class AudioService {
       }
     }
     return ret;
+  }
+
+  // 设置播放速度
+  Future<void> setPlaybackSpeed(double speed) async {
+    if (speed < 0.25 || speed > 3.0) {
+      return;
+    }
+    
+    await player.setSpeed(speed);
+    _speedSubject.add(speed);
+    await SharedPreferencesService.setPlaybackSpeed(speed);
+    _logger.info('Playback speed set to: $speed');
   }
 }

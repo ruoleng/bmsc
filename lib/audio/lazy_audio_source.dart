@@ -289,7 +289,14 @@ class LazyAudioSource extends StreamAudioSource {
       await subscription.cancel();
       httpClient.close();
       _downloading = false;
-      DatabaseManager.saveCacheMetadata(bvid, cid, localFile);
+      
+      // Save cache metadata first
+      await DatabaseManager.saveCacheMetadata(bvid, cid, localFile);
+      
+      // Add a small delay before cleaning up cache to avoid database lock issues
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Clean up cache as a separate operation
       DatabaseManager.cleanupCache(ignoreFile: localFile);
     }, onError: (Object e, StackTrace stackTrace) async {
       (await _partialCacheFile).deleteSync();

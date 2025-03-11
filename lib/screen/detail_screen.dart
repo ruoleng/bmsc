@@ -18,6 +18,9 @@ import '../util/widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:bmsc/screen/comment_screen.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:bmsc/component/download_parts_dialog.dart';
+import 'package:bmsc/service/download_manager.dart';
+import 'package:bmsc/model/download_task.dart';
 
 class DetailScreen extends StatefulWidget {
   const DetailScreen({super.key});
@@ -772,6 +775,8 @@ class _DetailScreenState extends State<DetailScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _buildSleepTimerButton(audioService, context, isSmallScreen),
+        _buildPlaybackSpeedButton(audioService, context, isSmallScreen),
+        _buildDownloadButton(audioService, context, isSmallScreen),
         _buildPlaylistButton(context, isSmallScreen),
         _buildCommentButton(audioService, context, isSmallScreen),
       ],
@@ -786,42 +791,46 @@ class _DetailScreenState extends State<DetailScreen> {
         final remainingSeconds = snapshot.data;
         final isActive = remainingSeconds != null;
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              onTap: () =>
-                  _handleSleepTimerPress(isActive, audioService, context),
-              child: Icon(
-                isActive ? Icons.timer : Icons.timer_outlined,
-                color: isActive ? Theme.of(context).colorScheme.primary : null,
-                size: isSmallScreen ? 22 : 24,
-              ),
+        return InkWell(
+          onTap: () => _handleSleepTimerPress(isActive, audioService, context),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isActive ? Icons.timer : Icons.timer_outlined,
+                  color:
+                      isActive ? Theme.of(context).colorScheme.primary : null,
+                  size: isSmallScreen ? 22 : 24,
+                ),
+                const SizedBox(height: 4),
+                if (isActive)
+                  Text(
+                    _formatTime(remainingSeconds),
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 8 : 10,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                if (!isActive)
+                  Text(
+                    '定时',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 8 : 10,
+                      color: isActive
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 4),
-            if (isActive)
-              Text(
-                _formatTime(remainingSeconds),
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 8 : 10,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            if (!isActive)
-              Text(
-                '定时',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 8 : 10,
-                  color: isActive
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withOpacity(0.6),
-                ),
-              ),
-          ],
+          ),
         );
       },
     );
@@ -1041,35 +1050,39 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildPlaylistButton(BuildContext context, bool isSmallScreen) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: () {
-            showModalBottomSheet(
-              context: context,
-              builder: (context) => const PlaylistBottomSheet(),
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              isScrollControlled: true,
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.7,
+    return InkWell(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          builder: (context) => const PlaylistBottomSheet(),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          isScrollControlled: true,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.queue_music,
+              size: isSmallScreen ? 22 : 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '列表',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 8 : 10,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
-            );
-          },
-          child: Icon(
-            Icons.queue_music,
-            size: isSmallScreen ? 22 : 24,
-          ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          '播放列表',
-          style: TextStyle(
-            fontSize: isSmallScreen ? 8 : 10,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -1080,13 +1093,13 @@ class _DetailScreenState extends State<DetailScreen> {
       builder: (context, snapshot) {
         final src = snapshot.data?.currentSource;
         final aid = src?.tag.extras['aid']?.toString();
-        
+
         Future<CommentData?> getCommentData(String aid) async {
           // Check cache first
           if (_commentCache.containsKey(aid)) {
             return _commentCache[aid];
           }
-          
+
           // If not in cache, fetch and cache it
           final bs = await BilibiliService.instance;
           final data = await bs.getComment(aid, null);
@@ -1094,35 +1107,50 @@ class _DetailScreenState extends State<DetailScreen> {
           return data;
         }
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              onTap: aid == null
-                  ? null
-                  : () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CommentScreen(
-                            aid: aid,
-                          ),
-                        ),
+        return InkWell(
+          onTap: aid == null
+              ? null
+              : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CommentScreen(
+                        aid: aid,
                       ),
-              child: Icon(
-                Icons.comment_outlined,
-                size: isSmallScreen ? 22 : 24,
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (aid != null)
-              FutureBuilder<CommentData?>(
-                future: getCommentData(aid),
-                builder: (context, snapshot) {
-                  final count = snapshot.data?.cursor?.allCount ?? 0;
-                  return Text(
-                    count > 10000
-                        ? '${(count / 10000).toStringAsFixed(1)}万'
-                        : count.toString(),
+                    ),
+                  ),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.comment_outlined,
+                  size: isSmallScreen ? 22 : 24,
+                ),
+                const SizedBox(height: 4),
+                if (aid != null)
+                  FutureBuilder<CommentData?>(
+                    future: getCommentData(aid),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data?.cursor?.allCount ?? 0;
+                      return Text(
+                        count > 10000
+                            ? '${(count / 10000).toStringAsFixed(1)}万'
+                            : count.toString(),
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 8 : 10,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6),
+                        ),
+                      );
+                    },
+                  )
+                else
+                  Text(
+                    '评论',
                     style: TextStyle(
                       fontSize: isSmallScreen ? 8 : 10,
                       color: Theme.of(context)
@@ -1130,22 +1158,290 @@ class _DetailScreenState extends State<DetailScreen> {
                           .onSurface
                           .withOpacity(0.6),
                     ),
-                  );
-                },
-              )
-            else
-              Text(
-                '评论',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 8 : 10,
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                ),
-              )
-          ],
+                  )
+              ],
+            ),
+          ),
         );
       },
     );
+  }
+
+  Widget _buildPlaybackSpeedButton(
+      AudioService audioService, BuildContext context, bool isSmallScreen) {
+    return StreamBuilder<double>(
+      stream: audioService.speedStream,
+      builder: (context, snapshot) {
+        final speed = snapshot.data ?? 1.0;
+        final speedText = speed.toStringAsFixed(2);
+
+        return InkWell(
+          onTap: () => _showPlaybackSpeedDialog(audioService, context),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.speed,
+                  color: speed != 1.0
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                  size: isSmallScreen ? 22 : 24,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${speedText}x',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 8 : 10,
+                    fontWeight:
+                        speed != 1.0 ? FontWeight.bold : FontWeight.normal,
+                    color: speed != 1.0
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPlaybackSpeedDialog(
+      AudioService audioService, BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => StreamBuilder<double>(
+          stream: audioService.speedStream,
+          builder: (context, snapshot) {
+            final currentSpeed = snapshot.data ?? 1;
+
+            return AlertDialog(
+              title: const Text('播放速度'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Slider(
+                      value: currentSpeed,
+                      min: 0.25,
+                      max: 3.0,
+                      divisions: 11, // 0.25的倍数
+                      label: '${currentSpeed.toStringAsFixed(2)}x',
+                      onChanged: (value) {
+                        audioService.setPlaybackSpeed(value);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
+                        return ElevatedButton(
+                          onPressed: () {
+                            audioService.setPlaybackSpeed(speed);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: currentSpeed == speed
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                            foregroundColor: currentSpeed == speed
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                          ),
+                          child: Text('${speed}x'),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('关闭'),
+                ),
+              ],
+            );
+          }),
+    );
+  }
+
+  Widget _buildDownloadButton(
+      AudioService audioService, BuildContext context, bool isSmallScreen) {
+    return StreamBuilder<SequenceState?>(
+        stream: audioService.player.sequenceStateStream,
+        builder: (context, snapshot) {
+          final src = snapshot.data?.currentSource;
+          final bvid = src?.tag.extras['bvid'] as String?;
+          final cid = src?.tag.extras['cid'] as int?;
+
+          if (bvid == null || cid == null) {
+            return InkWell(
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.download_outlined,
+                      size: isSmallScreen ? 22 : 24,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '下载',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 8 : 10,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return FutureBuilder(
+              future: DownloadManager.instance,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const SizedBox.shrink();
+                }
+                final dm = snapshot.data!;
+                return StreamBuilder<Map<String, DownloadTask>>(
+                  stream: dm.tasksStream,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    DownloadTask? task;
+
+                    final tasks =
+                        snapshot.data!.values.toList().reversed.toList();
+                    for (final t in tasks) {
+                      if (t.bvid == bvid && t.cid == cid) {
+                        task = t;
+                      }
+                    }
+
+                    return InkWell(
+                      onTap: () async {
+                        if (task == null) {
+                          final title = src?.tag.title ?? "未知标题";
+                          await showDialog(
+                            context: context,
+                            builder: (context) => DownloadPartsDialog(
+                              bvid: bvid,
+                              title: title,
+                            ),
+                          );
+                        } else if (task.status == DownloadStatus.completed) {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('已下载'),
+                              content: const Text('是否要删除已下载的文件？'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('取消'),
+                                ),
+                                FilledButton(
+                                  onPressed: () async {
+                                    Navigator.pop(context);
+                                    final dm = await DownloadManager.instance;
+                                    await dm.removeDownloaded([(bvid, cid)]);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text('已删除下载文件'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: const Text('删除'),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              task?.status == DownloadStatus.completed
+                                  ? Icons.download_done
+                                  : task?.status == DownloadStatus.downloading
+                                      ? Icons.download
+                                      : task?.status == DownloadStatus.paused
+                                          ? Icons.pause
+                                          : task?.status == DownloadStatus.failed
+                                              ? Icons.error
+                                              : Icons.download_outlined,
+                              color: task?.status == DownloadStatus.completed
+                                  ? Theme.of(context).colorScheme.primary
+                                  : null,
+                              size: isSmallScreen ? 22 : 24,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              task == null ? '下载' : task.status == DownloadStatus.completed
+                                  ? '已下载'
+                                  : task.status == DownloadStatus.downloading
+                                      ? '下载中'
+                                      : task.status == DownloadStatus.paused
+                                          ? '已暂停'
+                                          : task.status == DownloadStatus.failed
+                                              ? '下载失败'
+                                              : '等待中',
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 8 : 10,
+                                fontWeight:
+                                    task?.status == DownloadStatus.completed
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                color: task?.status == DownloadStatus.completed
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              });
+        });
   }
 
   Future<void> _loadSubtitles(int aid, int cid) async {

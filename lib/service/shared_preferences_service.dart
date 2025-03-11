@@ -293,5 +293,17 @@ class SharedPreferencesService {
         .toList();
     return decoded;
   }
+
+  // 获取播放速度
+  static Future<double?> getPlaybackSpeed() async {
+    final prefs = await SharedPreferencesService.instance;
+    return prefs.getDouble('playback_speed');
+  }
+  
+  // 设置播放速度
+  static Future<void> setPlaybackSpeed(double speed) async {
+    final prefs = await SharedPreferencesService.instance;
+    await prefs.setDouble('playback_speed', speed);
+  }
 }
 

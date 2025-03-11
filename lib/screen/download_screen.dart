@@ -60,7 +60,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
             icon: const Icon(Icons.select_all),
             onPressed: () async {
               final dm = await DownloadManager.instance;
-              final tasks = dm.tasks.values.toList();
+              final tasks = (await dm.tasks).values.toList();
               final newSelectedItems =
                   tasks.map((task) => '${task.bvid}-${task.cid}').toSet();
 

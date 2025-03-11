@@ -3,6 +3,7 @@
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B.svg?logo=flutter&logoColor=white)
 ![GitHub Release](https://img.shields.io/github/v/release/u2x1/bmsc)
+![Release Download](https://img.shields.io/github/downloads/u2x1/bmsc/total)
 
 这是一个 Bilibili 的第三方客户端，与其他客户端不同的是，BMSC 只播放视频的音频。你可以将它作为音乐软件使用。
 
