@@ -17,8 +17,7 @@ import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio_background/just_audio_background.dart';
-
+import 'package:audio_service/audio_service.dart' show MediaItem;
 import '../model/meta.dart';
 import '../util/logger.dart';
 

@@ -1,17 +1,18 @@
 import 'dart:io';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:bmsc/component/track_tile.dart';
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/history_screen.dart';
-import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/audio_service.dart' as app_audio;
+import 'package:bmsc/service/audio_handler.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/service/update_service.dart';
 import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:bmsc/screen/search_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
@@ -35,10 +36,14 @@ Future<void> main() async {
   if (Platform.isAndroid) {
     _logger.info('Android version: ${Platform.operatingSystemVersion}');
     
-    await JustAudioBackground.init(
-      androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
-      androidNotificationChannelName: 'Audio Playback',
-      androidNotificationOngoing: true,
+    final audioService = await app_audio.AudioService.instance;
+    await AudioService.init(
+      builder: () => BmscAudioHandler(audioService),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
+        androidNotificationChannelName: 'Audio Playback',
+        androidNotificationOngoing: true,
+      ),
     );
   }
   
@@ -151,7 +156,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     VidResult? vidDetail = await getVidDetailFromUrl(text);
     if (vidDetail == null) return;
 
-    final as = await AudioService.instance;
+    final as = await app_audio.AudioService.instance;
     if (as.player.sequenceState?.currentSource?.tag.extras['bvid'] ==
         vidDetail.bvid) {
       _logger.info('clipboard detected, but already playing');
@@ -180,7 +185,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                   view: unit(vidDetail.stat.view),
                   onTap: () {
                     Navigator.pop(context);
-                    AudioService.instance.then((x) => x.playByBvid(vidDetail.bvid));
+                    app_audio.AudioService.instance.then((x) => x.playByBvid(vidDetail.bvid));
                   }),
             ],
           )),

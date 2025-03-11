@@ -6,7 +6,7 @@ import 'package:bmsc/model/myinfo.dart';
 import 'package:bmsc/model/playlist_data.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
+import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rxdart/subjects.dart';
 
