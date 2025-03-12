@@ -377,7 +377,7 @@ class AudioService {
               duration: Duration(seconds: x.duration),
               extras: {'dummy': true}));
     }).toList());
-    await player.stop();
+    await player.pause();
     await doAndSavePlaylist(() async {
       await playlist.clear();
       await playlist.addAll(srcs);

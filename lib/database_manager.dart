@@ -877,6 +877,23 @@ class DatabaseManager {
     return metas;
   }
 
+  static Future<bool> isFaved(String bvid) async {
+    final db = await database;
+    final results = await db.query(
+      favListVideoTable,
+      where: 'bvid = ?',
+      whereArgs: [bvid],
+    );
+    return results.isNotEmpty;
+  }
+
+  static Future<void> rmFav(String bvid) async {
+    final db = await database;
+    await db.delete(favListVideoTable, where: 'bvid = ?', whereArgs: [bvid]);
+    _logger.info('removed fav $bvid from database');
+
+  }
+
   static Future<void> removeDownloaded(List<(String, int)> bvidscids) async {
     final db = await database;
     await db.transaction((txn) async {

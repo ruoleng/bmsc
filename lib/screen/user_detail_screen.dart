@@ -1,5 +1,5 @@
 import 'package:bmsc/model/user_card.dart';
-import 'package:bmsc/model/user_upload.dart';
+import 'package:bmsc/model/meta.dart';
 import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/util/string.dart';
@@ -25,13 +25,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     loadMore();
   }
 
-  List<Video> vidList = [];
+  List<Meta> vidList = [];
   UserInfoResult? info;
-  bool hasMore = true;
   int pn = 1;
 
   loadMore() async {
-    if (!hasMore) {
+    if (pn == -1) {
       return;
     }
     final rst =
@@ -40,9 +39,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       return;
     }
     setState(() {
-      hasMore = rst.page.pn * rst.page.ps < rst.page.count;
-      ++pn;
-      vidList.addAll(rst.list.vlist);
+      pn = rst.$2;
+      vidList.addAll(rst.$1);
     });
   }
 
@@ -157,13 +155,16 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   }
 
   hisListTileView(int index) {
+    int min = vidList[index].duration ~/ 60;
+    int sec = vidList[index].duration % 60;
+    final duration = "$min:${sec.toString().padLeft(2, '0')}";
     return TrackTile(
       key: Key(vidList[index].bvid),
-      pic: vidList[index].pic,
+      pic: vidList[index].artUri,
       title: vidList[index].title,
-      author: vidList[index].author,
-      len: vidList[index].length,
-      view: unit(vidList[index].play),
+      author: vidList[index].artist,
+      len: duration,
+      view: vidList[index].play == null ? null : unit(vidList[index].play!),
       onTap: () =>
           AudioService.instance.then((x) => x.playByBvid(vidList[index].bvid)),
     );

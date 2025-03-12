@@ -13,7 +13,6 @@ import 'package:bmsc/model/search.dart';
 import 'package:bmsc/model/subtitle.dart';
 import 'package:bmsc/model/track.dart';
 import 'package:bmsc/model/user_card.dart' show UserInfoResult;
-import 'package:bmsc/model/user_upload.dart' show UserUploadResult;
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
@@ -107,8 +106,14 @@ class BilibiliService {
     return _bilibiliAPI.getUserInfo(mid);
   }
 
-  Future<UserUploadResult?> getUserUploads(int mid, int pn) {
-    return _bilibiliAPI.getUserUploads(mid, pn);
+  Future<(List<Meta>,int)?> getUserUploads(int mid, int pn) async {
+    final ret = await _bilibiliAPI.getUserUploadMetas(mid, pn);
+    if (ret == null) {
+      return null;
+    }
+    DatabaseManager.cacheMetas(ret.$1);
+    DatabaseManager.cacheFavListVideo(ret.$1.map((x) => x.bvid).toList(), mid);
+    return ret;
   }
 
   Future<HistoryResult?> getHistory(int? timestamp) {

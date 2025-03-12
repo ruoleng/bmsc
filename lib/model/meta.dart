@@ -7,6 +7,7 @@ class Meta {
     required this.mid,
     required this.duration,
     this.parts,
+    this.play,
     required this.artUri,
   });
   late final String bvid;
@@ -16,6 +17,7 @@ class Meta {
   late final int mid;
   late final int duration;
   late final int? parts;
+  late final int? play;
   late final String artUri;
 
   Meta.fromJson(Map<String, dynamic> json) {

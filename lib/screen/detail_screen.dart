@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:bmsc/component/playlist_bottom_sheet.dart';
 import 'package:bmsc/component/select_favlist_dialog_multi.dart';
+import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/model/comment.dart';
 import 'package:bmsc/model/subtitle.dart';
 import 'package:bmsc/screen/user_detail_screen.dart';
@@ -31,7 +32,7 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   bool? _isFavorite;
-  int? _currentAid;
+  String? _currentBvid;
   bool _showSubtitles = false;
   List<BilibiliSubtitle>? _subtitles;
   final AutoScrollController _subtitleScrollController = AutoScrollController();
@@ -45,6 +46,7 @@ class _DetailScreenState extends State<DetailScreen> {
   Duration _position = Duration.zero;
   Duration _bufferedPosition = Duration.zero;
   Duration _duration = Duration.zero;
+  bool _isTitleExpanded = false;
 
   @override
   void initState() {
@@ -67,11 +69,18 @@ class _DetailScreenState extends State<DetailScreen> {
         _currentSequenceState = state;
       });
 
+      if ((state?.currentSource?.tag.extras['dummy'] as bool?) == true) {
+        _checkFavoriteStatus(null, state?.currentSource?.tag.id);
+      }
+
       // Check favorite status when current track changes
-      final aid = state?.currentSource?.tag.extras['aid'] as int?;
-      if (aid != _currentAid) {
-        _currentAid = aid;
-        _checkFavoriteStatus(aid);
+      final bvid = state?.currentSource?.tag.extras['bvid'] as String?;
+      if (bvid != _currentBvid) {
+        _currentBvid = bvid;
+        final aid = state?.currentSource?.tag.extras['aid'] as int?;
+        if (aid != null) {
+          _checkFavoriteStatus(aid, state?.currentSource?.tag.extras['bvid']);
+        }
       }
     });
 
@@ -101,15 +110,26 @@ class _DetailScreenState extends State<DetailScreen> {
     _currentSequenceState = _audioService!.player.sequenceState;
   }
 
-  Future<void> _checkFavoriteStatus(int? aid) async {
+  Future<void> _checkFavoriteStatus(int? aid, String? bvid) async {
     if (!mounted) return;
-    if (aid == null) {
+    if (aid == null && bvid == null) {
       setState(() => _isFavorite = null);
       return;
     }
-    final isFavorited = await (await BilibiliService.instance).isFavorited(aid);
-    if (!mounted) return;
-    setState(() => _isFavorite = isFavorited);
+    if (bvid != null) {
+      final isFavedDB = await DatabaseManager.isFaved(bvid);
+      if (!mounted) return;
+      setState(() => _isFavorite = isFavedDB);
+    }
+    if (aid != null) {
+      final isFavorited =
+          await (await BilibiliService.instance).isFavorited(aid);
+      if (bvid != null && isFavorited != null && !isFavorited) {
+        DatabaseManager.rmFav(bvid);
+      }
+      if (!mounted) return;
+      setState(() => _isFavorite = isFavorited);
+    }
   }
 
   bool _isSmallScreen(BuildContext context) {
@@ -334,7 +354,6 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildCoverImage({bool showTapHint = true}) {
-
     final src = _currentSequenceState?.currentSource;
     final isSmallScreen = _isSmallScreen(context);
     double width = 355.5, height = 200.0;
@@ -396,21 +415,23 @@ class _DetailScreenState extends State<DetailScreen> {
       children: [
         Padding(
           padding: EdgeInsets.only(
-            top: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
-            left: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
-            right: compact ? 0 : (_isSmallScreen(context) ? 8 : 16),
             bottom: compact ? 4 : (_isSmallScreen(context) ? 4 : 8),
           ),
-          child: Text(
-            src?.tag.title ?? "",
-            style: TextStyle(
-              fontSize: compact ? 16 : (_isSmallScreen(context) ? 16 : 20),
-              fontWeight: FontWeight.w600,
+          child: GestureDetector(
+            onTap: () => setState(() => _isTitleExpanded = !_isTitleExpanded),
+            child: Text(
+              src?.tag.title ?? "",
+              style: TextStyle(
+                fontSize: compact ? 16 : (_isSmallScreen(context) ? 16 : 18),
+                fontWeight: FontWeight.w600,
+              ),
+              softWrap: true,
+              maxLines: _isTitleExpanded ? null : (compact ? 1 : 2),
+              overflow: _isTitleExpanded
+                  ? TextOverflow.clip
+                  : (compact ? TextOverflow.ellipsis : TextOverflow.fade),
+              textAlign: compact ? TextAlign.left : TextAlign.center,
             ),
-            softWrap: true,
-            maxLines: compact ? 1 : null,
-            overflow: compact ? TextOverflow.ellipsis : null,
-            textAlign: compact ? TextAlign.left : TextAlign.center,
           ),
         ),
         InkWell(
@@ -545,30 +566,29 @@ class _DetailScreenState extends State<DetailScreen> {
       stream: _audioService!.player.sequenceStateStream,
       builder: (context, snapshot) {
         final src = snapshot.data?.currentSource;
-        if (src?.tag.extras['aid'] != _currentAid) {
-          _currentAid = src?.tag.extras['aid'];
-          Future.microtask(() => _checkFavoriteStatus(_currentAid));
-        }
-        return TextButton.icon(
-          icon: Icon(
-            _isFavorite == true ? Icons.favorite : Icons.favorite_border,
-            size: 20,
-            color: _isFavorite == true
-                ? Colors.red
-                : Theme.of(context).colorScheme.primary,
-          ),
-          label: Text(
-            _isFavorite == true ? '已收藏' : '收藏',
-            style: TextStyle(
-              fontSize: 12,
-              color: _isFavorite == true
-                  ? Colors.red
-                  : Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          onPressed:
-              src == null ? null : () => _handleFavoriteAction(src, context),
-        );
+        return Opacity(
+            opacity: src == null ? 0.5 : 1.0,
+            child: TextButton.icon(
+              icon: Icon(
+                _isFavorite == true ? Icons.favorite : Icons.favorite_border,
+                size: 20,
+                color: _isFavorite == true
+                    ? Colors.red
+                    : Theme.of(context).colorScheme.primary,
+              ),
+              label: Text(
+                _isFavorite == true ? '已收藏' : '收藏',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _isFavorite == true
+                      ? Colors.red
+                      : Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              onPressed: src == null
+                  ? null
+                  : () => _handleFavoriteAction(src, context),
+            ));
       },
     );
   }
@@ -630,7 +650,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 _isFavorite = true;
               }));
         } else {
-          _checkFavoriteStatus(src.tag.extras['aid']);
+          _checkFavoriteStatus(src.tag.extras['aid'], src.tag.extras['bvid']);
         }
 
         if (context.mounted) {
@@ -642,7 +662,7 @@ class _DetailScreenState extends State<DetailScreen> {
           );
         }
       } else {
-        _checkFavoriteStatus(src.tag.extras['aid']);
+        _checkFavoriteStatus(src.tag.extras['aid'], src.tag.extras['bvid']);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -698,11 +718,13 @@ class _DetailScreenState extends State<DetailScreen> {
     if (processingState == ProcessingState.loading ||
         processingState == ProcessingState.buffering) {
       return IconButton(
-          onPressed: () {},
-          icon: Icon(
-            Icons.more_horiz_sharp,
-            size: iconSize,
-          ));
+        icon: Icon(
+          Icons.play_arrow,
+          size: iconSize,
+          color: Theme.of(context).disabledColor,
+        ),
+        onPressed: null,
+      );
     } else if (player.playing != true) {
       return IconButton(
         icon: Icon(

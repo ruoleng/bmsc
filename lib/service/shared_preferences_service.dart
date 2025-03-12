@@ -162,6 +162,7 @@ class SharedPreferencesService {
           rawTitle: tag.extras?['raw_title'] ?? '',
           mid: tag.extras?['mid'] ?? 0,
           cached: tag.extras?['cached'] ?? false,
+          duration: tag.duration?.inSeconds ?? 0,
           dummy: dummy,
         ).toJson();
       }
@@ -191,6 +192,7 @@ class SharedPreferencesService {
               title: data.title,
               artist: data.artist,
               artUri: Uri.parse(data.artUri),
+              duration: Duration(seconds: data.duration),
               extras: {
                 'dummy': true,
               },
@@ -209,6 +211,7 @@ class SharedPreferencesService {
             title: data.title,
             artist: data.artist,
             artUri: Uri.parse(data.artUri),
+            duration: Duration(seconds: data.duration),
             extras: {
               'bvid': data.bvid,
               'cid': data.cid,

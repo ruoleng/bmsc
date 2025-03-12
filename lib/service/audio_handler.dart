@@ -42,8 +42,7 @@ class BmscAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       ProcessingState.ready: AudioProcessingState.ready,
       ProcessingState.completed: AudioProcessingState.completed,
     }[playerState.processingState] ?? AudioProcessingState.idle;
-    
-    playbackState.add(playbackState.value.copyWith(
+    playbackState.add(PlaybackState(
       controls: [
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
