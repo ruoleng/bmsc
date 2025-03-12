@@ -178,6 +178,7 @@ class BilibiliService {
           title: entities.length > 1 ? x.partTitle : x.bvidTitle,
           artUri: Uri.parse(x.artUri),
           artist: x.artist,
+          duration: Duration(seconds: x.duration),
           extras: {
             'mid': meta?.mid,
             'bvid': meta?.bvid,

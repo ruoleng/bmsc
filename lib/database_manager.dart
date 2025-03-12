@@ -464,6 +464,7 @@ class DatabaseManager {
               title: entity.partTitle,
               artist: entity.artist,
               artUri: Uri.parse(entity.artUri),
+              duration: Duration(seconds: entity.duration),
               extras: {
                 'bvid': bvid,
                 'aid': entity.aid,
@@ -514,6 +515,7 @@ class DatabaseManager {
             title: entity.partTitle,
             artist: entity.artist,
             artUri: Uri.parse(entity.artUri),
+            duration: Duration(seconds: meta.duration),
             extras: {
               'bvid': bvid,
               'aid': entity.aid,

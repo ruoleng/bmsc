@@ -11,6 +11,7 @@ class PlaylistData {
   final int mid;
   final bool cached;
   final String rawTitle;
+  final int duration;
   final bool dummy;
   PlaylistData({
     required this.id,
@@ -25,6 +26,7 @@ class PlaylistData {
     required this.mid,
     required this.cached,
     required this.rawTitle,
+    required this.duration,
     required this.dummy,
   });
 
@@ -41,6 +43,7 @@ class PlaylistData {
         'mid': mid,
         'cached': cached,
         'raw_title': rawTitle,
+        'duration': duration,
         'dummy': dummy,
       };
 
@@ -57,6 +60,7 @@ class PlaylistData {
         mid: json['mid'],
         cached: json['cached'],
         rawTitle: json['raw_title'],
+        duration: json['duration'],
         dummy: json['dummy'],
       );
 }

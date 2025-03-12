@@ -374,6 +374,7 @@ class AudioService {
               // http://i0.hdslb.com/bfs/archive/32ddc1acc1cba622cbcd789ff7e0b91bcf0097fe.jpg
               artUri: Uri.http(x.artUri.substring(7, 19), x.artUri.substring(19)),
               artist: x.artist,
+              duration: Duration(seconds: x.duration),
               extras: {'dummy': true}));
     }).toList());
     await player.stop();
