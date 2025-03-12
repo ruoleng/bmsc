@@ -49,19 +49,19 @@ class _DownloadPartsDialogState extends State<DownloadPartsDialog> {
       es = await DatabaseManager.getEntities(widget.bvid);
       dd = List.filled(es.length, false);
     }
-    
+
     // Get downloaded parts
     final downloadParts = await DatabaseManager.getDownloadedParts(widget.bvid);
-    
+
     // Get download tasks
     final dm = await DownloadManager.instance;
     final allTasks = await dm.tasks;
     var dt = List<DownloadTask?>.filled(es.length, null);
-    
+
     for (var i = 0; i < es.length; i++) {
       dd[i] = downloadParts.contains(es[i].cid);
       if (dd[i]) downloadedCount++;
-      
+
       // Check if this part is in the download queue
       final taskId = '${widget.bvid}-${es[i].cid}';
       if (allTasks.containsKey(taskId)) {
@@ -71,7 +71,7 @@ class _DownloadPartsDialogState extends State<DownloadPartsDialog> {
         }
       }
     }
-    
+
     if (es.isNotEmpty) {
       setState(() {
         isLoading = false;
@@ -220,12 +220,12 @@ class _DownloadPartsDialogState extends State<DownloadPartsDialog> {
                   final e = entities[index];
                   final shouldDownload = downloaded[index] ^ modified[index];
                   final downloadTask = downloadTasks[index];
-                  final isDownloading = downloadTask != null && 
+                  final isDownloading = downloadTask != null &&
                       downloadTask.status != DownloadStatus.completed;
 
                   return InkWell(
-                    onTap: isDownloading 
-                        ? null 
+                    onTap: isDownloading
+                        ? null
                         : () {
                             setState(() {
                               modified[index] = !modified[index];
@@ -246,8 +246,9 @@ class _DownloadPartsDialogState extends State<DownloadPartsDialog> {
                           },
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isDownloading 
-                            ? _getStatusColor(downloadTask.status).withOpacity(0.3)
+                        color: isDownloading
+                            ? _getStatusColor(downloadTask.status)
+                                .withOpacity(0.3)
                             : shouldDownload
                                 ? Colors.green.shade100.withOpacity(0.3)
                                 : null,
@@ -285,7 +286,9 @@ class _DownloadPartsDialogState extends State<DownloadPartsDialog> {
                                     Text(
                                       _formatDuration(e.duration),
                                       style: TextStyle(
-                                        color: Theme.of(context).colorScheme.secondary,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .secondary,
                                       ),
                                     ),
                                     if (isDownloading) ...[
@@ -293,23 +296,30 @@ class _DownloadPartsDialogState extends State<DownloadPartsDialog> {
                                       Text(
                                         _getStatusText(downloadTask.status),
                                         style: TextStyle(
-                                          color: Theme.of(context).colorScheme.secondary,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .secondary,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      if (downloadTask.status == DownloadStatus.downloading) ...[
+                                      if (downloadTask.status ==
+                                          DownloadStatus.downloading) ...[
                                         const SizedBox(width: 8),
                                         Text(
                                           '${(downloadTask.progress * 100).toStringAsFixed(0)}%',
                                           style: TextStyle(
-                                            color: Theme.of(context).colorScheme.secondary,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
                                           ),
                                         ),
                                       ],
                                     ],
                                   ],
                                 ),
-                                if (isDownloading && downloadTask.status == DownloadStatus.downloading)
+                                if (isDownloading &&
+                                    downloadTask.status ==
+                                        DownloadStatus.downloading)
                                   LinearProgressIndicator(
                                     value: downloadTask.progress,
                                     backgroundColor: Colors.grey.shade200,
@@ -334,7 +344,6 @@ class _DownloadPartsDialogState extends State<DownloadPartsDialog> {
           },
           child: const Text('取消'),
         ),
-
         FilledButton(
           onPressed: () async {
             setState(() => isLoading = true);

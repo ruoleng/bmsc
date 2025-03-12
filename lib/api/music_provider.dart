@@ -53,7 +53,8 @@ class MusicProvider {
       String playlistId) async {
     try {
       if (playlistId.startsWith("gcid")) {
-        final response = await Dio().get("https://www.kugou.com/songlist/$playlistId/");
+        final response =
+            await Dio().get("https://www.kugou.com/songlist/$playlistId/");
         final html = response.data as String;
         final RegExp regExp = RegExp(r'"list_create_gid":"([^"]+)"');
         final match = regExp.firstMatch(html);

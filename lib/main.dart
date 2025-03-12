@@ -31,11 +31,11 @@ final _logger = LoggerUtils.getLogger('main');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // 记录Android版本信息
   if (Platform.isAndroid) {
     _logger.info('Android version: ${Platform.operatingSystemVersion}');
-    
+
     final audioService = await app_audio.AudioService.instance;
     await AudioService.init(
       builder: () => BmscAudioHandler(audioService),
@@ -46,11 +46,11 @@ Future<void> main() async {
       ),
     );
   }
-  
+
   if (Platform.isLinux || Platform.isWindows) {
     JustAudioMediaKit.ensureInitialized();
   }
-  
+
   await ThemeProvider.instance.init();
   if (!kDebugMode) _setupErrorHandlers();
   runApp(const MyApp());
@@ -77,15 +77,16 @@ class MyApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: ThemeProvider.instance,
       builder: (context, child) {
-        final isDarkMode = ThemeProvider.instance.themeMode == ThemeMode.dark || 
-                          (ThemeProvider.instance.themeMode == ThemeMode.system && 
-                           WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+        final isDarkMode = ThemeProvider.instance.themeMode == ThemeMode.dark ||
+            (ThemeProvider.instance.themeMode == ThemeMode.system &&
+                WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                    Brightness.dark);
         SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-          systemNavigationBarColor: isDarkMode 
-              ? ThemeProvider.darkTheme.colorScheme.surfaceContainer 
+          systemNavigationBarColor: isDarkMode
+              ? ThemeProvider.darkTheme.colorScheme.surfaceContainer
               : ThemeProvider.lightTheme.colorScheme.surfaceContainer,
         ));
-        
+
         return MaterialApp(
           navigatorKey: ErrorHandler.navigatorKey,
           theme: ThemeProvider.lightTheme,
@@ -185,7 +186,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                   view: unit(vidDetail.stat.view),
                   onTap: () {
                     Navigator.pop(context);
-                    app_audio.AudioService.instance.then((x) => x.playByBvid(vidDetail.bvid));
+                    app_audio.AudioService.instance
+                        .then((x) => x.playByBvid(vidDetail.bvid));
                   }),
             ],
           )),

@@ -256,7 +256,8 @@ class SharedPreferencesService {
 
   static Future<int> getReportHistoryInterval() async {
     final prefs = await SharedPreferencesService.instance;
-    _logger.info('getReportHistoryInterval: ${prefs.getInt('report_history_interval')}');
+    _logger.info(
+        'getReportHistoryInterval: ${prefs.getInt('report_history_interval')}');
     return prefs.getInt('report_history_interval') ?? 10;
   }
 
@@ -276,7 +277,8 @@ class SharedPreferencesService {
     }
   }
 
-  static Future<void> savePlaylistSearchResult(List<Map<String, dynamic>> result, String text, int favid) async {
+  static Future<void> savePlaylistSearchResult(
+      List<Map<String, dynamic>> result, String text, int favid) async {
     final prefs = await SharedPreferencesService.instance;
     final content = {
       'result': jsonEncode(result),
@@ -302,11 +304,10 @@ class SharedPreferencesService {
     final prefs = await SharedPreferencesService.instance;
     return prefs.getDouble('playback_speed');
   }
-  
+
   // 设置播放速度
   static Future<void> setPlaybackSpeed(double speed) async {
     final prefs = await SharedPreferencesService.instance;
     await prefs.setDouble('playback_speed', speed);
   }
 }
-

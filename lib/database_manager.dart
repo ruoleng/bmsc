@@ -553,7 +553,7 @@ class DatabaseManager {
     try {
       final db = await database;
       final now = DateTime.now().millisecondsSinceEpoch;
-      
+
       await db.transaction((txn) async {
         int ret = await txn.insert(
             cacheTable,
@@ -591,12 +591,13 @@ class DatabaseManager {
     try {
       final db = await database;
       int totalSize = 0;
-      
+
       await db.transaction((txn) async {
-        final result = await txn.rawQuery('SELECT SUM(fileSize) as total FROM $cacheTable');
+        final result = await txn
+            .rawQuery('SELECT SUM(fileSize) as total FROM $cacheTable');
         totalSize = (result.first['total'] as int?) ?? 0;
       });
-      
+
       return totalSize;
     } catch (e, stackTrace) {
       _logger.severe('Failed to get cache total size', e, stackTrace);
@@ -648,8 +649,8 @@ class DatabaseManager {
         };
       }).toList();
 
-      files
-          .sort((a, b) => (a['score'] as double).compareTo(b['score'] as double));
+      files.sort(
+          (a, b) => (a['score'] as double).compareTo(b['score'] as double));
 
       int removedSize = 0;
       for (var file in files) {
@@ -891,7 +892,6 @@ class DatabaseManager {
     final db = await database;
     await db.delete(favListVideoTable, where: 'bvid = ?', whereArgs: [bvid]);
     _logger.info('removed fav $bvid from database');
-
   }
 
   static Future<void> removeDownloaded(List<(String, int)> bvidscids) async {
@@ -915,7 +915,8 @@ class DatabaseManager {
     return results.map((e) => e['cid'] as int).toList();
   }
 
-  static Future<void> saveDownload(String bvid, int cid, String filePath) async {
+  static Future<void> saveDownload(
+      String bvid, int cid, String filePath) async {
     final db = await database;
     await db.transaction((txn) async {
       await txn.insert(

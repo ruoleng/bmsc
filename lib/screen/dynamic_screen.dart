@@ -119,7 +119,10 @@ class _DynamicScreenState extends State<DynamicScreen> {
                         context,
                         MaterialPageRoute(
                             builder: (context) => CommentScreen(
-                                aid: dynList[index].moduleDynamic.major.archive
+                                aid: dynList[index]
+                                    .moduleDynamic
+                                    .major
+                                    .archive
                                     .aid)));
                   },
                 ),

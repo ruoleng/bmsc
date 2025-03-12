@@ -207,9 +207,11 @@ class BilibiliAPI {
     return _callAPI(apiUserUploadsUrl, queryParameters: params,
         callback: (data) {
       final uploads = UserUploadResult.fromJson(data);
-      final nextPn = uploads.page.pn * uploads.page.ps < uploads.page.count ? pn + 1 : -1;
-      return (uploads.list.vlist
-          .map((x) => Meta(
+      final nextPn =
+          uploads.page.pn * uploads.page.ps < uploads.page.count ? pn + 1 : -1;
+      return (
+        uploads.list.vlist
+            .map((x) => Meta(
                 aid: x.aid,
                 bvid: x.bvid,
                 mid: mid,
@@ -217,9 +219,11 @@ class BilibiliAPI {
                 artist: x.author,
                 artUri: x.pic,
                 parts: x.play,
-                duration: int.parse(x.length.split(':')[0]) * 60 + int.parse(x.length.split(':')[1])
-              ))
-          .toList(), nextPn);
+                duration: int.parse(x.length.split(':')[0]) * 60 +
+                    int.parse(x.length.split(':')[1])))
+            .toList(),
+        nextPn
+      );
     });
   }
 

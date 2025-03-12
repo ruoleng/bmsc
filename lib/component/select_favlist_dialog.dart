@@ -33,7 +33,7 @@ class _SelectFavlistDialogState extends State<SelectFavlistDialog> {
   Widget build(BuildContext context) {
     return !isLoggedIn
         ? const AlertDialog(
-            title:  Text('未登录'),
+            title: Text('未登录'),
             content: Text('请先登录'),
           )
         : AlertDialog(

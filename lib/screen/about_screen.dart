@@ -33,7 +33,8 @@ class _AboutScreenState extends State<AboutScreen> {
       setState(() {
         releases = x.newVersionInfo;
         hasNewVersion = x.hasNewVersion;
-        latestVersion = x.newVersionInfo?.first.tagName.replaceAll('v', '') ?? '';
+        latestVersion =
+            x.newVersionInfo?.first.tagName.replaceAll('v', '') ?? '';
       });
     }
   }
@@ -227,7 +228,7 @@ class _AboutScreenState extends State<AboutScreen> {
                                 style: TextStyle(fontSize: 12),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           if (entry.$1 == latestVersion)
                             Container(
                               padding: const EdgeInsets.symmetric(

@@ -106,7 +106,7 @@ class BilibiliService {
     return _bilibiliAPI.getUserInfo(mid);
   }
 
-  Future<(List<Meta>,int)?> getUserUploads(int mid, int pn) async {
+  Future<(List<Meta>, int)?> getUserUploads(int mid, int pn) async {
     final ret = await _bilibiliAPI.getUserUploadMetas(mid, pn);
     if (ret == null) {
       return null;

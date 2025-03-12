@@ -29,10 +29,10 @@ class AudioService {
 
   // 获取定时停止播放的流
   Stream<int?> get sleepTimerStream => _sleepTimerSubject.stream;
-  
+
   // 获取播放速度的流
   Stream<double> get speedStream => _speedSubject.stream;
-  
+
   // 获取当前播放速度
   double get currentSpeed => _speedSubject.value;
 
@@ -51,16 +51,17 @@ class AudioService {
         await x.player.seek(Duration(seconds: position));
       }
       await x.restorePlayMode();
-      
+
       // 恢复定时停止播放设置
-      final sleepTimerMinutes = await SharedPreferencesService.getSleepTimerMinutes();
+      final sleepTimerMinutes =
+          await SharedPreferencesService.getSleepTimerMinutes();
       if (sleepTimerMinutes != null) {
         // 如果剩余时间小于1分钟，则不恢复定时器
         if (sleepTimerMinutes > 0) {
           await x.setSleepTimer(sleepTimerMinutes);
         }
       }
-      
+
       // 恢复播放速度设置
       final speed = await SharedPreferencesService.getPlaybackSpeed();
       if (speed != null) {
@@ -196,45 +197,46 @@ class AudioService {
     _sleepTimer = null;
     _fadeTimer?.cancel();
     _fadeTimer = null;
-    
+
     // 恢复音量
     await player.setVolume(1);
-    
+
     // 更新设置
     await SharedPreferencesService.setSleepTimerMinutes(minutes);
-    
+
     // 如果minutes和specificTime都为null，表示取消定时
     if (minutes == null && specificTime == null) {
       _sleepTimerSubject.add(null);
       return;
     }
-    
+
     int durationInSeconds;
-    
+
     if (specificTime != null) {
       // 计算从现在到指定时刻的秒数
       final now = DateTime.now();
       final difference = specificTime.difference(now);
-      
+
       // 如果指定时间已经过去，则不设置定时器
       if (difference.isNegative) {
         _sleepTimerSubject.add(null);
         return;
       }
-      
+
       durationInSeconds = difference.inSeconds;
       // 保存为分钟，用于恢复
-      await SharedPreferencesService.setSleepTimerMinutes(durationInSeconds ~/ 60);
+      await SharedPreferencesService.setSleepTimerMinutes(
+          durationInSeconds ~/ 60);
     } else {
       // 使用分钟计算
       durationInSeconds = minutes! * 60;
     }
-    
+
     _sleepTimerSubject.add(durationInSeconds);
-    
+
     _sleepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final remainingSeconds = durationInSeconds - timer.tick;
-      
+
       if (remainingSeconds <= 0) {
         // 时间到，停止播放
         player.pause();
@@ -259,7 +261,7 @@ class AudioService {
   void _startFadeOut(int remainingSeconds) {
     final startVolume = player.volume;
     final volumeStep = startVolume / remainingSeconds;
-    
+
     _fadeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (timer.tick >= remainingSeconds) {
         _fadeTimer?.cancel();
@@ -486,7 +488,7 @@ class AudioService {
     if (speed < 0.25 || speed > 3.0) {
       return;
     }
-    
+
     await player.setSpeed(speed);
     _speedSubject.add(speed);
     await SharedPreferencesService.setPlaybackSpeed(speed);

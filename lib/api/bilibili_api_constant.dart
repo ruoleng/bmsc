@@ -30,6 +30,8 @@ const String apiSmsCaptchaUrl = '$_passportUrl/x/passport-login/web/sms/send';
 const String apiPasswordLoginUrl = '$_passportUrl/x/passport-login/web/login';
 const String apiSmsLoginUrl = '$_passportUrl/x/passport-login/web/login/sms';
 const String apiReportHistoryUrl = '$_baseUrl/x/v2/history/report';
-const String apiGetQrcodeLoginUrl = '$_passportUrl/x/passport-login/web/qrcode/generate';
-const String apiCheckQrcodeLoginStatusUrl = '$_passportUrl/x/passport-login/web/qrcode/poll';
-const String apiPlayer ='$_baseUrl/x/player/wbi/v2';
+const String apiGetQrcodeLoginUrl =
+    '$_passportUrl/x/passport-login/web/qrcode/generate';
+const String apiCheckQrcodeLoginStatusUrl =
+    '$_passportUrl/x/passport-login/web/qrcode/poll';
+const String apiPlayer = '$_baseUrl/x/player/wbi/v2';

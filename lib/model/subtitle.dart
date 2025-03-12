@@ -1,9 +1,9 @@
 class BilibiliSubtitle {
-  final int from;        // 字幕开始时间（毫秒）
-  final int to;          // 字幕结束时间（毫秒）
-  final String content;  // 字幕内容
-  final int location;    // 字幕位置（1: 底部, 2: 顶部）
-  
+  final int from; // 字幕开始时间（毫秒）
+  final int to; // 字幕结束时间（毫秒）
+  final String content; // 字幕内容
+  final int location; // 字幕位置（1: 底部, 2: 顶部）
+
   BilibiliSubtitle({
     required this.from,
     required this.to,
@@ -28,5 +28,4 @@ class BilibiliSubtitle {
       'location': location,
     };
   }
-
 }

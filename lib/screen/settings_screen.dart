@@ -32,11 +32,8 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
-          StatefulBuilder(
-            builder: (context, setState) {
-
-
-              return FutureBuilder<BilibiliService?>(
+          StatefulBuilder(builder: (context, setState) {
+            return FutureBuilder<BilibiliService?>(
                 future: BilibiliService.instance,
                 builder: (context, snapshot) {
                   final bs = snapshot.data;
@@ -76,7 +73,8 @@ class SettingsScreen extends StatelessWidget {
                       } else {
                         Navigator.push<bool>(
                           context,
-                          MaterialPageRoute<bool>(builder: (_) => const LoginScreen()),
+                          MaterialPageRoute<bool>(
+                              builder: (_) => const LoginScreen()),
                         ).then((value) async {
                           if (value == true) {
                             if (context.mounted) {
@@ -87,10 +85,8 @@ class SettingsScreen extends StatelessWidget {
                       }
                     },
                   );
-                }
-              );
-            }
-          ),
+                });
+          }),
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
@@ -130,7 +126,8 @@ class SettingsScreen extends StatelessWidget {
                   leading: const Icon(Icons.timer),
                   subtitle: Text('${snapshot.data} s'),
                   onTap: () async {
-                    final controller = TextEditingController(text: snapshot.data.toString());
+                    final controller =
+                        TextEditingController(text: snapshot.data.toString());
                     if (!context.mounted) return;
                     showDialog(
                       context: context,
@@ -138,38 +135,41 @@ class SettingsScreen extends StatelessWidget {
                         title: const Text('设置上报间隔'),
                         content: Row(
                           children: [
-                          Expanded(child: TextField(
-                            controller: controller,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: '上报间隔',
-                              border: OutlineInputBorder(),
+                            Expanded(
+                              child: TextField(
+                                controller: controller,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: '上报间隔',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
                             ),
-                          ),),
-                          const SizedBox(width: 8),
-                          const Text('s'),
+                            const SizedBox(width: 8),
+                            const Text('s'),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text("取消"),
+                          ),
+                          FilledButton(
+                            onPressed: () async {
+                              final newValue = int.tryParse(controller.text);
+                              if (newValue != null) {
+                                await SharedPreferencesService
+                                    .setReportHistoryInterval(newValue);
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  setState(() {});
+                                }
+                              }
+                            },
+                            child: const Text("确定"),
+                          ),
                         ],
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("取消"),
-                        ),
-                        FilledButton(
-                          onPressed: () async {
-                            final newValue = int.tryParse(controller.text);
-                            if (newValue != null) {
-                              await SharedPreferencesService.setReportHistoryInterval(newValue);
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                setState(() {});
-                              }
-                            }
-                          },
-                          child: const Text("确定"),
-                        ),
-                      ],
-                    ),
                     );
                   },
                 );
@@ -217,69 +217,67 @@ class SettingsScreen extends StatelessWidget {
                       selectedDirectory);
                 }
               }),
-          StatefulBuilder(
-            builder: (context, setState) {
-              return ListTile(
-                title: const Text('最大并发下载数'),
-                subtitle: FutureBuilder<int>(
-                  future: SharedPreferencesService.getMaxConcurrentDownloads(),
-                  builder: (context, snapshot) {
-                    final limit = snapshot.data ?? 3;
-                    return Text('$limit');
-                  },
-                ),
-                leading: const Icon(Icons.numbers),
-                onTap: () async {
-                  var currentLimit =
-                      await SharedPreferencesService.getMaxConcurrentDownloads();
-                  final controller =
-                      TextEditingController(text: currentLimit.toString());
-                  if (!context.mounted) return;
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('设置最大并发下载数'),
-                      content: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: controller,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: '最大并发下载数',
-                                border: OutlineInputBorder(),
-                              ),
+          StatefulBuilder(builder: (context, setState) {
+            return ListTile(
+              title: const Text('最大并发下载数'),
+              subtitle: FutureBuilder<int>(
+                future: SharedPreferencesService.getMaxConcurrentDownloads(),
+                builder: (context, snapshot) {
+                  final limit = snapshot.data ?? 3;
+                  return Text('$limit');
+                },
+              ),
+              leading: const Icon(Icons.numbers),
+              onTap: () async {
+                var currentLimit =
+                    await SharedPreferencesService.getMaxConcurrentDownloads();
+                final controller =
+                    TextEditingController(text: currentLimit.toString());
+                if (!context.mounted) return;
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('设置最大并发下载数'),
+                    content: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: '最大并发下载数',
+                              border: OutlineInputBorder(),
                             ),
                           ),
-                        ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('取消'),
-                        ),
-                        FilledButton(
-                          onPressed: () async {
-                            final newValue = int.tryParse(controller.text);
-                            if (newValue != null) {
-                              currentLimit = newValue;
-                              await SharedPreferencesService
-                                  .setMaxConcurrentDownloads(currentLimit);
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                setState(() {});
-                              }
-                            }
-                          },
-                          child: const Text('确定'),
                         ),
                       ],
                     ),
-                  );
-                },
-              );
-            }
-          ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('取消'),
+                      ),
+                      FilledButton(
+                        onPressed: () async {
+                          final newValue = int.tryParse(controller.text);
+                          if (newValue != null) {
+                            currentLimit = newValue;
+                            await SharedPreferencesService
+                                .setMaxConcurrentDownloads(currentLimit);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              setState(() {});
+                            }
+                          }
+                        },
+                        child: const Text('确定'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }),
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
@@ -301,71 +299,69 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
-          StatefulBuilder(
-            builder: (context, setState) {
-              return ListTile(
-                title: const Text('缓存大小限制'),
-                subtitle: FutureBuilder<int>(
-                  future: SharedPreferencesService.getCacheLimitSize(),
-                  builder: (context, snapshot) {
-                    final limit = snapshot.data ?? 300;
-                    return Text('$limit MB');
-                  },
-                ),
-                leading: const Icon(Icons.folder),
-                onTap: () async {
-                  var currentLimit =
-                      await SharedPreferencesService.getCacheLimitSize();
-                  final controller =
-                      TextEditingController(text: currentLimit.toString());
-                  if (!context.mounted) return;
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('设置缓存大小限制'),
-                      content: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: controller,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: '缓存大小',
-                                border: OutlineInputBorder(),
-                              ),
+          StatefulBuilder(builder: (context, setState) {
+            return ListTile(
+              title: const Text('缓存大小限制'),
+              subtitle: FutureBuilder<int>(
+                future: SharedPreferencesService.getCacheLimitSize(),
+                builder: (context, snapshot) {
+                  final limit = snapshot.data ?? 300;
+                  return Text('$limit MB');
+                },
+              ),
+              leading: const Icon(Icons.folder),
+              onTap: () async {
+                var currentLimit =
+                    await SharedPreferencesService.getCacheLimitSize();
+                final controller =
+                    TextEditingController(text: currentLimit.toString());
+                if (!context.mounted) return;
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('设置缓存大小限制'),
+                    content: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: '缓存大小',
+                              border: OutlineInputBorder(),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Text('MB'),
-                        ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('取消'),
                         ),
-                        FilledButton(
-                          onPressed: () async {
-                            final newValue = int.tryParse(controller.text);
-                            if (newValue != null) {
-                              currentLimit = newValue;
-                              await SharedPreferencesService.setCacheLimitSize(
-                                  currentLimit);
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                setState(() {});
-                              }
-                            }
-                          },
-                          child: const Text('确定'),
-                        ),
+                        const SizedBox(width: 8),
+                        const Text('MB'),
                       ],
                     ),
-                  );
-                },
-              );
-            }
-          ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('取消'),
+                      ),
+                      FilledButton(
+                        onPressed: () async {
+                          final newValue = int.tryParse(controller.text);
+                          if (newValue != null) {
+                            currentLimit = newValue;
+                            await SharedPreferencesService.setCacheLimitSize(
+                                currentLimit);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              setState(() {});
+                            }
+                          }
+                        },
+                        child: const Text('确定'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }),
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
@@ -377,139 +373,137 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
-          StatefulBuilder(
-            builder: (context, setState) {
-              return ListTile(
-                title: const Text('主题模式'),
-                leading: const Icon(Icons.palette),
-                subtitle: Text(switch (ThemeProvider.instance.themeMode) {
-                  ThemeMode.light => '浅色',
-                  ThemeMode.dark => '深色',
-                  ThemeMode.system => '跟随系统',
-                }),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('选择主题模式'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          RadioListTile<ThemeMode>(
-                            title: const Text('浅色'),
-                            value: ThemeMode.light,
-                            groupValue: ThemeProvider.instance.themeMode,
-                            onChanged: (ThemeMode? value) async {
-                              if (value != null) {
-                                await ThemeProvider.instance.setThemeMode(value);
-                                if (context.mounted) Navigator.pop(context);
-                              }
-                            },
-                          ),
-                          RadioListTile<ThemeMode>(
-                            title: const Text('深色'),
-                            value: ThemeMode.dark,
-                            groupValue: ThemeProvider.instance.themeMode,
-                            onChanged: (ThemeMode? value) async {
-                              if (value != null) {
-                                await ThemeProvider.instance.setThemeMode(value);
-                                if (context.mounted) Navigator.pop(context);
-                              }
-                            },
-                          ),
-                          RadioListTile<ThemeMode>(
-                            title: const Text('跟随系统'),
-                            value: ThemeMode.system,
-                            groupValue: ThemeProvider.instance.themeMode,
-                            onChanged: (ThemeMode? value) async {
-                              if (value != null) {
-                                await ThemeProvider.instance.setThemeMode(value);
-                                if (context.mounted) Navigator.pop(context);
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ).then((_) {
-                    if (context.mounted) {
-                      setState(() {});
-                    }
-                  });
-                },
-              );
-            }
-          ),
-          StatefulBuilder(
-            builder: (context, setState) {
-              return ListTile(
-                title: const Text('评论字体大小'),
-                subtitle: Text('${ThemeProvider.instance.commentFontSize}'),
-                leading: const Icon(Icons.format_size),
-                onTap: () {
-                  var fontSize = ThemeProvider.instance.commentFontSize;
-                  showDialog(
-                    context: context,
-                    builder: (context) => SimpleDialog(
-                      title: const Text('评论字体大小'),
+          StatefulBuilder(builder: (context, setState) {
+            return ListTile(
+              title: const Text('主题模式'),
+              leading: const Icon(Icons.palette),
+              subtitle: Text(switch (ThemeProvider.instance.themeMode) {
+                ThemeMode.light => '浅色',
+                ThemeMode.dark => '深色',
+                ThemeMode.system => '跟随系统',
+              }),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('选择主题模式'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        StatefulBuilder(
-                          builder: (context, setState) => Column(
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16.0),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      '12',
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(context).colorScheme.secondary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Slider(
-                                        value: fontSize.toDouble(),
-                                        min: 12,
-                                        max: 20,
-                                        divisions: 8,
-                                        label: fontSize.toString(),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            fontSize = value.toInt();
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                    Text(
-                                      '20',
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(context).colorScheme.secondary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                        RadioListTile<ThemeMode>(
+                          title: const Text('浅色'),
+                          value: ThemeMode.light,
+                          groupValue: ThemeProvider.instance.themeMode,
+                          onChanged: (ThemeMode? value) async {
+                            if (value != null) {
+                              await ThemeProvider.instance.setThemeMode(value);
+                              if (context.mounted) Navigator.pop(context);
+                            }
+                          },
+                        ),
+                        RadioListTile<ThemeMode>(
+                          title: const Text('深色'),
+                          value: ThemeMode.dark,
+                          groupValue: ThemeProvider.instance.themeMode,
+                          onChanged: (ThemeMode? value) async {
+                            if (value != null) {
+                              await ThemeProvider.instance.setThemeMode(value);
+                              if (context.mounted) Navigator.pop(context);
+                            }
+                          },
+                        ),
+                        RadioListTile<ThemeMode>(
+                          title: const Text('跟随系统'),
+                          value: ThemeMode.system,
+                          groupValue: ThemeProvider.instance.themeMode,
+                          onChanged: (ThemeMode? value) async {
+                            if (value != null) {
+                              await ThemeProvider.instance.setThemeMode(value);
+                              if (context.mounted) Navigator.pop(context);
+                            }
+                          },
                         ),
                       ],
                     ),
-                  ).then((_) {
-                    if (context.mounted) {
-                      setState(() {
-                        ThemeProvider.instance.setCommentFontSize(fontSize);
-                      });
-                    }
-                  });
-                },
-              );
-            }
-          ),
+                  ),
+                ).then((_) {
+                  if (context.mounted) {
+                    setState(() {});
+                  }
+                });
+              },
+            );
+          }),
+          StatefulBuilder(builder: (context, setState) {
+            return ListTile(
+              title: const Text('评论字体大小'),
+              subtitle: Text('${ThemeProvider.instance.commentFontSize}'),
+              leading: const Icon(Icons.format_size),
+              onTap: () {
+                var fontSize = ThemeProvider.instance.commentFontSize;
+                showDialog(
+                  context: context,
+                  builder: (context) => SimpleDialog(
+                    title: const Text('评论字体大小'),
+                    children: [
+                      StatefulBuilder(
+                        builder: (context, setState) => Column(
+                          children: [
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '12',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Slider(
+                                      value: fontSize.toDouble(),
+                                      min: 12,
+                                      max: 20,
+                                      divisions: 8,
+                                      label: fontSize.toString(),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          fontSize = value.toInt();
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  Text(
+                                    '20',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ).then((_) {
+                  if (context.mounted) {
+                    setState(() {
+                      ThemeProvider.instance.setCommentFontSize(fontSize);
+                    });
+                  }
+                });
+              },
+            );
+          }),
           StatefulBuilder(
             builder: (context, setState) => FutureBuilder<bool>(
               future: SharedPreferencesService.instance.then((prefs) =>
