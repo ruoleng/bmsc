@@ -323,9 +323,9 @@ class _LoginScreenState extends State<LoginScreen> {
               });
             },
             icon: Icon(_loginType == LoginType.password
-                ? Icons.lock_outline
-                : Icons.message_outlined),
-            label: Text(_loginType == LoginType.password ? '密码登录' : '短信登录'),
+                ? Icons.message_outlined
+                : Icons.lock_outline),
+            label: Text(_loginType == LoginType.password ? '短信登录' : '密码登录'),
           ),
         ],
       ),
@@ -461,6 +461,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         children: [
                           QrImageView(
+                            backgroundColor: Colors.white,
                             data: _qrcodeUrl!,
                             version: QrVersions.auto,
                             size: 200.0,
