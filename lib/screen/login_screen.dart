@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _infoMessage;
-  LoginType _loginType = LoginType.password;
+  LoginType _loginType = LoginType.sms;
   String? _captchaKey;
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
@@ -309,23 +309,23 @@ class _LoginScreenState extends State<LoginScreen> {
               });
             },
             icon: Icon(Icons.qr_code_scanner),
-            label: Text('二维码登陆'),
+            label: Text('二维码'),
           ),
           TextButton.icon(
             onPressed: () {
               setState(() {
-                if (LoginType.password == _loginType) {
-                  _loginType = LoginType.sms;
-                } else {
+                if (_loginType == LoginType.sms) {
                   _loginType = LoginType.password;
+                } else {
+                  _loginType = LoginType.sms;
                 }
                 _errorMessage = null;
               });
             },
-            icon: Icon(_loginType == LoginType.password
-                ? Icons.message_outlined
-                : Icons.lock_outline),
-            label: Text(_loginType == LoginType.password ? '短信登录' : '密码登录'),
+            icon: Icon(_loginType == LoginType.sms
+                ? Icons.lock_outline
+                : Icons.message_outlined),
+            label: Text(_loginType == LoginType.sms ? '密码':  '短信'),
           ),
         ],
       ),
