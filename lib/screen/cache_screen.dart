@@ -1,5 +1,6 @@
 import 'package:bmsc/component/playing_card.dart';
 import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:flutter/material.dart';
 import '../component/track_tile.dart';
@@ -7,8 +8,6 @@ import '../database_manager.dart';
 import 'dart:io';
 
 final _logger = LoggerUtils.getLogger('CacheScreen');
-
-const downloadPath = '/storage/emulated/0/Download/BMSC';
 
 class CacheScreen extends StatefulWidget {
   const CacheScreen({super.key});
@@ -25,6 +24,7 @@ class _CacheScreenState extends State<CacheScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool isSelectionMode = false;
   Set<String> selectedItems = {};
+
 
   @override
   void initState() {
@@ -158,7 +158,7 @@ class _CacheScreenState extends State<CacheScreen> {
     });
   }
 
-  Future<void> saveToDownloads(Map<String, dynamic> file) async {
+  Future<void> saveToDownloads(Map<String, dynamic> file, String downloadPath) async {
     try {
       final sourceFile = File(file['filePath']);
       if (!await sourceFile.exists()) {
@@ -284,10 +284,12 @@ class _CacheScreenState extends State<CacheScreen> {
                             FilledButton(
                               onPressed: () async {
                                 Navigator.pop(context);
+                                final downloadPath = await SharedPreferencesService.getDownloadPath();
+
                                 for (var file in filteredFiles.where((f) =>
                                     selectedItems.contains(
                                         '${f['bvid']}_${f['cid']}'))) {
-                                  await saveToDownloads(file);
+                                  await saveToDownloads(file, downloadPath);
                                 }
                                 if (ctx.mounted) {
                                   ScaffoldMessenger.of(ctx).showSnackBar(

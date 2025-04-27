@@ -13,7 +13,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DownloadManager {
   int maxConcurrentDownloads = 3;
-  static const String downloadPath = '/storage/emulated/0/Download/BMSC';
+  late final String downloadPath;
 
   static final _logger = LoggerUtils.getLogger('DownloadManager');
   final _dio = Dio();
@@ -46,6 +46,7 @@ class DownloadManager {
   }
 
   Future<void> _init() async {
+    downloadPath = await SharedPreferencesService.getDownloadPath();
     final dir = Directory(downloadPath);
     if (!await dir.exists()) {
       await dir.create(recursive: true);

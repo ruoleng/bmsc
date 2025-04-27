@@ -198,25 +198,28 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
-          ListTile(
-              title: const Text('下载路径'),
-              subtitle: FutureBuilder<String>(
-                future: SharedPreferencesService.getDownloadPath(),
-                builder: (context, snapshot) {
-                  final path =
-                      snapshot.data ?? '/storage/emulated/0/Download/BMSC';
-                  return Text(path);
-                },
-              ),
-              leading: const Icon(Icons.folder),
-              onTap: () async {
-                String? selectedDirectory =
-                    await FilePicker.platform.getDirectoryPath();
-                if (selectedDirectory != null) {
-                  await SharedPreferencesService.setDownloadPath(
-                      selectedDirectory);
-                }
-              }),
+          StatefulBuilder(builder: (context, setState) {
+            return ListTile(
+                title: const Text('下载路径'),
+                subtitle: FutureBuilder<String>(
+                  future: SharedPreferencesService.getDownloadPath(),
+                  builder: (context, snapshot) {
+                    final path =
+                        snapshot.data ?? '/storage/emulated/0/Download/BMSC';
+                    return Text(path);
+                  },
+                ),
+                leading: const Icon(Icons.folder),
+                onTap: () async {
+                  String? selectedDirectory =
+                      await FilePicker.platform.getDirectoryPath();
+                  if (selectedDirectory != null) {
+                    await SharedPreferencesService.setDownloadPath(
+                        selectedDirectory);
+                    setState(() {});
+                  }
+                });
+          }),
           StatefulBuilder(builder: (context, setState) {
             return ListTile(
               title: const Text('最大并发下载数'),
