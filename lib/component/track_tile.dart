@@ -12,6 +12,7 @@ class TrackTile extends StatelessWidget {
     required this.author,
     required this.len,
     this.view,
+    this.playcnt,
     this.time,
     this.parts,
     this.album,
@@ -31,6 +32,7 @@ class TrackTile extends StatelessWidget {
   final String author;
   final String len;
   final String? view;
+  final String? playcnt;
   final String? time;
   final int? parts;
   final String? album;
@@ -297,6 +299,25 @@ class TrackTile extends StatelessWidget {
                                   const SizedBox(width: 2),
                                   Text(
                                     time!,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                    ),
+                                  ),
+                                ],
+                                if (playcnt != null) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    Icons.play_arrow,
+                                    size: 12,
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    playcnt!,
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: Theme.of(context)

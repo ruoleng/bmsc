@@ -5,7 +5,7 @@ import 'package:bmsc/component/track_tile.dart';
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
-import 'package:bmsc/screen/history_screen.dart';
+import 'package:bmsc/screen/local_history_screen.dart';
 import 'package:bmsc/service/audio_service.dart' as app_audio;
 import 'package:bmsc/service/audio_handler.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -230,7 +230,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute<Widget>(builder: (_) => const HistoryScreen()),
+              MaterialPageRoute<Widget>(
+                  builder: (_) => const LocalHistoryScreen()),
             ),
             icon: const Icon(Icons.history_outlined),
           ),

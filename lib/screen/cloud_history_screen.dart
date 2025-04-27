@@ -10,14 +10,14 @@ import '../model/history.dart';
 import '../util/string.dart';
 import '../component/playing_card.dart';
 
-class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+class CloudHistoryScreen extends StatefulWidget {
+  const CloudHistoryScreen({super.key});
 
   @override
-  State<StatefulWidget> createState() => _HistoryScreenState();
+  State<StatefulWidget> createState() => _CloudHistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _CloudHistoryScreenState extends State<CloudHistoryScreen> {
   bool login = true;
   List<HistoryData> hisList = [];
   @override
@@ -37,7 +37,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('历史记录')),
+      appBar: AppBar(title: const Text('云端历史记录')),
       body: login ? hisListView() : const Center(child: Text('请先登录')),
       bottomNavigationBar: const PlayingCard(),
     );
