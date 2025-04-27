@@ -26,6 +26,8 @@ class AudioService {
   final _sleepTimerSubject = BehaviorSubject<int?>.seeded(null);
   final _fadeOutDuration = 15; // 15 seconds fade out
   final _speedSubject = BehaviorSubject<double>.seeded(1.0);
+  static const _historyUpdateInterval = 5; // 5s
+  int _historyUpdateCnt = 0;
 
   // 获取定时停止播放的流
   Stream<int?> get sleepTimerStream => _sleepTimerSubject.stream;
@@ -124,7 +126,7 @@ class AudioService {
           await SharedPreferencesService.getHistoryReported();
       if (state.playing) {
         if (enableHistoryReport) {
-          _startHistoryReporting();
+          _startCloudHistoryReporting();
         }
         _startPlayPositionSaving();
       } else {
@@ -141,11 +143,12 @@ class AudioService {
           return;
         }
         await _hijackDummySource(index: index);
+        _historyUpdateCnt = 0;
       }
     });
   }
 
-  void _startHistoryReporting() async {
+  void _startCloudHistoryReporting() async {
     _historyReportTimer?.cancel();
     final interval = await SharedPreferencesService.getReportHistoryInterval();
     _historyReportTimer =
@@ -162,12 +165,14 @@ class AudioService {
 
       final length = currentSource.duration?.inSeconds;
 
-      await (await BilibiliService.instance).reportHistory(
-          extras['aid'],
-          extras['cid'],
-          length != null && length - player.position.inSeconds <= interval
-              ? length
-              : player.position.inSeconds);
+      if (await SharedPreferencesService.getHistoryReported()) {
+        await (await BilibiliService.instance).reportHistory(
+            extras['aid'],
+            extras['cid'],
+            length != null && length - player.position.inSeconds <= interval
+                ? length
+                : player.position.inSeconds);
+      }
     });
   }
 
@@ -178,9 +183,23 @@ class AudioService {
 
   void _startPlayPositionSaving() {
     _playPositionTimer?.cancel();
-    _playPositionTimer =
-        Timer.periodic(const Duration(seconds: 5), (timer) async {
+    _playPositionTimer = Timer.periodic(
+        const Duration(seconds: _historyUpdateInterval), (timer) async {
+      final currentSource = player.sequenceState?.currentSource;
+      if (currentSource == null || !player.playing) {
+        return;
+      }
+
+      final extras = currentSource.tag.extras;
+      if (extras == null || extras['aid'] == null || extras['cid'] == null) {
+        return;
+      }
+
       _logger.info('saving play position: ${player.position.inSeconds}');
+
+      _historyUpdateCnt++;
+      DatabaseManager.updatePlayStat(extras['bvid'],
+          _historyUpdateCnt == 1 ? 1 : 0, _historyUpdateInterval);
       await SharedPreferencesService.setPlayPosition(player.position.inSeconds);
     });
   }

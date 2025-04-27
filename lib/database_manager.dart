@@ -11,6 +11,7 @@ import 'package:just_audio/just_audio.dart';
 import '../model/fav.dart';
 import '../model/fav_detail.dart';
 import '../model/meta.dart';
+import '../model/play_stat.dart';
 import 'dart:math' as math;
 import 'package:bmsc/util/logger.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -33,6 +34,7 @@ class DatabaseManager {
   static const String favDetailTable = 'fav_detail';
   static const String downloadTaskTable = 'download_tasks';
   static const String excludedPartsTable = 'excluded_parts';
+  static const String statTable = 'play_stat';
 
   static Future<Database> get database async {
     if (_database != null) return _database!;
@@ -68,7 +70,7 @@ class DatabaseManager {
     try {
       final db = await openDatabase(
         path,
-        version: 5,
+        version: 6,
         onCreate: (db, version) async {
           _logger.info('Creating new database tables...');
           await db.execute('''
@@ -191,9 +193,29 @@ class DatabaseManager {
             PRIMARY KEY (bvid, cid)
           )
         ''');
+
+          await db.execute('''
+          CREATE TABLE IF NOT EXISTS $statTable (
+            bvid TEXT PRIMARY KEY,
+            last_played INTEGER,
+            total_play_time INTEGER DEFAULT 0,
+            play_count INTEGER DEFAULT 0
+          )
+        ''');
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           _logger.info('Upgrading database from v$oldVersion to v$newVersion');
+
+          if (oldVersion <= 5) {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS $statTable (
+                bvid TEXT PRIMARY KEY,
+                last_played INTEGER,
+                total_play_time INTEGER DEFAULT 0,
+                play_count INTEGER DEFAULT 0
+              )
+            ''');
+          }
 
           if (oldVersion <= 4) {
             await db.transaction((txn) async {
@@ -231,15 +253,19 @@ class DatabaseManager {
                   SELECT aid, cid, bvid, artist, part, duration, part_title, bvid_title, art_uri FROM $entityTable
                 ''');
 
-                final oldCount = Sqflite.firstIntValue(await txn.rawQuery('SELECT COUNT(*) FROM $entityTable'));
-                final newCount = Sqflite.firstIntValue(await txn.rawQuery('SELECT COUNT(*) FROM ${entityTable}_new'));
-                
+                final oldCount = Sqflite.firstIntValue(
+                    await txn.rawQuery('SELECT COUNT(*) FROM $entityTable'));
+                final newCount = Sqflite.firstIntValue(await txn
+                    .rawQuery('SELECT COUNT(*) FROM ${entityTable}_new'));
+
                 if (oldCount != newCount) {
-                  throw Exception('Migration integrity check failed: data count mismatch');
+                  throw Exception(
+                      'Migration integrity check failed: data count mismatch');
                 }
-                
+
                 await txn.execute('DROP TABLE $entityTable');
-                await txn.execute('ALTER TABLE ${entityTable}_new RENAME TO $entityTable');
+                await txn.execute(
+                    'ALTER TABLE ${entityTable}_new RENAME TO $entityTable');
               } catch (e) {
                 _logger.severe('Database migration failed', e);
                 rethrow;
@@ -1129,5 +1155,96 @@ class DatabaseManager {
               error: row['error'] as String?,
             ))
         .toList();
+  }
+
+  static Future<void> updatePlayStat(
+      String bvid, int playcnt, int playTimeSeconds) async {
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    await db.transaction((txn) async {
+      final result = await txn.query(
+        statTable,
+        where: 'bvid = ?',
+        whereArgs: [bvid],
+      );
+
+      if (result.isEmpty) {
+        final newStat = PlayStat(
+          bvid: bvid,
+          lastPlayed: now,
+          totalPlayTime: playTimeSeconds,
+          playCount: 1,
+        );
+
+        await txn.insert(
+          statTable,
+          newStat.toDbJson(),
+        );
+      } else {
+        final existingStat = PlayStat.fromJson(result.first);
+
+        final updatedStat = PlayStat(
+          bvid: bvid,
+          lastPlayed: now,
+          totalPlayTime: existingStat.totalPlayTime + playTimeSeconds,
+          playCount: existingStat.playCount + playcnt,
+        );
+
+        await txn.update(
+          statTable,
+          updatedStat.toDbJson(),
+          where: 'bvid = ?',
+          whereArgs: [bvid],
+        );
+      }
+    });
+  }
+
+  static Future<PlayStat?> getPlayStat(String bvid) async {
+    final db = await database;
+    final result = await db.query(
+      statTable,
+      where: 'bvid = ?',
+      whereArgs: [bvid],
+    );
+
+    if (result.isEmpty) {
+      return null;
+    }
+
+    return PlayStat.fromJson(result.first);
+  }
+
+  static Future<List<PlayStat>> getPlayHistory(
+      {int? limit, String? orderBy}) async {
+    final db = await database;
+
+    orderBy ??= 'last_played DESC';
+
+    final query = '''
+      SELECT s.*, m.title, m.artist, m.artUri, m.duration
+      FROM $statTable s
+      LEFT JOIN $metaTable m ON s.bvid = m.bvid
+      ORDER BY $orderBy
+      ${limit != null ? 'LIMIT $limit' : ''}
+    ''';
+
+    final results = await db.rawQuery(query);
+    return results.map((row) => PlayStat.fromJson(row)).toList();
+  }
+
+  static Future<void> clearPlayStats() async {
+    final db = await database;
+    await db.delete(statTable);
+  }
+
+  static Future<void> removePlayStat(String bvid) async {
+    final db = await database;
+    await db.delete(
+      statTable,
+      where: 'bvid = ?',
+      whereArgs: [bvid],
+    );
   }
 }
