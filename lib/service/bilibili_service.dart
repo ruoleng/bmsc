@@ -150,7 +150,6 @@ class BilibiliService {
                 artUri: ret.pic,
                 partTitle: x.part,
                 bvidTitle: ret.title,
-                excluded: 0,
               ))
           .toList());
     }

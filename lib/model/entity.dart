@@ -5,7 +5,6 @@ class Entity {
   late final String artist;
   late final int part;
   late final int duration;
-  late final int excluded;
   late final String partTitle;
   late final String bvidTitle;
   late final String artUri;
@@ -20,7 +19,6 @@ class Entity {
     required this.artUri,
     required this.partTitle,
     required this.bvidTitle,
-    required this.excluded,
   });
 
   Entity.fromJson(Map<String, dynamic> json) {
@@ -30,7 +28,6 @@ class Entity {
     artist = json['artist'];
     part = json['part'];
     duration = json['duration'];
-    excluded = json['excluded'];
     partTitle = json['part_title'];
     bvidTitle = json['bvid_title'];
     artUri = json['art_uri'];
@@ -44,7 +41,6 @@ class Entity {
       'artist': artist,
       'part': part,
       'duration': duration,
-      'excluded': excluded,
       'part_title': partTitle,
       'bvid_title': bvidTitle,
       'art_uri': artUri,

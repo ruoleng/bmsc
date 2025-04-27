@@ -32,6 +32,7 @@ class DatabaseManager {
   static const String favListTable = 'fav_list';
   static const String favDetailTable = 'fav_detail';
   static const String downloadTaskTable = 'download_tasks';
+  static const String excludedPartsTable = 'excluded_parts';
 
   static Future<Database> get database async {
     if (_database != null) return _database!;
@@ -67,7 +68,7 @@ class DatabaseManager {
     try {
       final db = await openDatabase(
         path,
-        version: 4,
+        version: 5,
         onCreate: (db, version) async {
           _logger.info('Creating new database tables...');
           await db.execute('''
@@ -91,10 +92,17 @@ class DatabaseManager {
             artist TEXT,
             part INTEGER,
             duration INTEGER,
-            excluded INTEGER,
             part_title TEXT,
             bvid_title TEXT,
             art_uri TEXT,
+            PRIMARY KEY (bvid, cid)
+          )
+        ''');
+
+          await db.execute('''
+          CREATE TABLE $excludedPartsTable (
+            bvid TEXT,
+            cid INTEGER,
             PRIMARY KEY (bvid, cid)
           )
         ''');
@@ -187,6 +195,58 @@ class DatabaseManager {
         onUpgrade: (db, oldVersion, newVersion) async {
           _logger.info('Upgrading database from v$oldVersion to v$newVersion');
 
+          if (oldVersion <= 4) {
+            await db.transaction((txn) async {
+              try {
+                await txn.execute('''
+                  CREATE TABLE IF NOT EXISTS $excludedPartsTable (
+                    bvid TEXT,
+                    cid INTEGER,
+                    PRIMARY KEY (bvid, cid)
+                  )
+                ''');
+
+                await txn.execute('''
+                  INSERT INTO $excludedPartsTable (bvid, cid)
+                  SELECT bvid, cid FROM $entityTable WHERE excluded = 1
+                ''');
+
+                await txn.execute('''
+                  CREATE TABLE ${entityTable}_new (
+                    aid INTEGER,
+                    cid INTEGER,
+                    bvid TEXT,
+                    artist TEXT,
+                    part INTEGER,
+                    duration INTEGER,
+                    part_title TEXT,
+                    bvid_title TEXT,
+                    art_uri TEXT,
+                    PRIMARY KEY (bvid, cid)
+                  )
+                ''');
+
+                await txn.execute('''
+                  INSERT INTO ${entityTable}_new (aid, cid, bvid, artist, part, duration, part_title, bvid_title, art_uri)
+                  SELECT aid, cid, bvid, artist, part, duration, part_title, bvid_title, art_uri FROM $entityTable
+                ''');
+
+                final oldCount = Sqflite.firstIntValue(await txn.rawQuery('SELECT COUNT(*) FROM $entityTable'));
+                final newCount = Sqflite.firstIntValue(await txn.rawQuery('SELECT COUNT(*) FROM ${entityTable}_new'));
+                
+                if (oldCount != newCount) {
+                  throw Exception('Migration integrity check failed: data count mismatch');
+                }
+                
+                await txn.execute('DROP TABLE $entityTable');
+                await txn.execute('ALTER TABLE ${entityTable}_new RENAME TO $entityTable');
+              } catch (e) {
+                _logger.severe('Database migration failed', e);
+                rethrow;
+              }
+            });
+          }
+
           if (oldVersion <= 3) {
             await db.execute('''
               CREATE TABLE IF NOT EXISTS $downloadTaskTable (
@@ -277,12 +337,30 @@ class DatabaseManager {
 
   static Future<void> addExcludedPart(String bvid, int cid) async {
     final db = await database;
-    await db.update(
-      entityTable,
-      {'excluded': 1},
+    await db.insert(
+      excludedPartsTable,
+      {'bvid': bvid, 'cid': cid},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
+  static Future<void> removeExcludedPart(String bvid, int cid) async {
+    final db = await database;
+    await db.delete(
+      excludedPartsTable,
       where: 'bvid = ? AND cid = ?',
       whereArgs: [bvid, cid],
     );
+  }
+
+  static Future<List<int>> getExcludedParts(String bvid) async {
+    final db = await database;
+    final results = await db.query(
+      excludedPartsTable,
+      where: 'bvid = ?',
+      whereArgs: [bvid],
+    );
+    return results.map((row) => row['cid'] as int).toList();
   }
 
   static Future<void> cacheMetas(List<Meta> metas) async {
@@ -348,32 +426,12 @@ class DatabaseManager {
     }
   }
 
-  static Future<void> removeExcludedPart(String bvid, int cid) async {
-    final db = await database;
-    await db.update(
-      entityTable,
-      {'excluded': 0},
-      where: 'bvid = ? AND cid = ?',
-      whereArgs: [bvid, cid],
-    );
-  }
-
-  static Future<List<int>> getExcludedParts(String bvid) async {
-    final db = await database;
-    final results = await db.query(
-      entityTable,
-      where: 'bvid = ? AND excluded = 1',
-      whereArgs: [bvid],
-    );
-    return results.map((row) => row['cid'] as int).toList();
-  }
-
   static Future<void> cacheEntities(List<Entity> data) async {
     final db = await database;
     final batch = db.batch();
     for (var item in data) {
       batch.insert(entityTable, item.toJson(),
-          conflictAlgorithm: ConflictAlgorithm.ignore);
+          conflictAlgorithm: ConflictAlgorithm.replace);
     }
     await batch.commit();
     _logger.info('cached ${data.length} entities');

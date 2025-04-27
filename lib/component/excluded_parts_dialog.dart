@@ -22,9 +22,11 @@ class ExcludedPartsDialog extends StatefulWidget {
 
 class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
   bool isLoading = true;
+  bool hasError = false;
   List<Entity> entities = [];
   List<bool> modified = [];
-  int skipped = 0;
+  int excludeCnt = 0;
+  Set<int> excludedParts = {};
 
   @override
   void initState() {
@@ -40,41 +42,57 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
       await (await BilibiliService.instance).getVidDetail(bvid: widget.bvid);
       es = await DatabaseManager.getEntities(widget.bvid);
     }
+    
+    final excludedCids = await DatabaseManager.getExcludedParts(widget.bvid);
+    
     if (es.isNotEmpty) {
       setState(() {
         isLoading = false;
-        modified = List.filled(es.length, false);
         entities = es;
-        skipped = es.where((e) => e.excluded == 1).length;
+        excludedParts = Set.from(excludedCids);
+        excludeCnt = excludedCids.length;
+        modified = List.filled(es.length, false);
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+        hasError = true;
+        _logger.severe('Failed to load entities for ${widget.bvid}');
       });
     }
   }
 
-  void _toggleAll(bool include) {
+  void _selectAll() {
     final modifiedCopy = List<bool>.from(modified);
-    int s = 0;
-    if (include) {
-      for (var i = 0; i < modified.length; i++) {
-        modifiedCopy[i] = entities[i].excluded == 1;
-        skipped += entities[i].excluded == 0 ? 1 : 0;
-      }
-      s = 0;
-    } else {
-      for (var i = 0; i < modified.length; i++) {
-        modifiedCopy[i] = !modified[i];
-      }
-      s = entities.length - skipped;
+    for (var i = 0; i < modified.length; i++) {
+      final isExcluded = excludedParts.contains(entities[i].cid);
+      modifiedCopy[i] = !isExcluded;
+      excludeCnt += !isExcluded ? 0 : 1;
     }
     setState(() {
       modified = modifiedCopy;
-      skipped = s;
+      excludeCnt = entities.length;
+    });
+  }
+
+  void _selectInvert() {
+    final modifiedCopy = List<bool>.from(modified);
+    int s = 0;
+      for (var i = 0; i < modified.length; i++) {
+        modifiedCopy[i] = !modified[i];
+      }
+      s = entities.length - excludeCnt;
+    setState(() {
+      modified = modifiedCopy;
+      excludeCnt = s;
     });
   }
 
   Future<void> _saveChanges() async {
     for (var i = 0; i < modified.length; i++) {
       if (!modified[i]) continue;
-      if (entities[i].excluded == 1) {
+      final isExcluded = excludedParts.contains(entities[i].cid);
+      if (isExcluded) {
         await DatabaseManager.removeExcludedPart(widget.bvid, entities[i].cid);
       } else {
         await DatabaseManager.addExcludedPart(widget.bvid, entities[i].cid);
@@ -101,7 +119,7 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${entities.length} 个分集，已跳过 $skipped 个',
+            '${entities.length} 个分集，已跳过 $excludeCnt 个',
             style: TextStyle(
               fontSize: 14,
               color: Theme.of(context).colorScheme.secondary,
@@ -114,12 +132,12 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
               TextButton.icon(
                 icon: const Icon(Icons.check_circle_outline),
                 label: const Text('全选'),
-                onPressed: () => _toggleAll(true),
+                onPressed: _selectAll,
               ),
               TextButton.icon(
                 icon: const Icon(Icons.swap_horiz),
                 label: const Text('反选'),
-                onPressed: () => _toggleAll(false),
+                onPressed: _selectInvert,
               ),
             ],
           ),
@@ -129,83 +147,102 @@ class _ExcludedPartsDialogState extends State<ExcludedPartsDialog> {
           ? const Column(mainAxisSize: MainAxisSize.min, children: [
               CircularProgressIndicator(),
             ])
-          : SizedBox(
-              width: double.maxFinite,
-              child: ListView.builder(
-                cacheExtent: 10000,
-                shrinkWrap: true,
-                itemCount: entities.length,
-                itemBuilder: (context, index) {
-                  final e = entities[index];
-                  final isIncluded = (e.excluded == 0) ^ modified[index];
+          : hasError
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      color: Theme.of(context).colorScheme.error,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '无法加载分集信息，请稍后重试',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                )
+              : SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.builder(
+                    cacheExtent: 10000,
+                    shrinkWrap: true,
+                    itemCount: entities.length,
+                    itemBuilder: (context, index) {
+                      final e = entities[index];
+                      final isExcluded = excludedParts.contains(e.cid) ^ modified[index];
 
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        modified[index] = !modified[index];
-                        skipped += isIncluded ? 1 : -1;
-                      });
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isIncluded
-                            ? Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                                .withOpacity(0.3)
-                            : Theme.of(context)
-                                .colorScheme
-                                .errorContainer
-                                .withOpacity(0.3),
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Theme.of(context).dividerColor,
-                            width: 0.5,
-                          ),
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primaryContainer,
-                            child: Text('P${index + 1}'),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  e.partTitle,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isIncluded
-                                        ? null
-                                        : Theme.of(context).colorScheme.error,
-                                  ),
-                                ),
-                                Text(
-                                  _formatDuration(e.duration),
-                                  style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.secondary,
-                                  ),
-                                ),
-                              ],
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            modified[index] = !modified[index];
+                            excludeCnt += isExcluded ? -1 : 1;
+                          });
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isExcluded
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .errorContainer
+                                    .withOpacity(0.3)
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withOpacity(0.3),
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Theme.of(context).dividerColor,
+                                width: 0.5,
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primaryContainer,
+                                child: Text('P${index + 1}'),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      e.partTitle,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        decoration: isExcluded 
+                                            ? TextDecoration.lineThrough 
+                                            : null,
+                                        color: isExcluded
+                                            ? Theme.of(context).colorScheme.error
+                                            : null,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatDuration(e.duration),
+                                      style: TextStyle(
+                                        color:
+                                            Theme.of(context).colorScheme.secondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
       actions: [
         TextButton(
           onPressed: () {
