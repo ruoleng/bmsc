@@ -162,11 +162,8 @@ class BilibiliService {
 
   Future<List<LazyAudioSource>?> getAudios(String bvid) async {
     _logger.info('Fetching audio sources for BVID: $bvid');
+    await getVidDetail(bvid: bvid);
     var entities = await DatabaseManager.getEntities(bvid);
-    if (entities.isEmpty) {
-      await getVidDetail(bvid: bvid);
-      entities = await DatabaseManager.getEntities(bvid);
-    }
     if (entities.isEmpty) {
       _logger.warning('Failed to get video details for BVID: $bvid');
       return null;
@@ -196,7 +193,6 @@ class BilibiliService {
     })))
         .whereType<LazyAudioSource>()
         .toList();
-    // }
   }
 
   Future<CommentData?> getComment(String aid, String? offset) {
