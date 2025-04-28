@@ -2,6 +2,7 @@ import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/screen/about_screen.dart';
 import 'package:bmsc/screen/cache_screen.dart';
 import 'package:bmsc/screen/download_screen.dart';
+import 'package:bmsc/screen/hidden_fav_screen.dart';
 import 'package:bmsc/screen/login_screen.dart';
 import 'package:bmsc/screen/playlist_search_screen.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -375,6 +376,17 @@ class SettingsScreen extends StatelessWidget {
                 color: Colors.grey,
               ),
             ),
+          ),
+          ListTile(
+            title: const Text('隐藏收藏夹管理'),
+            leading: const Icon(Icons.folder),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<Widget>(
+                    builder: (_) => const HiddenFavScreen()),
+              );
+            },
           ),
           StatefulBuilder(builder: (context, setState) {
             return ListTile(

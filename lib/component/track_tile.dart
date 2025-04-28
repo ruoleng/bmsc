@@ -156,7 +156,7 @@ class TrackTile extends StatelessWidget {
                                     color:
                                         downloaded ? Colors.green : Colors.grey,
                                   ),
-                                  const SizedBox(width: 2),
+                                  const SizedBox(width: 4),
                                 ],
                                 Expanded(
                                   child: Text(

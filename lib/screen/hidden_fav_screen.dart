@@ -5,21 +5,20 @@ import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
 import '../service/shared_preferences_service.dart';
 import 'fav_detail_screen.dart';
-import 'recommendation_screen.dart';
 import 'package:bmsc/util/logger.dart';
 
-final logger = LoggerUtils.getLogger('FavScreen');
+final logger = LoggerUtils.getLogger('HiddenFavScreen');
 
-class FavScreen extends StatefulWidget {
-  final void Function(FavScreenState state)? onInit;
+class HiddenFavScreen extends StatefulWidget {
+  final void Function(HiddenFavScreenState state)? onInit;
 
-  const FavScreen({super.key, this.onInit});
+  const HiddenFavScreen({super.key, this.onInit});
 
   @override
-  State<FavScreen> createState() => FavScreenState();
+  State<HiddenFavScreen> createState() => HiddenFavScreenState();
 }
 
-class FavScreenState extends State<FavScreen> {
+class HiddenFavScreenState extends State<HiddenFavScreen> {
   bool signedin = false;
   List<Fav> favList = [];
   List<Fav> collectedFavList = [];
@@ -98,86 +97,6 @@ class FavScreenState extends State<FavScreen> {
         }
         logger.info('loadFavorites done');
       });
-    }
-  }
-
-  Future<void> _showCreateFolderDialog() async {
-    final nameController = TextEditingController();
-    bool isPrivate = false;
-
-    final result = await showDialog<(String, bool)>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('创建收藏夹'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: '收藏夹名称',
-                  hintText: '请输入收藏夹名称',
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Checkbox(
-                    value: isPrivate,
-                    onChanged: (value) => setState(() => isPrivate = value!),
-                  ),
-                  const Text('设为私密收藏夹'),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (nameController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('请输入收藏夹名称')),
-                  );
-                  return;
-                }
-                Navigator.pop(context, (
-                  nameController.text.trim(),
-                  isPrivate,
-                ));
-              },
-              child: const Text('创建'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (result != null) {
-      final folderId =
-          await BilibiliService.instance.then((x) => x.createFavFolder(
-                result.$1,
-                hide: result.$2,
-              ));
-
-      if (folderId != null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('创建成功')),
-          );
-          loadFavorites();
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('创建失败')),
-          );
-        }
-      }
     }
   }
 
@@ -289,47 +208,24 @@ class FavScreenState extends State<FavScreen> {
     }
   }
 
-  Future<void> _showHideConfirmation(Fav fav) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('隐藏收藏夹'),
-        content: Text('确定要隐藏收藏夹"${fav.title}"吗？你可以在设置页面重新找回该收藏夹。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('隐藏'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      hideFav ??= <int>{};
-      hideFav!.add(fav.id);
-      final success = await SharedPreferencesService.saveFavHideList(hideFav!);
-      if (success == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('隐藏成功')),
-          );
-          setState(() {});
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('隐藏失败')),
-          );
-        }
-        hideFav!.remove(fav.id);
+  Future<void> _cancelHide(Fav fav) async {
+    hideFav ??= <int>{};
+    hideFav!.remove(fav.id);
+    final success = await SharedPreferencesService.saveFavHideList(hideFav!);
+    if (success == true) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('取消隐藏成功')),
+        );
+        setState(() {});
       }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('取消隐藏失败')),
+        );
+      }
+      hideFav!.add(fav.id);
     }
   }
 
@@ -337,20 +233,8 @@ class FavScreenState extends State<FavScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('云收藏夹',
+        title: const Text('隐藏的收藏夹',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        actions: !signedin
-            ? []
-            : [
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _showCreateFolderDialog,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: loadFavorites,
-                ),
-              ],
       ),
       body: !signedin
           ? const Center(child: Text('请先登录'))
@@ -374,37 +258,6 @@ class FavScreenState extends State<FavScreen> {
                       ],
                     ),
                   ),
-
-                if (favList.isNotEmpty || collectedFavList.isNotEmpty) ...[
-                  FutureBuilder<bool>(
-                    future: SharedPreferencesService.instance.then((prefs) =>
-                        prefs.getBool('show_daily_recommendations') ?? true),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || !snapshot.data!) {
-                        return const SizedBox();
-                      }
-                      return Column(
-                        children: [
-                          ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 24.0,
-                            ),
-                            leading: const Icon(Icons.star_border),
-                            title: const Text('每日推荐',
-                                style: TextStyle(fontWeight: FontWeight.w500)),
-                            subtitle: const Text('基于收藏夹的推荐'),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute<Widget>(
-                                  builder: (_) => const RecommendationScreen()),
-                            ),
-                          ),
-                          const Divider(),
-                        ],
-                      );
-                    },
-                  ),
-                ],
 
                 // 我的收藏夹标题
                 if (favList.isNotEmpty)
@@ -450,7 +303,7 @@ class FavScreenState extends State<FavScreen> {
 
   List<Widget> buildFavList(List<Fav> favs, bool isOwned) {
     return favs
-        .map((fav) => (hideFav != null && hideFav!.contains(fav.id))
+        .map((fav) => (hideFav == null || !hideFav!.contains(fav.id))
             ? SizedBox()
             : Column(
                 children: [
@@ -538,11 +391,11 @@ class FavScreenState extends State<FavScreen> {
                                   ),
                                 ],
                                 ListTile(
-                                  leading: const Icon(Icons.visibility_off),
-                                  title: const Text('隐藏收藏夹'),
+                                  leading: const Icon(Icons.visibility),
+                                  title: const Text('取消隐藏收藏夹'),
                                   onTap: () {
                                     Navigator.pop(context);
-                                    _showHideConfirmation(fav);
+                                    _cancelHide(fav);
                                   },
                                 ),
                               ],

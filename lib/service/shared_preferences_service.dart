@@ -299,15 +299,26 @@ class SharedPreferencesService {
     return decoded;
   }
 
-  // 获取播放速度
   static Future<double?> getPlaybackSpeed() async {
     final prefs = await SharedPreferencesService.instance;
     return prefs.getDouble('playback_speed');
   }
 
-  // 设置播放速度
   static Future<void> setPlaybackSpeed(double speed) async {
     final prefs = await SharedPreferencesService.instance;
     await prefs.setDouble('playback_speed', speed);
+  }
+
+  static Future<bool> saveFavHideList(Set<int> result) async {
+    final prefs = await SharedPreferencesService.instance;
+    return await prefs.setString('fav_hide_list', jsonEncode(result.toList()));
+  }
+
+  static Future<Set<int>?> getFavHideList() async {
+    final prefs = await SharedPreferencesService.instance;
+    final result = prefs.getString('fav_hide_list');
+    if (result == null) return null;
+    List<int> list = List<int>.from(jsonDecode(result));
+    return Set.from(list);
   }
 }
