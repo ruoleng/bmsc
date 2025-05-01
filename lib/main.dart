@@ -1,13 +1,12 @@
 import 'dart:io';
 
-import 'package:audio_service/audio_service.dart';
 import 'package:bmsc/component/track_tile.dart';
 import 'package:bmsc/model/vid.dart';
 import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/local_history_screen.dart';
 import 'package:bmsc/service/audio_service.dart' as app_audio;
-import 'package:bmsc/service/audio_handler.dart';
+import 'package:bmsc/service/just_audio_background_custom.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/service/update_service.dart';
@@ -36,14 +35,10 @@ Future<void> main() async {
   if (Platform.isAndroid) {
     _logger.info('Android version: ${Platform.operatingSystemVersion}');
 
-    final audioService = await app_audio.AudioService.instance;
-    await AudioService.init(
-      builder: () => BmscAudioHandler(audioService),
-      config: const AudioServiceConfig(
-        androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
-        androidNotificationChannelName: 'Audio Playback',
-        androidNotificationOngoing: true,
-      ),
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
+      androidNotificationChannelName: 'Audio Playback',
+      androidStopForegroundOnPause: false
     );
   }
 
