@@ -93,7 +93,6 @@ class _DynamicScreenState extends State<DynamicScreen> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('选择操作'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

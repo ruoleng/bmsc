@@ -97,7 +97,6 @@ class _CloudHistoryScreenState extends State<CloudHistoryScreen> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('选择操作'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

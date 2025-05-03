@@ -754,7 +754,6 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildAdditionalControls(BuildContext context) {
-    // 使用辅助方法判断小屏幕
     final isSmallScreen = _isSmallScreen(context);
 
     return Row(

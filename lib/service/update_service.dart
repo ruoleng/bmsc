@@ -21,9 +21,6 @@ class UpdateService {
     x.curVersion = packageInfo.version;
     x.hasNewVersion = x.newVersionInfo != null &&
         x.newVersionInfo!.first.tagName != 'v${x.curVersion}';
-    _logger.info('hasNewVersion: ${x.hasNewVersion}');
-    _logger.info('curVersion: ${x.curVersion}');
-    _logger.info('newVersionInfo: ${x.newVersionInfo!.first.tagName}');
     return x;
   }
 

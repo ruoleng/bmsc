@@ -9,7 +9,6 @@ import 'package:permission_handler/permission_handler.dart';
 import '../model/search.dart';
 import '../util/string.dart';
 import 'dart:math';
-import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import '../util/logger.dart';

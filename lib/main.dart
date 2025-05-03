@@ -31,7 +31,6 @@ final _logger = LoggerUtils.getLogger('main');
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 记录Android版本信息
   if (Platform.isAndroid) {
     _logger.info('Android version: ${Platform.operatingSystemVersion}');
 
