@@ -58,11 +58,13 @@ class Dash {
     required this.minBufferTime,
     required this.video,
     required this.audio,
+    this.flac,
   });
   late final int duration;
   late final double minBufferTime;
   late final List<Video> video;
   late final List<Audio> audio;
+  Flac? flac;
 
   Dash.fromJson(Map<String, dynamic> json) {
     duration = json['duration'];
@@ -75,6 +77,9 @@ class Dash {
             ?.map((e) => Audio.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];
+    if (json['flac'] != null) {
+      flac = Flac.fromJson(json['flac']);
+    }
   }
 }
 
@@ -157,5 +162,19 @@ class Audio {
     sar = json['sar'];
     startWithSap = json['start_with_sap'];
     codecid = json['codecid'];
+  }
+}
+
+class Flac {
+  Flac({
+    required this.display,
+    required this.audio,
+  });
+  late final bool display;
+  late final Audio audio;
+
+  Flac.fromJson(Map<String, dynamic> json) {
+    display = json['display'];
+    audio = Audio.fromJson(json['audio']);
   }
 }

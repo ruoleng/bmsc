@@ -275,10 +275,18 @@ class BilibiliAPI {
         callback: (data) => VidResult.fromJson(data));
   }
 
-  Future<List<Audio>?> getAudio(String bvid, int cid) {
+  Future<List<Audio>?> getAudio(String bvid, int cid) async {
+    final hires = await SharedPreferencesService.getHiResFirst();
     return _callAPI(apiAudioUrl,
         queryParameters: {'bvid': bvid, 'cid': cid, 'fnval': 16},
-        callback: (data) => TrackResult.fromJson(data).dash.audio);
+        callback: (data) {
+      final dash = TrackResult.fromJson(data).dash;
+      if (hires && dash.flac != null) {
+        return [dash.flac!.audio] + dash.audio;
+      } else {
+        return dash.audio;
+      }
+    });
   }
 
   Future<bool?> favoriteVideo(int avid, List<int> adds, List<int> dels) {

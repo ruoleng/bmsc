@@ -321,4 +321,14 @@ class SharedPreferencesService {
     List<int> list = List<int>.from(jsonDecode(result));
     return Set.from(list);
   }
+
+  static Future<void> setHiResFirst(bool value) async {
+    final prefs = await SharedPreferencesService.instance;
+    await prefs.setBool('hi_res_first', value);
+  }
+
+  static Future<bool> getHiResFirst() async {
+    final prefs = await SharedPreferencesService.instance;
+    return prefs.getBool('hi_res_first') ?? false;
+  }
 }

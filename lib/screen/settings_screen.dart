@@ -88,6 +88,35 @@ class SettingsScreen extends StatelessWidget {
                   );
                 });
           }),
+           const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              '音质',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          StatefulBuilder(
+            builder: (context, setState) => FutureBuilder<bool>(
+              future: SharedPreferencesService.getHiResFirst(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox();
+                return SwitchListTile(
+                  title: const Text('高音质'),
+                  secondary: const Icon(Icons.music_note),
+                  subtitle: const Text('优先选择 Hi-Res 无损音质'),
+                  value: snapshot.data!,
+                  onChanged: (bool value) async {
+                    await SharedPreferencesService.setHiResFirst(value);
+                    setState(() {});
+                  },
+                );
+              },
+            ),
+          ),
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
