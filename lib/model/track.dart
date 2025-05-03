@@ -168,13 +168,15 @@ class Audio {
 class Flac {
   Flac({
     required this.display,
-    required this.audio,
+    this.audio,
   });
   late final bool display;
-  late final Audio audio;
+  Audio? audio;
 
   Flac.fromJson(Map<String, dynamic> json) {
     display = json['display'];
-    audio = Audio.fromJson(json['audio']);
+    if (json['audio'] != null) {
+      audio = Audio.fromJson(json['audio']);
+    }
   }
 }

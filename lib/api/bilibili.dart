@@ -281,8 +281,8 @@ class BilibiliAPI {
         queryParameters: {'bvid': bvid, 'cid': cid, 'fnval': 16},
         callback: (data) {
       final dash = TrackResult.fromJson(data).dash;
-      if (hires && dash.flac != null) {
-        return [dash.flac!.audio] + dash.audio;
+      if (hires && dash.flac?.audio != null) {
+        return [dash.flac!.audio!] + dash.audio;
       } else {
         return dash.audio;
       }
