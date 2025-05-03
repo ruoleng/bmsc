@@ -28,16 +28,57 @@ class FavDetailScreen extends StatefulWidget {
 }
 
 class _FavDetailScreenState extends State<FavDetailScreen> {
+  List<Meta> rawFavInfo = [];
   List<Meta> favInfo = [];
   bool isLoading = false;
   bool isSelectionMode = false;
   Set<String> selectedItems = {};
   static final _logger = LoggerUtils.getLogger('FavDetailScreen');
 
+  bool isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+    _searchController.addListener(_filterFavInfos);
+  }
+
+  void _filterFavInfos() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        favInfo = List.from(rawFavInfo);
+      } else {
+        favInfo = rawFavInfo.where((file) {
+          final title = file.title.toLowerCase();
+          final artist = file.artist.toLowerCase();
+          final bvidTitle = file.bvid.toLowerCase();
+          return title.contains(query) ||
+              artist.contains(query) ||
+              bvidTitle.contains(query);
+        }).toList();
+      }
+    });
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      if (isSearching) {
+        isSearching = false;
+        _searchController.clear(); // Clear search when closing
+        favInfo = rawFavInfo; // Reset to show all files
+      } else {
+        isSearching = true;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -48,7 +89,8 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
     if (cachedData.isNotEmpty) {
       _logger.info('Loaded ${cachedData.length} items from cache');
       setState(() {
-        favInfo = cachedData;
+        rawFavInfo = cachedData;
+        favInfo = rawFavInfo;
       });
     } else {
       _logger.info('No cached data found, loading from network');
@@ -75,7 +117,8 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
       if (metas != null) {
         _logger.info('Loaded ${metas.length} metas from network');
         setState(() {
-          favInfo = metas;
+          rawFavInfo = metas;
+          favInfo = rawFavInfo;
         });
       } else {
         _logger.warning('Failed to load metas from network');
@@ -91,6 +134,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
 
   Future<void> _refreshData() async {
     setState(() {
+      rawFavInfo.clear();
       favInfo.clear();
     });
     await loadMetas();
@@ -127,7 +171,16 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.fav.title),
+        title: isSearching
+                ? TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: '搜索标题或作者...',
+                      border: InputBorder.none,
+                    ),
+                  )
+                :Text(widget.fav.title),
         leading: isSelectionMode
             ? IconButton(
                 icon: const Icon(Icons.close),
@@ -174,6 +227,10 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                   }
                 });
               },
+            ),
+            IconButton(
+              icon: Icon(isSearching ? Icons.close : Icons.search),
+              onPressed: _toggleSearch,
             ),
         ],
       ),
