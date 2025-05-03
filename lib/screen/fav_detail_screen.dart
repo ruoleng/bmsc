@@ -203,7 +203,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
             (results[0] as List<int>, results[1] as int, results[2] as int)),
         builder: (context, snapshot) {
           final excludedCount = snapshot.data?.$1.length ?? 0;
-          final cachedCount = snapshot.data?.$2 ?? 0;
+          var cachedCount = snapshot.data?.$2 ?? 0;
           final downloadedCount = snapshot.data?.$3 ?? 0;
 
           return Padding(
@@ -267,7 +267,6 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                       showDialog(
                         context: context,
                         builder: (dialogContext) => AlertDialog(
-                          title: const Text('选择操作'),
                           content: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -317,7 +316,7 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                                 },
                               ),
                               ListTile(
-                                leading: const Icon(Icons.delete),
+                                leading: const Icon(Icons.favorite_outline),
                                 title: const Text('取消收藏'),
                                 onTap: () async {
                                   Navigator.pop(dialogContext);
@@ -345,9 +344,46 @@ class _FavDetailScreenState extends State<FavDetailScreen> {
                                   }
                                 },
                               ),
+                              if (cachedCount > 0)
+                                ListTile(
+                                  leading: const Icon(Icons.delete),
+                                  title: const Text('删除所有缓存'),
+                                  onTap: () {
+                                    Navigator.pop(dialogContext);
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('删除缓存'),
+                                        content:
+                                            Text('是否要删除 $cachedCount 个缓存？'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text('取消'),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () async {
+                                              Navigator.pop(context, true);
+                                            },
+                                            child: const Text('删除'),
+                                          ),
+                                        ],
+                                      ),
+                                    ).then((value) async {
+                                      if (value == true) {
+                                        DatabaseManager.removeCache(
+                                            favInfo[index].bvid);
+                                        setState(() {
+                                          cachedCount = 0;
+                                        });
+                                      }
+                                    });
+                                  },
+                                ),
                               ListTile(
                                 leading: const Icon(Icons.download),
-                                title: const Text('下载'),
+                                title: const Text('下载管理'),
                                 onTap: () {
                                   Navigator.pop(dialogContext);
                                   showDialog(

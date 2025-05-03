@@ -769,6 +769,23 @@ class DatabaseManager {
     });
   }
 
+  static Future<void> removeCache(String bvid) async {
+    final db = await database;
+    List<Map<String, dynamic>> files = [];
+    await db.transaction((txn) async {
+      files = await txn.query(cacheTable, where: 'bvid = ?', whereArgs: [bvid]);
+      await txn.delete(cacheTable, where: 'bvid = ?', whereArgs: [bvid]);
+    });
+    for (final fileData in files) {
+      _logger.info("Removing cache file for bvid $bvid");
+      final filePath = fileData['filePath'];
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+  }
+
   static Future<void> cacheFavList(List<Fav> favs) async {
     final db = await database;
 
