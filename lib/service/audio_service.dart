@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:audio_session/audio_session.dart';
 import 'package:bmsc/database_manager.dart';
 import 'package:bmsc/service/bilibili_service.dart';
@@ -17,7 +19,7 @@ class AudioService {
     useLazyPreparation: true,
     children: [],
   );
-  final player = AudioPlayer();
+  final player = AudioPlayer(handleInterruptions: false);
   late AudioSession session;
   Timer? _historyReportTimer;
   Timer? _playPositionTimer;
@@ -28,6 +30,9 @@ class AudioService {
   final _speedSubject = BehaviorSubject<double>.seeded(1.0);
   static const _historyUpdateInterval = 5; // 5s
   int _historyUpdateCnt = 0;
+
+  StreamSubscription<AudioInterruptionEvent>? _interruptionEventSubscription;
+  bool _playInterrupted = false;
 
   // 获取定时停止播放的流
   Stream<int?> get sleepTimerStream => _sleepTimerSubject.stream;
@@ -89,12 +94,53 @@ class AudioService {
     }
   }
 
+  Future<void> setInterrupHandler(bool value) async {
+    if (value) {
+      _interruptionEventSubscription =
+          session.interruptionEventStream.listen((event) {
+        if (event.begin) {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              if (session.androidAudioAttributes!.usage ==
+                  AndroidAudioUsage.game) {
+                player.setVolume(player.volume / 2);
+              }
+              _playInterrupted = false;
+              break;
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              if (player.playing) {
+                player.pause();
+                // Although pause is async and sets _playInterrupted = false,
+                // this is done in the sync portion.
+                _playInterrupted = true;
+              }
+              break;
+          }
+        } else {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              player.setVolume(min(1.0, player.volume * 2));
+              _playInterrupted = false;
+              break;
+            case AudioInterruptionType.pause:
+              if (_playInterrupted) player.play();
+              _playInterrupted = false;
+              break;
+            case AudioInterruptionType.unknown:
+              _playInterrupted = false;
+              break;
+          }
+        }
+      });
+    } else {
+      await _interruptionEventSubscription?.cancel();
+    }
+  }
+
   Future<void> hookEvents() async {
-    session.interruptionEventStream.listen((event) {
-      if (event.begin) {
-        player.pause();
-      }
-    });
+    setInterrupHandler(await SharedPreferencesService.getReactToInterruption());
+
     session.becomingNoisyEventStream.listen((_) {
       player.pause();
     });

@@ -331,4 +331,14 @@ class SharedPreferencesService {
     final prefs = await SharedPreferencesService.instance;
     return prefs.getBool('hi_res_first') ?? false;
   }
+
+  static Future<void> setReactToInterruption(bool value) async {
+    final prefs = await SharedPreferencesService.instance;
+    await prefs.setBool('react_to_interruption', value);
+  }
+
+  static Future<bool> getReactToInterruption() async {
+    final prefs = await SharedPreferencesService.instance;
+    return prefs.getBool('react_to_interruption') ?? true;
+  }
 }

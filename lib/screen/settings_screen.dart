@@ -5,6 +5,7 @@ import 'package:bmsc/screen/download_screen.dart';
 import 'package:bmsc/screen/hidden_fav_screen.dart';
 import 'package:bmsc/screen/login_screen.dart';
 import 'package:bmsc/screen/playlist_search_screen.dart';
+import 'package:bmsc/service/audio_service.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -88,7 +89,7 @@ class SettingsScreen extends StatelessWidget {
                   );
                 });
           }),
-           const Padding(
+          const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
               '音质',
@@ -111,6 +112,37 @@ class SettingsScreen extends StatelessWidget {
                   value: snapshot.data!,
                   onChanged: (bool value) async {
                     await SharedPreferencesService.setHiResFirst(value);
+                    setState(() {});
+                  },
+                );
+              },
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              '播放',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          StatefulBuilder(
+            builder: (context, setState) => FutureBuilder<bool>(
+              future: SharedPreferencesService.getReactToInterruption(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox();
+                return SwitchListTile(
+                  title: const Text('忽略中断'),
+                  secondary: const Icon(Icons.headset),
+                  subtitle: const Text('允许与其他应用同时播放'),
+                  value: !snapshot.data!,
+                  onChanged: (bool value) async {
+                    await SharedPreferencesService.setReactToInterruption(
+                        !value);
+                    (await AudioService.instance).setInterrupHandler(!value);
                     setState(() {});
                   },
                 );
