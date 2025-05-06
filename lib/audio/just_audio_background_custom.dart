@@ -611,7 +611,7 @@ class _PlayerAudioHandler extends BaseAudioHandler
 
   int? getRelativeIndex(int offset) {
     if (currentQueue.isEmpty || index == null) return null;
-    if (_repeatMode == AudioServiceRepeatMode.one) return index;
+    // if (_repeatMode == AudioServiceRepeatMode.one) return index;
     if (effectiveIndices.isEmpty) return null;
     if (index! >= effectiveIndicesInv.length) return null;
     final invPos = effectiveIndicesInv[index!];

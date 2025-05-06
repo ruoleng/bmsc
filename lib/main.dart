@@ -6,7 +6,7 @@ import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/local_history_screen.dart';
 import 'package:bmsc/service/audio_service.dart' as app_audio;
-import 'package:bmsc/service/just_audio_background_custom.dart';
+import 'package:bmsc/audio/just_audio_background_custom.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/service/update_service.dart';
