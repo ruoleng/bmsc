@@ -33,6 +33,7 @@ class AudioService {
 
   StreamSubscription<AudioInterruptionEvent>? _interruptionEventSubscription;
   bool _playInterrupted = false;
+  bool _hijacking = false;
 
   // 获取定时停止播放的流
   Stream<int?> get sleepTimerStream => _sleepTimerSubject.stream;
@@ -161,9 +162,7 @@ class AudioService {
       if (index != null) {
         final prefs = await SharedPreferencesService.instance;
         await prefs.setInt('currentIndex', index);
-        if (player.playing) {
-          await _hijackDummySource(index: index);
-        }
+        await _hijackDummySource(index: index);
       }
     });
 
@@ -188,7 +187,6 @@ class AudioService {
         if (state.playing == false) {
           return;
         }
-        await _hijackDummySource(index: index);
         _historyUpdateCnt = 0;
       }
     });
@@ -342,6 +340,9 @@ class AudioService {
   int? get sleepTimerRemainingSeconds => _sleepTimerSubject.valueOrNull;
 
   Future<void> _hijackDummySource({int? index}) async {
+    if (_hijacking) {
+      return;
+    }
     index ??= player.currentIndex;
     if (index == null) {
       _logger.warning('No current index available for hijacking');
@@ -366,8 +367,8 @@ class AudioService {
       return;
     }
     _logger.info('Hijacking dummy source for index: $index');
+    _hijacking = true;
 
-    await player.pause();
     List<IndexedAudioSource>? srcs;
     try {
       srcs = await (await BilibiliService.instance)
@@ -390,6 +391,7 @@ class AudioService {
         await player.seekToNext();
         await player.play();
       }
+      _hijacking = false;
       return;
     }
     await doAndSavePlaylist(() async {
@@ -398,12 +400,15 @@ class AudioService {
         await player.setShuffleModeEnabled(false);
       }
       await playlist.insertAll(index! + 1, srcs!);
+      if (player.loopMode == LoopMode.one) {
+        await player.seek(Duration.zero, index: index + 1);
+      }
       await playlist.removeAt(index);
       if (isShuffle) {
         await player.setShuffleModeEnabled(true);
       }
     });
-    await player.play();
+    _hijacking = false;
   }
 
   Future<void> playByBvid(String bvid) async {
@@ -445,10 +450,12 @@ class AudioService {
               extras: {'dummy': true}));
     }).toList());
     await player.pause();
+    _hijacking = true;
     await doAndSavePlaylist(() async {
       await playlist.clear();
       await playlist.addAll(srcs);
     });
+    _hijacking = false;
     await player.seek(Duration.zero, index: index);
     await player.play();
     _logger.info('playByBvids done');

@@ -37,7 +37,7 @@ Future<void> main() async {
     await JustAudioBackground.init(
       androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
       androidNotificationChannelName: 'Audio Playback',
-      androidStopForegroundOnPause: false
+      androidNotificationOngoing: true,
     );
   }
 
