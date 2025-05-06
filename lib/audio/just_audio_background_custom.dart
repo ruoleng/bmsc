@@ -1,5 +1,5 @@
 // from https://github.com/ryanheise/just_audio/commit/144b7aff0594d8606b7cbd271212036072a0fd9c
-// diff: L711 commented out
+// diff:
 /*
     final controls = [
       if (hasPrevious) MediaControl.skipToPrevious,
@@ -7,6 +7,27 @@
       // MediaControl.stop,  <------
       if (hasNext) MediaControl.skipToNext,
     ];
+*/
+
+/*
+  int? getRelativeIndex(int offset) {
+    if (currentQueue.isEmpty || index == null) return null;
+    // if (_repeatMode == AudioServiceRepeatMode.one) return index;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    if (effectiveIndices.isEmpty) return null;
+    if (index! >= effectiveIndicesInv.length) return null;
+    final invPos = effectiveIndicesInv[index!];
+    var newInvPos = invPos + offset;
+    if (newInvPos >= effectiveIndices.length || newInvPos < 0) {
+      if (_repeatMode == AudioServiceRepeatMode.all) {
+        newInvPos %= effectiveIndices.length;
+      } else {
+        return null;
+      }
+    }
+    final result = effectiveIndices[newInvPos];
+    return result;
+  }
 */
 
 import 'dart:async';

@@ -4,6 +4,7 @@ import 'package:bmsc/util/widget.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../screen/detail_screen.dart';
+import '../audio/audio_player_ext.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'playlist_bottom_sheet.dart';
 
@@ -155,7 +156,8 @@ class PlayingCard extends StatelessWidget {
                                           MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     onPressed: player.hasPrevious
-                                        ? player.seekToPrevious
+                                        ? player
+                                            .seekToPreviousRegardlessOfLoopMode
                                         : null,
                                   ),
                                   StreamBuilder<PlayerState>(
@@ -195,7 +197,7 @@ class PlayingCard extends StatelessWidget {
                                           MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     onPressed: player.hasNext
-                                        ? player.seekToNext
+                                        ? player.seekToNextRegardlessOfLoopMode
                                         : null,
                                   ),
                                   // Add playlist button

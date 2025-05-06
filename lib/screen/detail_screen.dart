@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'package:bmsc/audio/audio_player_ext.dart';
 import 'package:bmsc/component/playlist_bottom_sheet.dart';
 import 'package:bmsc/component/select_favlist_dialog_multi.dart';
 import 'package:bmsc/database_manager.dart';
@@ -689,7 +690,8 @@ class _DetailScreenState extends State<DetailScreen> {
       children: [
         IconButton(
           icon: Icon(Icons.skip_previous, size: iconSize),
-          onPressed: hasPrevious ? player.seekToPrevious : null,
+          onPressed:
+              hasPrevious ? player.seekToPreviousRegardlessOfLoopMode : null,
         ),
         Container(
           decoration: BoxDecoration(
@@ -704,7 +706,7 @@ class _DetailScreenState extends State<DetailScreen> {
         ),
         IconButton(
           icon: Icon(Icons.skip_next, size: iconSize),
-          onPressed: hasNext ? player.seekToNext : null,
+          onPressed: hasNext ? player.seekToNextRegardlessOfLoopMode : null,
         ),
       ],
     );
