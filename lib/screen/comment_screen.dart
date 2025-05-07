@@ -1,5 +1,6 @@
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../model/comment.dart';
 import '../theme.dart';
 // import '../util/logger.dart';
@@ -104,6 +105,20 @@ class _CommentScreenState extends State<CommentScreen> {
                             oid: comment.oid,
                             root: comment.rpid,
                             total: comment.count)));
+              }
+            },
+            onLongPress: () {
+              if (comment.content?.message != null) {
+                Clipboard.setData(
+                    ClipboardData(text: comment.content!.message));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('已复制内容到剪贴板'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               }
             },
             child: Padding(
