@@ -456,6 +456,7 @@ class AudioService {
       await playlist.addAll(srcs);
     });
     _hijacking = false;
+    _hijackDummySource(index: index);
     await player.seek(Duration.zero, index: index);
     await player.play();
     _logger.info('playByBvids done');
