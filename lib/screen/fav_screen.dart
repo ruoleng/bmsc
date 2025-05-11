@@ -203,10 +203,6 @@ class FavScreenState extends State<FavScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            TextButton(
               onPressed: () {
                 if (nameController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -217,6 +213,10 @@ class FavScreenState extends State<FavScreen> {
                 Navigator.pop(context, nameController.text.trim());
               },
               child: const Text('保存'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
             ),
           ],
         ),
@@ -255,15 +255,15 @@ class FavScreenState extends State<FavScreen> {
         content: Text('确定要删除收藏夹"${fav.title}"吗？此操作不可恢复。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
             child: const Text('删除'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
           ),
         ],
       ),
@@ -285,50 +285,6 @@ class FavScreenState extends State<FavScreen> {
             const SnackBar(content: Text('删除失败')),
           );
         }
-      }
-    }
-  }
-
-  Future<void> _showHideConfirmation(Fav fav) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('隐藏收藏夹'),
-        content: Text('确定要隐藏收藏夹"${fav.title}"吗？你可以在设置页面重新找回该收藏夹。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('隐藏'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      hideFav ??= <int>{};
-      hideFav!.add(fav.id);
-      final success = await SharedPreferencesService.saveFavHideList(hideFav!);
-      if (success == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('隐藏成功')),
-          );
-          setState(() {});
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('隐藏失败')),
-          );
-        }
-        hideFav!.remove(fav.id);
       }
     }
   }
@@ -539,9 +495,30 @@ class FavScreenState extends State<FavScreen> {
                                 ListTile(
                                   leading: const Icon(Icons.visibility_off),
                                   title: const Text('隐藏收藏夹'),
-                                  onTap: () {
+                                  onTap: () async {
                                     Navigator.pop(context);
-                                    _showHideConfirmation(fav);
+                                    hideFav ??= <int>{};
+                                    hideFav!.add(fav.id);
+                                    final success =
+                                        await SharedPreferencesService
+                                            .saveFavHideList(hideFav!);
+                                    if (success == true) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(content: Text('隐藏成功')),
+                                        );
+                                        setState(() {});
+                                      }
+                                    } else {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(content: Text('隐藏失败')),
+                                        );
+                                      }
+                                      hideFav!.remove(fav.id);
+                                    }
                                   },
                                 ),
                               ],

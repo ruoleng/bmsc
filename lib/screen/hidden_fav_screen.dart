@@ -122,10 +122,6 @@ class HiddenFavScreenState extends State<HiddenFavScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            TextButton(
               onPressed: () {
                 if (nameController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -136,6 +132,10 @@ class HiddenFavScreenState extends State<HiddenFavScreen> {
                 Navigator.pop(context, nameController.text.trim());
               },
               child: const Text('保存'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
             ),
           ],
         ),
@@ -174,15 +174,15 @@ class HiddenFavScreenState extends State<HiddenFavScreen> {
         content: Text('确定要删除收藏夹"${fav.title}"吗？此操作不可恢复。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
             child: const Text('删除'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
           ),
         ],
       ),
