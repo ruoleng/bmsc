@@ -1,4 +1,5 @@
 import 'package:bmsc/service/audio_service.dart';
+import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
@@ -102,42 +103,66 @@ class _PlaylistBottomSheetState extends State<PlaylistBottomSheet> {
                           );
                         },
                       ),
-                      StreamBuilder<(LoopMode, bool)>(
-                        stream: Rx.combineLatest2(
+                      StreamBuilder<(LoopMode, bool, bool)>(
+                        stream: Rx.combineLatest3(
                           service.player.loopModeStream,
                           service.player.shuffleModeEnabledStream,
-                          (a, b) => (a, b),
+                          service.recommendModeEnabledStream,
+                          (a, b, c) => (a, b, c),
                         ),
                         builder: (context, snapshot) {
-                          final (loopMode, shuffleModeEnabled) =
-                              snapshot.data ?? (LoopMode.off, false);
+                          final (
+                            loopMode,
+                            shuffleModeEnabled,
+                            recommendModeEnabled
+                          ) = snapshot.data ?? (LoopMode.off, false, false);
                           final icons = [
                             Icons.playlist_play,
                             Icons.repeat_one,
                             Icons.repeat,
                             Icons.shuffle,
+                            Icons.cloud
                           ];
-                          final index = shuffleModeEnabled
-                              ? 3
-                              : LoopMode.values.indexOf(loopMode);
+                          final index = recommendModeEnabled
+                              ? 4
+                              : shuffleModeEnabled
+                                  ? 3
+                                  : LoopMode.values.indexOf(loopMode);
 
                           return IconButton(
                             icon: Icon(
-                              shuffleModeEnabled ? Icons.shuffle : icons[index],
+                              icons[index],
                               size: 20,
                             ),
                             style: const ButtonStyle(
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            onPressed: () {
-                              final idx = (index + 1) % icons.length;
+                            onPressed: () async {
+                              var idx = (index + 1) % icons.length;
 
-                              if (idx == 3) {
-                                service.player.setShuffleModeEnabled(true);
+                              if (index == 4) {
+                                await service.leaveRecommendMode();
+                              }
+
+                              if (idx == 4 &&
+                                  (await SharedPreferencesService
+                                      .getNoRecommendMode())) {
+                                idx = (idx + 1) % icons.length;
+                              }
+
+                              if (idx == 4) {
+                                await service.player
+                                    .setShuffleModeEnabled(false);
+                                await service.player.setLoopMode(LoopMode.off);
+                                await service.enterRecommendMode();
+                              } else if (idx == 3) {
+                                await service.player
+                                    .setShuffleModeEnabled(true);
                               } else {
-                                service.player
+                                await service.player
                                     .setLoopMode(LoopMode.values[idx]);
-                                service.player.setShuffleModeEnabled(false);
+                                await service.player
+                                    .setShuffleModeEnabled(false);
                               }
                             },
                           );

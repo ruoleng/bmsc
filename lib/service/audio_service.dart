@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:audio_session/audio_session.dart';
 import 'package:bmsc/database_manager.dart';
+import 'package:bmsc/model/meta.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:just_audio/just_audio.dart';
@@ -26,6 +27,7 @@ class AudioService {
   Timer? _sleepTimer;
   Timer? _fadeTimer;
   final _sleepTimerSubject = BehaviorSubject<int?>.seeded(null);
+  final _recommendModeEnabledSubject = BehaviorSubject<bool>.seeded(false);
   final _fadeOutDuration = 15; // 15 seconds fade out
   final _speedSubject = BehaviorSubject<double>.seeded(1.0);
   static const _historyUpdateInterval = 5; // 5s
@@ -34,6 +36,11 @@ class AudioService {
   StreamSubscription<AudioInterruptionEvent>? _interruptionEventSubscription;
   bool _playInterrupted = false;
   bool _hijacking = false;
+
+  bool recommendMode = false;
+
+  Stream<bool> get recommendModeEnabledStream =>
+      _recommendModeEnabledSubject.stream.map((_) => recommendMode);
 
   // 获取定时停止播放的流
   Stream<int?> get sleepTimerStream => _sleepTimerSubject.stream;
@@ -84,9 +91,24 @@ class AudioService {
     return x;
   }
 
+  UriAudioSource getDummyAudioSource(Meta x) {
+    final silenceUri = Uri(scheme: 'asset', path: '/assets/silent.m4a');
+    return AudioSource.uri(silenceUri,
+        tag: MediaItem(
+            id: x.bvid,
+            title: x.title,
+            // http://i0.hdslb.com/bfs/archive/32ddc1acc1cba622cbcd789ff7e0b91bcf0097fe.jpg
+            artUri: Uri.http(x.artUri.substring(7, 19), x.artUri.substring(19)),
+            artist: x.artist,
+            duration: Duration(seconds: x.duration),
+            extras: {'dummy': true}));
+  }
+
   Future<void> restorePlayMode() async {
     final mode = await SharedPreferencesService.getPlayMode();
-    if (mode == 3) {
+    if (mode == 4) {
+      recommendMode = true;
+    } else if (mode == 3) {
       await player.setLoopMode(LoopMode.all);
       await player.setShuffleModeEnabled(true);
     } else {
@@ -146,11 +168,16 @@ class AudioService {
       player.pause();
     });
 
-    Rx.combineLatest2(player.loopModeStream, player.shuffleModeEnabledStream,
-        (a, b) => (a, b)).listen((data) async {
-      final (loopMode, shuffleModeEnabled) = data;
+    Rx.combineLatest3(
+        player.loopModeStream,
+        player.shuffleModeEnabledStream,
+        recommendModeEnabledStream,
+        (a, b, c) => (a, b, c)).listen((data) async {
+      final (loopMode, shuffleModeEnabled, recommendModeEnabled) = data;
 
-      if (shuffleModeEnabled) {
+      if (recommendModeEnabled) {
+        await SharedPreferencesService.setPlayMode(4);
+      } else if (shuffleModeEnabled) {
         await SharedPreferencesService.setPlayMode(3);
       } else {
         await SharedPreferencesService.setPlayMode(
@@ -162,7 +189,16 @@ class AudioService {
       if (index != null) {
         final prefs = await SharedPreferencesService.instance;
         await prefs.setInt('currentIndex', index);
+        final isEndOfList = index == playlist.length - 1;
         await _hijackDummySource(index: index);
+        if (recommendMode && isEndOfList) {
+          final recommendation = await getRecommendationOfCurrent();
+          if (recommendation != null) {
+            await doAndSavePlaylist(() {
+              return playlist.add(recommendation);
+            });
+          }
+        }
       }
     });
 
@@ -437,18 +473,7 @@ class AudioService {
       return;
     }
     final metas = await DatabaseManager.getMetas(bvids);
-    final silenceUri = Uri(scheme: 'asset', path: '/assets/silent.m4a');
-    final srcs = await Future.wait(metas.map((x) async {
-      return AudioSource.uri(silenceUri,
-          tag: MediaItem(
-              id: x.bvid,
-              title: x.title,
-              // http://i0.hdslb.com/bfs/archive/32ddc1acc1cba622cbcd789ff7e0b91bcf0097fe.jpg
-              artUri: Uri.http(x.artUri.substring(7, 19), x.artUri.substring(19)),
-              artist: x.artist,
-              duration: Duration(seconds: x.duration),
-              extras: {'dummy': true}));
-    }).toList());
+    final srcs = metas.map(getDummyAudioSource).toList();
     await player.pause();
     _hijacking = true;
     await doAndSavePlaylist(() async {
@@ -516,7 +541,7 @@ class AudioService {
 
   Future<void> doAndSavePlaylist(Future<void> Function() func) async {
     await func();
-    SharedPreferencesService.savePlaylist(playlist, player);
+    SharedPreferencesService.savePlaylist(playlist, player.currentIndex ?? 0);
   }
 
   Future<int?> _addUniqueSourcesToPlaylist(List<IndexedAudioSource> sources,
@@ -556,7 +581,6 @@ class AudioService {
     return ret;
   }
 
-  // 设置播放速度
   Future<void> setPlaybackSpeed(double speed) async {
     if (speed < 0.25 || speed > 3.0) {
       return;
@@ -566,5 +590,126 @@ class AudioService {
     _speedSubject.add(speed);
     await SharedPreferencesService.setPlaybackSpeed(speed);
     _logger.info('Playback speed set to: $speed');
+  }
+
+  Future<UriAudioSource?> getRecommendationOfCurrent() async {
+    if (playlist.length == 0 || player.currentIndex == null) {
+      return null;
+    }
+    final curIndex = player.currentIndex!;
+    final curExtras = (playlist.sequence[curIndex].tag as MediaItem).extras;
+    if (curExtras == null) {
+      return null;
+    }
+    if (curExtras['bvid'] == null ||
+        curExtras['aid'] == null ||
+        curExtras['cid'] == null) {
+      return null;
+    }
+    final curAid = curExtras['aid'];
+
+    final recommendation =
+        await (await BilibiliService.instance).getRecommendation(curAid);
+    if (recommendation == null || recommendation.isEmpty) {
+      return null;
+    }
+
+    return getDummyAudioSource(recommendation.first);
+  }
+
+  Future<void> enterRecommendMode() async {
+    recommendMode = true;
+    if (await _enterRecommendMode()) {
+      await SharedPreferencesService.setPlayMode(4);
+    } else {
+      recommendMode = false;
+    }
+  }
+
+  Future<bool> _enterRecommendMode() async {
+    if (playlist.length == 0 || player.currentIndex == null) {
+      return false;
+    }
+    final curIndex = player.currentIndex!;
+    final curExtras = (playlist.sequence[curIndex].tag as MediaItem).extras;
+    if (curExtras == null) {
+      return false;
+    }
+    if (curExtras['bvid'] == null ||
+        curExtras['aid'] == null ||
+        curExtras['cid'] == null) {
+      return false;
+    }
+    final curBvid = curExtras['bvid'],
+        curAid = curExtras['aid'],
+        curCid = curExtras['cid'];
+    List<IndexedAudioSource> newPlaylist = [];
+    for (final x in playlist.sequence) {
+      final extras = (x.tag as MediaItem).extras;
+      if (extras != null && extras['bvid'] == curBvid) {
+        newPlaylist.add(x);
+      }
+    }
+
+    final recommendation =
+        await (await BilibiliService.instance).getRecommendation(curAid);
+    if (recommendation == null || recommendation.isEmpty) {
+      return false;
+    }
+
+    newPlaylist.add(getDummyAudioSource(recommendation.first));
+
+    int? newIndex;
+    for (int i = 0; i < newPlaylist.length; ++i) {
+      final extras = (newPlaylist[i].tag as MediaItem).extras;
+      if (extras != null &&
+          curBvid == extras['bvid'] &&
+          curCid == extras['cid']) {
+        newIndex = i;
+      }
+    }
+    if (newIndex == null) {
+      return false;
+    }
+
+    final curDuration = player.position;
+    _logger.info("newindex $newIndex, curDuration $curDuration");
+    _hijacking = true;
+    await SharedPreferencesService.saveStashedPlaylist(
+        playlist, player.currentIndex ?? 0);
+    bool playing = player.playing;
+    if (playing) {
+      await player.pause();
+    }
+    await doAndSavePlaylist(() async {
+      await playlist.clear();
+      await playlist.addAll(newPlaylist);
+    });
+    await player.seek(curDuration, index: newIndex);
+    if (playing) {
+      await player.play();
+    }
+    _hijacking = false;
+    return true;
+  }
+
+  Future<void> leaveRecommendMode() async {
+    recommendMode = false;
+    final restored = await SharedPreferencesService.getStashedPlaylist();
+    if (restored == null) {
+      return;
+    }
+    bool playing = player.playing;
+    if (playing) {
+      await player.pause();
+    }
+    await doAndSavePlaylist(() async {
+      await playlist.clear();
+      await playlist.addAll(restored.$1);
+    });
+    await player.seek(Duration.zero, index: restored.$2);
+    if (playing) {
+      await player.play();
+    }
   }
 }

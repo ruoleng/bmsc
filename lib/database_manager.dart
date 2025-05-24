@@ -515,7 +515,7 @@ class DatabaseManager {
     return results.firstOrNull?['filePath'] as String?;
   }
 
-  static Future<List<UriAudioSource>?> getLocalAudioList(String bvid) async {
+  static Future<List<LazyAudioSource>?> getLocalAudioList(String bvid) async {
     final meta = await getMeta(bvid);
     if (meta == null) {
       return null;
@@ -540,9 +540,11 @@ class DatabaseManager {
       final entities = await getEntities(bvid);
       return results.map((result) {
         final filePath = result['filePath'] as String;
+        int cid = result['cid'] as int;
         final entity = entities
             .firstWhere((e) => e.bvid == bvid && e.cid == result['cid']);
-        return AudioSource.file(filePath,
+        return LazyAudioSource(bvid, cid,
+            localFile: File(filePath),
             tag: MediaItem(
               id: '${bvid}_${result['cid']}',
               title: entity.partTitle,

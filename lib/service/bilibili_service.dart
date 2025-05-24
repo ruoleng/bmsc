@@ -278,6 +278,31 @@ class BilibiliService {
     return _bilibiliAPI.getRawWbiKey();
   }
 
+  static const tidWhitelist = [130, 193, 267, 28, 59];
+
+  Future<List<Meta>?> getRecommendation(int aid) async {
+    final prefs = await SharedPreferencesService.instance;
+    final recommendHistory = prefs.getString('recommend_history');
+    Set<String> history = recommendHistory != null
+        ? Set<String>.from(jsonDecode(recommendHistory))
+        : {};
+
+    List<Meta> recommendedVideos = [];
+    var videos = await getRelatedVideos(aid, tidWhitelist: tidWhitelist);
+    if (videos != null && videos.isNotEmpty) {
+      for (final video in videos) {
+        if (!history.contains(video.bvid) && video.duration >= 60) {
+          recommendedVideos.add(video);
+          history.add(video.bvid);
+          break;
+        }
+      }
+    }
+    await prefs.setString('recommend_history', jsonEncode(history.toList()));
+    await DatabaseManager.cacheMetas(recommendedVideos);
+    return recommendedVideos;
+  }
+
   Future<List<Meta>?> getRecommendations(List<Meta> tracks) async {
     if (tracks.isEmpty) {
       return null;
@@ -288,8 +313,6 @@ class BilibiliService {
     Set<String> history = recommendHistory != null
         ? Set<String>.from(jsonDecode(recommendHistory))
         : {};
-
-    const tidWhitelist = [130, 193, 267, 28, 59];
 
     List<Meta> recommendedVideos = [];
     for (var track in tracks) {

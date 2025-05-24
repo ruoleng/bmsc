@@ -7,6 +7,7 @@ import 'package:bmsc/model/playlist_data.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart' show MediaItem;
+import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rxdart/subjects.dart';
 
@@ -136,7 +137,26 @@ class SharedPreferencesService {
   }
 
   static Future<void> savePlaylist(
-      ConcatenatingAudioSource playlist, AudioPlayer player) async {
+      ConcatenatingAudioSource playlist, int currentIndex) async {
+    _savePlaylist(playlist, currentIndex, 'playlist', 'currentIndex');
+  }
+
+  static Future<(List<IndexedAudioSource>, int)?> getPlaylist() {
+    return _getPlaylist('playlist', 'currentIndex');
+  }
+
+  static Future<void> saveStashedPlaylist(
+      ConcatenatingAudioSource playlist, int currentIndex) async {
+    _savePlaylist(
+        playlist, currentIndex, 'stashed_playlist', 'stashed_currentIndex');
+  }
+
+  static Future<(List<IndexedAudioSource>, int)?> getStashedPlaylist() {
+    return _getPlaylist('stashed_playlist', 'stashed_currentIndex');
+  }
+
+  static Future<void> _savePlaylist(ConcatenatingAudioSource playlist,
+      int currentIndex, String playlistId, String currentIndexId) async {
     final prefs = await SharedPreferencesService.instance;
     final playlistData =
         await Future.wait(playlist.children.map((source) async {
@@ -168,14 +188,15 @@ class SharedPreferencesService {
       }
     }).toList());
 
-    await prefs.setString('playlist', jsonEncode(playlistData));
-    await prefs.setInt('currentIndex', player.currentIndex ?? 0);
+    await prefs.setString(playlistId, jsonEncode(playlistData));
+    await prefs.setInt(currentIndexId, currentIndex);
   }
 
-  static Future<(List<IndexedAudioSource>, int)?> getPlaylist() async {
+  static Future<(List<IndexedAudioSource>, int)?> _getPlaylist(
+      String playlistId, String currentIndexId) async {
     _logger.info('Restoring playlist from preferences');
     final prefs = await SharedPreferencesService.instance;
-    final playlistJson = prefs.getString('playlist');
+    final playlistJson = prefs.getString(playlistId);
 
     if (playlistJson == null) {
       _logger.info('No saved playlist found');
@@ -226,7 +247,7 @@ class SharedPreferencesService {
       }
     }));
 
-    return (sources.toList(), prefs.getInt('currentIndex') ?? 0);
+    return (sources.toList(), prefs.getInt(currentIndexId) ?? 0);
   }
 
   static Future<int> getPlayPosition() async {
@@ -340,5 +361,15 @@ class SharedPreferencesService {
   static Future<bool> getReactToInterruption() async {
     final prefs = await SharedPreferencesService.instance;
     return prefs.getBool('react_to_interruption') ?? true;
+  }
+
+  static Future<void> setNoRecommendMode(bool value) async {
+    final prefs = await SharedPreferencesService.instance;
+    await prefs.setBool('no_recommend_mode', value);
+  }
+
+  static Future<bool> getNoRecommendMode() async {
+    final prefs = await SharedPreferencesService.instance;
+    return prefs.getBool('no_recommend_mode') ?? false;
   }
 }

@@ -515,28 +515,34 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildPlaybackModeButton() {
-    return StreamBuilder<(LoopMode, bool)>(
-      stream: Rx.combineLatest2(
+    return StreamBuilder<(LoopMode, bool, bool)>(
+      stream: Rx.combineLatest3(
         _audioService!.player.loopModeStream,
         _audioService!.player.shuffleModeEnabledStream,
-        (a, b) => (a, b),
+        _audioService!.recommendModeEnabledStream,
+        (a, b, c) => (a, b, c),
       ),
       builder: (context, snapshot) {
-        final (loopMode, shuffleModeEnabled) =
-            snapshot.data ?? (LoopMode.off, false);
+        final (loopMode, shuffleModeEnabled, recommendModeEnable) =
+            snapshot.data ?? (LoopMode.off, false, false);
+
         final icons = [
           Icons.playlist_play,
           Icons.repeat_one,
           Icons.repeat,
           Icons.shuffle,
+          Icons.cloud
         ];
-        final labels = ["顺序播放", "单曲循环", "歌单循环", "随机播放"];
-        final index =
-            shuffleModeEnabled ? 3 : LoopMode.values.indexOf(loopMode);
+        final labels = ["顺序播放", "单曲循环", "歌单循环", "随机播放", "推荐模式"];
+        final index = recommendModeEnable
+            ? 4
+            : shuffleModeEnabled
+                ? 3
+                : LoopMode.values.indexOf(loopMode);
 
         return TextButton.icon(
           icon: Icon(
-            shuffleModeEnabled ? Icons.shuffle : icons[index],
+            icons[index],
             size: 20,
             color: Theme.of(context).colorScheme.primary,
           ),
@@ -547,14 +553,27 @@ class _DetailScreenState extends State<DetailScreen> {
               color: Theme.of(context).colorScheme.primary,
             ),
           ),
-          onPressed: () {
-            final idx = (index + 1) % labels.length;
+          onPressed: () async {
+            var idx = (index + 1) % labels.length;
 
-            if (idx == 3) {
-              _audioService!.player.setShuffleModeEnabled(true);
+            if (index == 4) {
+              _audioService!.leaveRecommendMode();
+            }
+
+            if (idx == 4 &&
+                (await SharedPreferencesService.getNoRecommendMode())) {
+              idx = (idx + 1) % labels.length;
+            }
+
+            if (idx == 4) {
+              await _audioService!.player.setShuffleModeEnabled(false);
+              await _audioService!.player.setLoopMode(LoopMode.off);
+              await _audioService!.enterRecommendMode();
+            } else if (idx == 3) {
+              await _audioService!.player.setShuffleModeEnabled(true);
             } else {
-              _audioService!.player.setLoopMode(LoopMode.values[idx]);
-              _audioService!.player.setShuffleModeEnabled(false);
+              await _audioService!.player.setLoopMode(LoopMode.values[idx]);
+              await _audioService!.player.setShuffleModeEnabled(false);
             }
           },
         );
