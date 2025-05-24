@@ -130,7 +130,7 @@ class _PlaylistBottomSheetState extends State<PlaylistBottomSheet> {
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             onPressed: () {
-                              final idx = (index + 1) % LoopMode.values.length;
+                              final idx = (index + 1) % icons.length;
 
                               if (idx == 3) {
                                 service.player.setShuffleModeEnabled(true);
