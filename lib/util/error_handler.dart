@@ -29,8 +29,8 @@ class ErrorHandler {
     );
   }
 
-  static void handleException(dynamic error) {
-    logger.severe(error.toString());
+  static void handleException(dynamic error, StackTrace? stack) {
+    logger.severe("Error: ${error.toString()}\nStack: ${stack?.toString()}");
     showError(error.toString());
   }
 }

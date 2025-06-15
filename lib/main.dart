@@ -37,7 +37,7 @@ Future<void> main() async {
     await JustAudioBackground.init(
       androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
       androidNotificationChannelName: 'Audio Playback',
-      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: true,
     );
   }
 
@@ -54,11 +54,11 @@ Future<void> main() async {
 void _setupErrorHandlers() {
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    ErrorHandler.handleException(details.exception);
+    ErrorHandler.handleException(details.exception, details.stack);
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
-    ErrorHandler.handleException(error);
+    ErrorHandler.handleException(error, stack);
     return true;
   };
 }
