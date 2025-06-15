@@ -25,7 +25,6 @@ class _CacheScreenState extends State<CacheScreen> {
   bool isSelectionMode = false;
   Set<String> selectedItems = {};
 
-
   @override
   void initState() {
     super.initState();
@@ -108,6 +107,8 @@ class _CacheScreenState extends State<CacheScreen> {
   }
 
   Future<void> deleteCaches(List<Map<String, dynamic>> fileDatas) async {
+    final itemsToRemove = <Map<String, dynamic>>[];
+
     for (var fileData in fileDatas) {
       final bvid = fileData['bvid'];
       final cid = fileData['cid'];
@@ -123,9 +124,12 @@ class _CacheScreenState extends State<CacheScreen> {
         where: 'bvid = ? AND cid = ?',
         whereArgs: [bvid, cid],
       );
-      cachedFiles
-          .removeWhere((item) => item['bvid'] == bvid && item['cid'] == cid);
+
+      itemsToRemove.addAll(cachedFiles
+          .where((item) => item['bvid'] == bvid && item['cid'] == cid));
     }
+
+    cachedFiles.removeWhere((item) => itemsToRemove.contains(item));
     setState(() {});
   }
 
@@ -158,7 +162,8 @@ class _CacheScreenState extends State<CacheScreen> {
     });
   }
 
-  Future<void> saveToDownloads(Map<String, dynamic> file, String downloadPath) async {
+  Future<void> saveToDownloads(
+      Map<String, dynamic> file, String downloadPath) async {
     try {
       final sourceFile = File(file['filePath']);
       if (!await sourceFile.exists()) {
@@ -284,7 +289,9 @@ class _CacheScreenState extends State<CacheScreen> {
                             FilledButton(
                               onPressed: () async {
                                 Navigator.pop(context);
-                                final downloadPath = await SharedPreferencesService.getDownloadPath();
+                                final downloadPath =
+                                    await SharedPreferencesService
+                                        .getDownloadPath();
 
                                 for (var file in filteredFiles.where((f) =>
                                     selectedItems.contains(
