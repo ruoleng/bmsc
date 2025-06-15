@@ -7,6 +7,7 @@ import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:path/path.dart' as path;
 import 'package:dio/dio.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -279,9 +280,15 @@ class DownloadManager {
     _taskController.add(updatedTasks);
   }
 
-  void _processQueue() async {
+  Future<void> _processQueue() async {
     while (_activeDownloads.length < maxConcurrentDownloads &&
         _downloadQueue.isNotEmpty) {
+      if (Platform.isAndroid) {
+        var status = await Permission.storage.status;
+        if (!status.isGranted) {
+          await Permission.storage.request();
+        }
+      }
       final task = _downloadQueue.removeFirst();
       final taskId = '${task.bvid}-${task.cid}';
 
