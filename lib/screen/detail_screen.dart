@@ -623,6 +623,7 @@ class _DetailScreenState extends State<DetailScreen> {
         ),
       );
       if (success) {
+        DatabaseManager.addFav(src.tag.extras['bvid'], defaultFolderId.$1);
         Future.microtask(() => setState(() => _isFavorite = success));
       }
     } else {
@@ -651,8 +652,17 @@ class _DetailScreenState extends State<DetailScreen> {
           Future.microtask(() => setState(() {
                 _isFavorite = true;
               }));
-        } else {
-          _checkFavoriteStatus(src.tag.extras['aid'], src.tag.extras['bvid']);
+        }
+
+        for (var mid in toAdd) {
+          await DatabaseManager.addFav(src.tag.extras['bvid'], mid);
+        }
+        for (var mid in toRemove) {
+          await DatabaseManager.rmFav(src.tag.extras['bvid'], mid: mid);
+        }
+
+        if (toAdd.isEmpty) {
+          _checkFavoriteStatus(null, src.tag.extras['bvid']);
         }
 
         if (context.mounted) {

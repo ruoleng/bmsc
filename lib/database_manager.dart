@@ -991,10 +991,48 @@ class DatabaseManager {
     return results.isNotEmpty;
   }
 
-  static Future<void> rmFav(String bvid) async {
+  static Future<void> rmFav(String bvid, {int? mid}) async {
     final db = await database;
-    await db.delete(favListVideoTable, where: 'bvid = ?', whereArgs: [bvid]);
-    _logger.info('removed fav $bvid from database');
+    await db.delete(favListVideoTable,
+        where: 'bvid = ? ${mid != null ? 'AND mid = ?' : ''}',
+        whereArgs: [bvid, mid]);
+    _logger.info(
+        'removed fav $bvid ${mid != null ? 'and mid $mid' : ''} from database');
+  }
+
+  // TODO: low performance
+  static Future<void> addFav(String bvid, int mid) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final existing = await txn.query(
+        favListVideoTable,
+        where: 'bvid = ? AND mid = ?',
+        whereArgs: [bvid, mid],
+      );
+
+      if (existing.isEmpty) {
+        await txn.execute('''
+          CREATE TEMPORARY TABLE temp_fav AS 
+          SELECT * FROM $favListVideoTable
+        ''');
+
+        await txn.delete(favListVideoTable);
+
+        await txn.insert(
+          favListVideoTable,
+          {'bvid': bvid, 'mid': mid},
+        );
+
+        await txn.execute('''
+          INSERT INTO $favListVideoTable 
+          SELECT * FROM temp_fav
+        ''');
+
+        await txn.execute('DROP TABLE temp_fav');
+
+        _logger.info('added fav $bvid to database');
+      }
+    });
   }
 
   static Future<void> removeDownloaded(List<(String, int)> bvidscids) async {
