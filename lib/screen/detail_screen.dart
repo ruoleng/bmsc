@@ -117,15 +117,16 @@ class _DetailScreenState extends State<DetailScreen> {
       setState(() => _isFavorite = null);
       return;
     }
+    bool isFavedDB = false;
     if (bvid != null) {
-      final isFavedDB = await DatabaseManager.isFaved(bvid);
+      isFavedDB = await DatabaseManager.isFaved(bvid);
       if (!mounted) return;
       setState(() => _isFavorite = isFavedDB);
     }
     if (aid != null) {
       final isFavorited =
           await (await BilibiliService.instance).isFavorited(aid);
-      if (bvid != null && isFavorited != null && !isFavorited) {
+      if (isFavedDB && bvid != null && isFavorited != null && !isFavorited) {
         DatabaseManager.rmFav(bvid);
       }
       if (!mounted) return;
