@@ -291,10 +291,12 @@ class BilibiliService {
 
     const tidWhitelist = [130, 193, 267, 28, 59];
 
+    // Fetch all related videos concurrently
+    final relatedVideosResults = await Future.wait(tracks.map(
+        (track) => getRelatedVideos(track.aid, tidWhitelist: tidWhitelist)));
+
     List<Meta> recommendedVideos = [];
-    for (var track in tracks) {
-      var videos =
-          await getRelatedVideos(track.aid, tidWhitelist: tidWhitelist);
+    for (final videos in relatedVideosResults) {
       if (videos != null && videos.isNotEmpty) {
         for (final video in videos) {
           if (!history.contains(video.bvid) && video.duration >= 60) {
@@ -305,6 +307,7 @@ class BilibiliService {
         }
       }
     }
+
     await prefs.setString('recommend_history', jsonEncode(history.toList()));
     await DatabaseManager.cacheMetas(recommendedVideos);
     return recommendedVideos;
@@ -327,8 +330,14 @@ class BilibiliService {
           await SharedPreferencesService.getDefaultFavFolder();
       if (defaultFavFolder == null) return null;
 
-      final favVideos = await getFavMetas(defaultFavFolder.$1);
-      if (favVideos == null || favVideos.isEmpty) return null;
+      var favVideos =
+          await DatabaseManager.getCachedFavMetas(defaultFavFolder.$1);
+
+      if (favVideos.isEmpty) {
+        favVideos = await getFavMetas(defaultFavFolder.$1) ?? [];
+      }
+
+      if (favVideos.isEmpty) return null;
 
       favVideos.shuffle();
       final selectedVideos = favVideos.take(30).toList();
