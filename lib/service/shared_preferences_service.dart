@@ -7,7 +7,6 @@ import 'package:bmsc/model/playlist_data.dart';
 import 'package:bmsc/util/logger.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart' show MediaItem;
-import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rxdart/subjects.dart';
 
@@ -143,16 +142,6 @@ class SharedPreferencesService {
 
   static Future<(List<IndexedAudioSource>, int)?> getPlaylist() {
     return _getPlaylist('playlist', 'currentIndex');
-  }
-
-  static Future<void> saveStashedPlaylist(
-      ConcatenatingAudioSource playlist, int currentIndex) async {
-    _savePlaylist(
-        playlist, currentIndex, 'stashed_playlist', 'stashed_currentIndex');
-  }
-
-  static Future<(List<IndexedAudioSource>, int)?> getStashedPlaylist() {
-    return _getPlaylist('stashed_playlist', 'stashed_currentIndex');
   }
 
   static Future<void> _savePlaylist(ConcatenatingAudioSource playlist,
@@ -361,15 +350,5 @@ class SharedPreferencesService {
   static Future<bool> getReactToInterruption() async {
     final prefs = await SharedPreferencesService.instance;
     return prefs.getBool('react_to_interruption') ?? true;
-  }
-
-  static Future<void> setNoRecommendMode(bool value) async {
-    final prefs = await SharedPreferencesService.instance;
-    await prefs.setBool('no_recommend_mode', value);
-  }
-
-  static Future<bool> getNoRecommendMode() async {
-    final prefs = await SharedPreferencesService.instance;
-    return prefs.getBool('no_recommend_mode') ?? false;
   }
 }

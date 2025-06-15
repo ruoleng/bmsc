@@ -149,24 +149,6 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
           ),
-          StatefulBuilder(
-            builder: (context, setState) => FutureBuilder<bool>(
-              future: SharedPreferencesService.getNoRecommendMode(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const SizedBox();
-                return SwitchListTile(
-                  title: const Text('移除推荐模式'),
-                  secondary: const Icon(Icons.cloud),
-                  subtitle: const Text('在切换循环模式时不再进入推荐模式'),
-                  value: snapshot.data!,
-                  onChanged: (bool value) async {
-                    await SharedPreferencesService.setNoRecommendMode(value);
-                    setState(() {});
-                  },
-                );
-              },
-            ),
-          ),
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(

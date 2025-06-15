@@ -1,5 +1,4 @@
 import 'package:bmsc/service/audio_service.dart';
-import 'package:bmsc/service/shared_preferences_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
@@ -103,31 +102,24 @@ class _PlaylistBottomSheetState extends State<PlaylistBottomSheet> {
                           );
                         },
                       ),
-                      StreamBuilder<(LoopMode, bool, bool)>(
-                        stream: Rx.combineLatest3(
+                      StreamBuilder<(LoopMode, bool)>(
+                        stream: Rx.combineLatest2(
                           service.player.loopModeStream,
                           service.player.shuffleModeEnabledStream,
-                          service.recommendModeEnabledStream,
-                          (a, b, c) => (a, b, c),
+                          (a, b) => (a, b),
                         ),
                         builder: (context, snapshot) {
-                          final (
-                            loopMode,
-                            shuffleModeEnabled,
-                            recommendModeEnabled
-                          ) = snapshot.data ?? (LoopMode.off, false, false);
+                          final (loopMode, shuffleModeEnabled) =
+                              snapshot.data ?? (LoopMode.off, false);
                           final icons = [
                             Icons.playlist_play,
                             Icons.repeat_one,
                             Icons.repeat,
                             Icons.shuffle,
-                            Icons.cloud
                           ];
-                          final index = recommendModeEnabled
-                              ? 4
-                              : shuffleModeEnabled
-                                  ? 3
-                                  : LoopMode.values.indexOf(loopMode);
+                          final index = shuffleModeEnabled
+                              ? 3
+                              : LoopMode.values.indexOf(loopMode);
 
                           return IconButton(
                             icon: Icon(
@@ -137,32 +129,15 @@ class _PlaylistBottomSheetState extends State<PlaylistBottomSheet> {
                             style: const ButtonStyle(
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            onPressed: () async {
-                              var idx = (index + 1) % icons.length;
+                            onPressed: () {
+                              final idx = (index + 1) % icons.length;
 
-                              if (index == 4) {
-                                await service.leaveRecommendMode();
-                              }
-
-                              if (idx == 4 &&
-                                  (await SharedPreferencesService
-                                      .getNoRecommendMode())) {
-                                idx = (idx + 1) % icons.length;
-                              }
-
-                              if (idx == 4) {
-                                await service.player
-                                    .setShuffleModeEnabled(false);
-                                await service.player.setLoopMode(LoopMode.off);
-                                await service.enterRecommendMode();
-                              } else if (idx == 3) {
-                                await service.player
-                                    .setShuffleModeEnabled(true);
+                              if (idx == 3) {
+                                service.player.setShuffleModeEnabled(true);
                               } else {
-                                await service.player
+                                service.player
                                     .setLoopMode(LoopMode.values[idx]);
-                                await service.player
-                                    .setShuffleModeEnabled(false);
+                                service.player.setShuffleModeEnabled(false);
                               }
                             },
                           );
