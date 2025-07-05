@@ -29,7 +29,7 @@ class BilibiliAPI {
   ConnectionService connectionService = ConnectionService.getInstance();
 
   BilibiliAPI() {
-    connectionService.initialize();
+  connectionService.initialize();
   connectionService.connectionChange.listen((result) {
     noNetwork = !result;
   });
@@ -40,29 +40,26 @@ class BilibiliAPI {
   dio.options.receiveTimeout = Duration(seconds: 30);
   dio.options.sendTimeout = Duration(seconds: 30);
   
-  // 添加重试拦截器
-  dio.interceptors.add(
-    RetryInterceptor(
-      dio: dio,
-      logPrint: _logger.info, // 打印重试日志
-      retries: 3, // 最大重试次数
-      retryDelays: const [
-        Duration(seconds: 1), // 第一次重试等待时间
-        Duration(seconds: 2), // 第二次重试等待时间
-        Duration(seconds: 3), // 第三次重试等待时间
-      ],
-    ),
-  );
-  
-  // 添加错误处理拦截器
+  // 添加错误处理和重试拦截器
   dio.interceptors.add(InterceptorsWrapper(
     onError: (DioException e, handler) async {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.sendTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
-        // 超时重试
-        return handler.resolve(await _retry(e.requestOptions));
+      // 获取请求选项
+      final options = e.requestOptions;
+      
+      // 获取重试次数
+      options.extra['retryCount'] = (options.extra['retryCount'] ?? 0) + 1;
+      
+      // 如果重试次数小于3次，则重试
+      if (options.extra['retryCount'] <= 3) {
+        _logger.info('Retrying request (${options.extra['retryCount']}/3)...');
+        
+        // 等待一段时间后重试
+        await Future.delayed(Duration(seconds: options.extra['retryCount']));
+        
+        // 重新发送请求
+        return handler.resolve(await dio.fetch(options));
       }
+      
       return handler.next(e);
     },
   ));
