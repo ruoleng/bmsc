@@ -14,6 +14,7 @@ import 'package:bmsc/util/url.dart';
 import 'package:flutter/material.dart';
 import 'package:bmsc/screen/search_screen.dart';
 import 'package:flutter/services.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'component/playing_card.dart';
@@ -40,9 +41,23 @@ Future<void> main() async {
       androidNotificationChannelName: 'Audio Playback',
       androidStopForegroundOnPause: false,  // 修改为 false，让后台播放继续
       // 添加 iOS 相关配置
-      iosShowNotificationBadge: true,
       preloadArtwork: true,  // 预加载封面图
+      iosNotificationCategory: 'playback',
+      iosEnabledRemoteCommands: [
+        IosRemoteCommand.play,
+        IosRemoteCommand.pause,
+        IosRemoteCommand.skipForward,
+        IosRemoteCommand.skipBackward,
+      ],
     );
+
+    // 配置音频会话以支持后台播放
+    final session = await AudioSession.instance;
+    try {
+      await session.configure(const AudioSessionConfiguration.music());
+    } catch (e) {
+      _logger.severe('音频会话配置失败: \$e');
+    }
   }
 
   if (Platform.isLinux || Platform.isWindows) {
