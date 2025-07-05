@@ -1,12 +1,20 @@
 name: Build and Release All Platforms
 
 on:
+  # 1. 当一个 'v*.*.*' 格式的标签被推送时触发
   push:
     tags:
       - "v*.*.*"
+  # 2. 允许在 Actions 页面手动触发此工作流
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '请输入要构建的 Git 标签 (例如: v1.2.3)'
+        required: true
+        type: string
 
 jobs:
-  # JOB 1: Build for Android and Linux (No changes here)
+  # JOB 1: Build for Android and Linux
   build-android-linux:
     name: Build Android and Linux
     runs-on: ubuntu-latest
@@ -14,6 +22,9 @@ jobs:
       changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          # 如果是手动触发, checkout 指定的 tag; 否则 checkout 事件触发的 ref
+          ref: ${{ github.event.inputs.tag || github.ref }}
       - name: Install Ninja
         run: sudo apt-get -y install build-essential ninja-build cmake pkg-config libgtk-3-dev
       - name: Setup Java
@@ -31,6 +42,8 @@ jobs:
       - uses: olegtarasov/get-tag@v2.1.2
         id: tagName
         with:
+          # 使用手动输入的 tag 或事件触发的 ref
+          tag: ${{ github.event.inputs.tag || github.ref }}
           tagRegex: 'v([0-9]+.[0-9]+.[0-9]+)'
           tagRegexGroup: 1
 
@@ -93,12 +106,15 @@ jobs:
             build/app/outputs/flutter-apk/${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-x64.apk
             ${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-linux.zip
 
-  # JOB 2: Build for iOS (MODIFIED for no signing)
+  # JOB 2: Build for iOS (Unsigned)
   build-ios:
     name: Build iOS IPA (Unsigned)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          # 如果是手动触发, checkout 指定的 tag; 否则 checkout 事件触发的 ref
+          ref: ${{ github.event.inputs.tag || github.ref }}
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -109,6 +125,8 @@ jobs:
       - uses: olegtarasov/get-tag@v2.1.2
         id: tagName
         with:
+          # 使用手动输入的 tag 或事件触发的 ref
+          tag: ${{ github.event.inputs.tag || github.ref }}
           tagRegex: 'v([0-9]+.[0-9]+.[0-9]+)'
           tagRegexGroup: 1
 
@@ -137,7 +155,7 @@ jobs:
           name: ios-artifact
           path: ${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-ios.ipa
 
-  # JOB 3: Create the final release (No changes here)
+  # JOB 3: Create the final release
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
@@ -146,6 +164,8 @@ jobs:
       - uses: olegtarasov/get-tag@v2.1.2
         id: tagName
         with:
+          # 使用手动输入的 tag 或事件触发的 ref
+          tag: ${{ github.event.inputs.tag || github.ref }}
           tagRegex: 'v([0-9]+.[0-9]+.[0-9]+)'
           tagRegexGroup: 1
 
