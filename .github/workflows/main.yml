@@ -1,4 +1,4 @@
-name: build release apks
+name: Build and Release All Platforms
 
 on:
   push:
@@ -6,9 +6,12 @@ on:
       - "v*.*.*"
 
 jobs:
-  build:
-    name: Build Artifacts and Release
+  # JOB 1: Build for Android and Linux (No changes here)
+  build-android-linux:
+    name: Build Android and Linux
     runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - uses: actions/checkout@v3
       - name: Install Ninja
@@ -25,17 +28,16 @@ jobs:
           channel: 'stable'
       - run: flutter --version
 
-
       - uses: olegtarasov/get-tag@v2.1.2
         id: tagName
         with:
-          tagRegex: 'v([0-9]+.[0-9]+.[0-9]+)' # Optional. Returns specified group text as tag name. Full tag string is returned if regex is not defined.
-          tagRegexGroup: 1 # Optional. Default is 1.
+          tagRegex: 'v([0-9]+.[0-9]+.[0-9]+)'
+          tagRegexGroup: 1
 
       - name: Replace YAML version with tag version
         run: |
-          sed -i 's/99.99.99/'$GIT_TAG_NAME'/g' pubspec.yaml|
-          echo "Tag used version:"$GIT_TAG_NAME
+          sed -i 's/99.99.99/'${{ steps.tagName.outputs.tag }}'/g' pubspec.yaml
+          echo "Tag used version:"${{ steps.tagName.outputs.tag }}
 
       - name: Decode Keystore
         run: |
@@ -60,7 +62,7 @@ jobs:
       - name: Extract Changelog
         id: changelog
         run: |
-          VERSION_V="${{ steps.tagName.outputs.tag }}"
+          VERSION_V="v${{ steps.tagName.outputs.tag }}"
           VERSION=$(echo $VERSION_V | sed 's/^v//')
           echo "Extracting changelog for version $VERSION"
           awk "/^# $VERSION\$/{p=1;next} /^# /{p=0} p" changelog.md > changelog_content.txt
@@ -81,23 +83,84 @@ jobs:
           zip -r ${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-linux.zip .
           mv ${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-linux.zip ../../../../../
 
-      - name: Create Github Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: |
-            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-arm64.apk
-            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-arm32.apk
-            build/app/outputs/flutter-apk/${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-x64.apk
-            ${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-linux.zip
-          token: ${{ secrets.PERSONAL_RELEASE_TOKEN }}
-          body: ${{ env.changelog }}
-
-      - name: Save artifacts
+      - name: Upload Android & Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-artifacts
+          name: android-linux-artifacts
           path: |
             build/app/outputs/flutter-apk/${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-arm64.apk
             build/app/outputs/flutter-apk/${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-arm32.apk
             build/app/outputs/flutter-apk/${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-x64.apk
             ${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-linux.zip
+
+  # JOB 2: Build for iOS (MODIFIED for no signing)
+  build-ios:
+    name: Build iOS IPA (Unsigned)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.3"
+          channel: 'stable'
+      - run: flutter --version
+
+      - uses: olegtarasov/get-tag@v2.1.2
+        id: tagName
+        with:
+          tagRegex: 'v([0-9]+.[0-9]+.[0-9]+)'
+          tagRegexGroup: 1
+
+      - name: Replace YAML version with tag version
+        run: |
+          sed -i '' 's/99.99.99/'${{ steps.tagName.outputs.tag }}'/g' pubspec.yaml
+          echo "Tag used version:"${{ steps.tagName.outputs.tag }}
+
+      - name: Pub Get Packages
+        run: flutter pub get
+
+      - name: Build unsigned iOS App
+        run: flutter build ios --release --no-codesign
+
+      - name: Package IPA
+        run: |
+          cd build/ios/iphoneos/
+          mkdir Payload
+          mv Runner.app Payload/
+          zip -r ${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-ios.ipa Payload/
+          mv *.ipa ../../../
+
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-artifact
+          path: ${{ github.event.repository.name }}-v${{ steps.tagName.outputs.tag }}-ios.ipa
+
+  # JOB 3: Create the final release (No changes here)
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-android-linux, build-ios]
+    steps:
+      - uses: olegtarasov/get-tag@v2.1.2
+        id: tagName
+        with:
+          tagRegex: 'v([0-9]+.[0-9]+.[0-9]+)'
+          tagRegexGroup: 1
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: List files for debugging
+        run: ls -R artifacts/
+      
+      - name: Create Github Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "artifacts/**/*"
+          token: ${{ secrets.PERSONAL_RELEASE_TOKEN }}
+          tag: "v${{ steps.tagName.outputs.tag }}"
+          body: ${{ needs.build-android-linux.outputs.changelog }}
