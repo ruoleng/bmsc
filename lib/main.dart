@@ -31,13 +31,17 @@ final _logger = LoggerUtils.getLogger('main');
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (Platform.isAndroid) {
-    _logger.info('Android version: ${Platform.operatingSystemVersion}');
+  // 修改这部分，添加 iOS 的初始化
+  if (Platform.isAndroid || Platform.isIOS) {  // 添加 iOS 条件
+    _logger.info('Mobile platform: ${Platform.operatingSystemVersion}');
 
     await JustAudioBackground.init(
       androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
       androidNotificationChannelName: 'Audio Playback',
-      androidStopForegroundOnPause: true,
+      androidStopForegroundOnPause: false,  // 修改为 false，让后台播放继续
+      // 添加 iOS 相关配置
+      iosShowNotificationBadge: true,
+      preloadArtwork: true,  // 预加载封面图
     );
   }
 
