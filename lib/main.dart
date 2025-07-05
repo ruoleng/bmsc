@@ -45,10 +45,10 @@ Future<void> main() async {
       preloadArtwork: true,  // 预加载封面图
       iosNotificationCategory: 'playback',
       iosEnabledRemoteCommands: [
-        IosRemoteCommand.play,
-        IosRemoteCommand.pause,
-        IosRemoteCommand.skipForward,
-        IosRemoteCommand.skipBackward,
+        'play',
+        'pause',
+        'skipForward',
+        'skipBackward',
       ],
     );
 
