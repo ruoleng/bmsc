@@ -30,11 +30,57 @@ class BilibiliAPI {
 
   BilibiliAPI() {
     connectionService.initialize();
-    connectionService.connectionChange.listen((result) {
-      noNetwork = !result;
-    });
-    noNetwork = !connectionService.hasConnection;
-  }
+  connectionService.connectionChange.listen((result) {
+    noNetwork = !result;
+  });
+  noNetwork = !connectionService.hasConnection;
+  
+  // 添加Dio的基础配置
+  dio.options.connectTimeout = Duration(seconds: 30);
+  dio.options.receiveTimeout = Duration(seconds: 30);
+  dio.options.sendTimeout = Duration(seconds: 30);
+  
+  // 添加重试拦截器
+  dio.interceptors.add(
+    RetryInterceptor(
+      dio: dio,
+      logPrint: _logger.info, // 打印重试日志
+      retries: 3, // 最大重试次数
+      retryDelays: const [
+        Duration(seconds: 1), // 第一次重试等待时间
+        Duration(seconds: 2), // 第二次重试等待时间
+        Duration(seconds: 3), // 第三次重试等待时间
+      ],
+    ),
+  );
+  
+  // 添加错误处理拦截器
+  dio.interceptors.add(InterceptorsWrapper(
+    onError: (DioException e, handler) async {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        // 超时重试
+        return handler.resolve(await _retry(e.requestOptions));
+      }
+      return handler.next(e);
+    },
+  ));
+}
+
+// 重试请求方法
+Future<Response<dynamic>> _retry(RequestOptions requestOptions) async {
+  final options = Options(
+    method: requestOptions.method,
+    headers: requestOptions.headers,
+  );
+  return dio.request<dynamic>(
+    requestOptions.path,
+    data: requestOptions.data,
+    queryParameters: requestOptions.queryParameters,
+    options: options,
+  );
+    }
 
   Future<void> setCookie(String cookie, {bool save = false}) async {
     if (save) {

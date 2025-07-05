@@ -52,6 +52,7 @@ dependencies:
   qr_flutter: ^4.1.0
   just_audio_platform_interface: ^4.5.0
   synchronized: ^3.3.0+3
+  dio_retry: ^latest_version
   
 flutter_launcher_icons:
   android: "launcher_icon"
