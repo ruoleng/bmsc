@@ -189,7 +189,7 @@ class BilibiliService {
             'raw_title': x.bvidTitle,
             'multi': entities.length > 1,
           });
-      return LazyAudioSource(bvid, x.cid, tag: tag);
+      return LazyAudioSource(bvid, x.cid, tag: tag, headers: _bilibiliAPI.headers);
     })))
         .whereType<LazyAudioSource>()
         .toList();

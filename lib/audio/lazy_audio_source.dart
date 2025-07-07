@@ -19,6 +19,7 @@ class LazyAudioSource extends StreamAudioSource {
   Future<HttpClientResponse>? _response;
   final String bvid;
   final int cid;
+  final Map<String, String>? headers;
   final AsyncMemoizer<Uri> _uriMemoizer = AsyncMemoizer();
   final Future<File> localFile;
   int _progress = 0;
@@ -36,6 +37,7 @@ class LazyAudioSource extends StreamAudioSource {
   LazyAudioSource(
     this.bvid,
     this.cid, {
+    this.headers,
     File? localFile,
     super.tag,
   })  : localFile = localFile != null
@@ -126,7 +128,6 @@ class LazyAudioSource extends StreamAudioSource {
         partialCacheFile.existsSync() ? partialCacheFile : localFile;
 
     var uri = await this.uri;
-    final headers = (await BilibiliService.instance).headers;
 
     final httpClient = HttpClient();
     var httpRequest = await _getUrl(httpClient, uri, headers: headers);
