@@ -6,7 +6,6 @@ import 'package:bmsc/screen/dynamic_screen.dart';
 import 'package:bmsc/screen/fav_screen.dart';
 import 'package:bmsc/screen/local_history_screen.dart';
 import 'package:bmsc/service/audio_service.dart' as app_audio;
-import 'package:bmsc/audio/just_audio_background_custom.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:bmsc/service/bilibili_service.dart';
 import 'package:bmsc/service/shared_preferences_service.dart';
@@ -33,32 +32,17 @@ final _logger = LoggerUtils.getLogger('main');
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 修改这部分，添加 iOS 的初始化
-  if (Platform.isAndroid || Platform.isIOS) {  // 添加 iOS 条件
+  if (Platform.isAndroid || Platform.isIOS) {
     _logger.info('Mobile platform: ${Platform.operatingSystemVersion}');
-
     await JustAudioBackground.init(
       androidNotificationChannelId: 'org.u2x1.bmsc.channel.audio',
       androidNotificationChannelName: 'Audio Playback',
-      androidStopForegroundOnPause: false,  // 修改为 false，让后台播放继续
-      // 添加 iOS 相关配置
-      preloadArtwork: true,  // 预加载封面图
-      iosNotificationCategory: 'playback',
-      iosEnabledRemoteCommands: [
-        'play',
-        'pause',
-        'skipForward',
-        'skipBackward',
-      ],
+      androidNotificationIcon: 'mipmap/ic_launcher',
+      androidStopForegroundOnPause: true,
+      preloadArtwork: true,
     );
-
-    // 配置音频会话以支持后台播放
     final session = await AudioSession.instance;
-    try {
-      await session.configure(const AudioSessionConfiguration.music());
-    } catch (e) {
-      _logger.severe('音频会话配置失败: \$e');
-    }
+    await session.configure(const AudioSessionConfiguration.music());
   }
 
   if (Platform.isLinux || Platform.isWindows) {
