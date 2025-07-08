@@ -414,7 +414,7 @@ Future<HttpClientRequest> _getUrl(HttpClient client, Uri uri,
     {Map<String, String>? headers}) async {
   final request = await client.getUrl(uri);
   if (headers != null) {
-    final host = request.headers.value(HttpHeaders.hostHeader)!;
+    final host = request.headers.value(HttpHeaders.hostHeader);
     request.headers.clear();
     request.headers.set(HttpHeaders.contentLengthHeader, '0');
     headers.forEach((name, value) => request.headers.set(name, value));
@@ -422,7 +422,7 @@ Future<HttpClientRequest> _getUrl(HttpClient client, Uri uri,
       request.headers.set(HttpHeaders.hostHeader, host);
     }
     if (client.userAgent != null) {
-      request.headers.set(HttpHeaders.userAgentHeader, client.userAgent!);
+      request.headers.set(HttpHeaders.userAgentHeader, client.userAgent);
     }
   }
   // Match ExoPlayer's native behavior
