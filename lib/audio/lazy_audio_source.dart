@@ -193,7 +193,7 @@ class LazyAudioSource extends StreamAudioSource {
         if (end != null && _progress >= end) {
           // We've received enough data to fulfill the byte range request.
           final subEnd =
-              min(data.length, max(0, data.length - (_progress - end)));
+              min(data.length, max(0, data.length - (_progress - end!)));
           cacheResponse.controller.add(data.sublist(0, subEnd));
           cacheResponse.controller.close();
         } else {
@@ -255,9 +255,11 @@ class LazyAudioSource extends StreamAudioSource {
 
         final rangeRequest = _HttpRangeRequest(start, end);
         _getUrl(httpClient, uri, headers: {
-          if (headers != null) ...headers,
+          if (headers != null) 
+            for (var entry in headers.entries) 
+              entry.key: entry.value,
           HttpHeaders.rangeHeader: rangeRequest.header,
-        }).then((httpRequest) async {
+          }).then((httpRequest) async {
           final response = await httpRequest.close();
           if (response.statusCode != 206) {
             httpClient.close();

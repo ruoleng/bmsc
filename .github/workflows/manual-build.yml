@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       build_name:
-        description: '为本次构建设置一个名称 (例如: dev-build-1)'
+        description: '为本次构建设置一个名称 (例如: 1.11.0)'
         required: true
         default: 'dev-build'
         type: string
@@ -16,79 +16,7 @@ on:
         type: string
 
 jobs:
-  # JOB 1: Build for Android and Linux
-  build-android-linux:
-    name: Build Android and Linux
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout branch ${{ github.event.inputs.branch }}
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.branch }}
-
-      - name: Install Ninja
-        run: sudo apt-get -y install build-essential ninja-build cmake pkg-config libgtk-3-dev
-      
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: "17"
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.24.3"
-          channel: 'stable'
-      - run: flutter --version
-
-      - name: Decode Keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-
-      - name: Create key.properties
-        run: |
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
-          echo "storeFile=keystore.jks" >> android/key.properties
-
-      - name: Replace YAML version with build name
-        run: |
-          sed -i 's/99.99.99/${{ github.event.inputs.build_name }}/g' pubspec.yaml
-          echo "build name used version: ${{ github.event.inputs.build_name }}"
-
-      - name: Pub Get Packages
-        run: flutter pub get
-
-      - name: Build apks
-        run: flutter build apk --release --split-per-abi
-      
-      - name: Build linux executable
-        run: flutter build linux --release
-
-      - name: Prepare Artifact Files
-        run: |
-          # Android
-          cd build/app/outputs/flutter-apk/
-          mv app-arm64-v8a-release.apk ${{ github.event.repository.name }}-${{ github.event.inputs.build_name }}-arm64.apk
-          mv app-armeabi-v7a-release.apk ${{ github.event.repository.name }}-${{ github.event.inputs.build_name }}-arm32.apk
-          mv app-x86_64-release.apk ${{ github.event.repository.name }}-${{ github.event.inputs.build_name }}-x64.apk
-          cd ../../../..
-          # Linux
-          cd build/linux/x64/release/bundle/
-          zip -r ${{ github.event.repository.name }}-${{ github.event.inputs.build_name }}-linux.zip .
-          mv *.zip ../../../../../
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.event.inputs.build_name }}-artifacts
-          path: |
-            build/app/outputs/flutter-apk/*.apk
-            *.zip
-
-  # JOB 2: Build for iOS (Unsigned)
+  # JOB: Build for iOS (Unsigned)
   build-ios:
     name: Build iOS IPA (Unsigned)
     runs-on: macos-latest
