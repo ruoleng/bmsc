@@ -418,10 +418,10 @@ Future<HttpClientRequest> _getUrl(HttpClient client, Uri uri,
     request.headers.set(HttpHeaders.contentLengthHeader, '0');
     headers.forEach((name, value) => request.headers.set(name, value));
     if (host != null) {
-      request.headers.set(HttpHeaders.hostHeader, host);
+      request.headers.set(HttpHeaders.hostHeader, host!);
     }
     if (client.userAgent != null) {
-      request.headers.set(HttpHeaders.userAgentHeader, client.userAgent);
+      request.headers.set(HttpHeaders.userAgentHeader, client.userAgent!);
     }
   }
   // Match ExoPlayer's native behavior
