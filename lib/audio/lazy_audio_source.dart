@@ -254,12 +254,9 @@ class LazyAudioSource extends StreamAudioSource {
         final httpClient = HttpClient();
 
         final rangeRequest = _HttpRangeRequest(start, end);
-        _getUrl(httpClient, uri, headers: {
-          if (headers != null) 
-            for (var entry in headers.entries) 
-              entry.key: entry.value,
-          HttpHeaders.rangeHeader: rangeRequest.header,
-          }).then((httpRequest) async {
+        final newHeaders = Map<String, String>.from(headers ?? {});
+        newHeaders[HttpHeaders.rangeHeader] = rangeRequest.header;
+        _getUrl(httpClient, uri, headers: newHeaders).then((httpRequest) async {
           final response = await httpRequest.close();
           if (response.statusCode != 206) {
             httpClient.close();
