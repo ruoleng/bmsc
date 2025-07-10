@@ -320,9 +320,9 @@ Future<Response<dynamic>> _retry(RequestOptions requestOptions) async {
 
   Future<List<Audio>?> getAudio(String bvid, int cid) async {
     final hires = await SharedPreferencesService.getHiResFirst();
-    return _callAPI(apiAudioUrl,
-        queryParameters: {'bvid': bvid, 'cid': cid, 'fnval': 4048},
-        callback: (data) {
+    final params =
+        await crypto.encodeParams({'bvid': bvid, 'cid': cid, 'fnval': 4048});
+    return _callAPI(apiPlayer, queryParameters: params, callback: (data) {
       final dash = TrackResult.fromJson(data).dash;
       if (hires && dash.flac?.audio != null) {
         return [dash.flac!.audio!] + dash.audio;
@@ -463,8 +463,8 @@ Future<Response<dynamic>> _retry(RequestOptions requestOptions) async {
   }
 
   Future<List<(String, String)>?> getSubTitleInfo(int aid, int cid) async {
-    return _callAPI(apiPlayer, queryParameters: {'aid': aid, 'cid': cid},
-        callback: (data) {
+    final params = await crypto.encodeParams({'aid': aid, 'cid': cid});
+    return _callAPI(apiPlayer, queryParameters: params, callback: (data) {
       final subtitles = data['subtitle']['subtitles'] as List<dynamic>;
       return subtitles.map((x) {
         var url = x['subtitle_url'] as String;
