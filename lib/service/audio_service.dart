@@ -387,9 +387,14 @@ class AudioService {
     try {
       srcs = await (await BilibiliService.instance)
           .getAudios(currentSource.tag.id);
-    } catch (e) {
-      _logger.warning('Failed to get audio sources: $e');
-      srcs = await DatabaseManager.getLocalAudioList(currentSource.tag.id);
+    } catch (e, s) {
+      _logger.warning('Failed to get audio sources: $e\n$s');
+      try {
+        srcs = await DatabaseManager.getLocalAudioList(currentSource.tag.id);
+      } catch (e2, s2) {
+        _logger.warning(
+            'Failed to get local audio sources: $e2\n$s2');
+      }
     }
     final excludedCids =
         await DatabaseManager.getExcludedParts(currentSource.tag.id);

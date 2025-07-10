@@ -51,7 +51,11 @@ class LazyAudioSource extends StreamAudioSource {
     return await _uriMemoizer.runOnce(() async {
       final service = await BilibiliService.instance;
       final audio = await service.getAudio(bvid, cid);
-      return Uri.parse(audio?.firstOrNull?.baseUrl ?? '');
+      final url = audio?.firstOrNull?.baseUrl;
+      if (url == null || url.isEmpty) {
+        throw Exception('Failed to get audio URL for bvid=$bvid, cid=$cid');
+      }
+      return Uri.parse(url);
     });
   }
 
