@@ -321,7 +321,7 @@ Future<Response<dynamic>> _retry(RequestOptions requestOptions) async {
   Future<List<Audio>?> getAudio(String bvid, int cid) async {
     final hires = await SharedPreferencesService.getHiResFirst();
     return _callAPI(apiAudioUrl,
-        queryParameters: {'bvid': bvid, 'cid': cid, 'fnval': 16},
+        queryParameters: {'bvid': bvid, 'cid': cid, 'fnval': 4048},
         callback: (data) {
       final dash = TrackResult.fromJson(data).dash;
       if (hires && dash.flac?.audio != null) {
